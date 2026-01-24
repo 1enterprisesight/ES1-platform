@@ -8,6 +8,7 @@ spec:
     spec:
       containers:
         - name: krakend
+          imagePullPolicy: Never
           resources:
             requests:
               cpu: 50m

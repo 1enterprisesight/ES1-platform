@@ -44,16 +44,16 @@ spec:
               memory: 512Mi
           livenessProbe:
             httpGet:
-              path: /__health
-              port: 8090
+              path: /health
+              port: 8080
             initialDelaySeconds: 10
             periodSeconds: 30
             timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /__health
-              port: 8090
+              path: /health
+              port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
