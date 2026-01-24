@@ -1,0 +1,80 @@
+{
+  "$schema": "https://www.krakend.io/schema/krakend.json",
+  "version": 3,
+  "name": "ES1 Platform API Gateway",
+  "port": 8080,
+  "timeout": "30s",
+  "cache_ttl": "300s",
+  "output_encoding": "json",
+  "extra_config": {
+    "router": {
+      "return_error_msg": true
+    },
+    "telemetry/logging": {
+      "level": "INFO",
+      "prefix": "[KRAKEND]",
+      "syslog": false,
+      "stdout": true
+    },
+    "telemetry/metrics": {
+      "collection_time": "30s",
+      "listen_address": ":8090"
+    },
+    "security/cors": {
+      "allow_origins": ["*"],
+      "allow_methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      "allow_headers": ["Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID"],
+      "expose_headers": ["X-Request-ID"],
+      "max_age": "12h"
+    }
+  },
+  "endpoints": [
+    {
+      "endpoint": "/health",
+      "method": "GET",
+      "output_encoding": "json",
+      "backend": [
+        {
+          "host": ["http://localhost:8080"],
+          "url_pattern": "/__health",
+          "encoding": "json"
+        }
+      ],
+      "extra_config": {
+        "proxy": {
+          "static": {
+            "data": {
+              "status": "healthy",
+              "service": "krakend"
+            },
+            "strategy": "always"
+          }
+        }
+      }
+    },
+    {
+      "endpoint": "/api/v1/info",
+      "method": "GET",
+      "output_encoding": "json",
+      "backend": [
+        {
+          "host": ["http://localhost:8080"],
+          "url_pattern": "/__health",
+          "encoding": "json"
+        }
+      ],
+      "extra_config": {
+        "proxy": {
+          "static": {
+            "data": {
+              "name": "ES1 Platform API",
+              "version": "1.0.0",
+              "gateway": "krakend"
+            },
+            "strategy": "always"
+          }
+        }
+      }
+    }
+  ]
+}

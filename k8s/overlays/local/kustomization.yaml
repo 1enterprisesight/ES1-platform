@@ -1,0 +1,22 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+  - secrets.yaml
+
+patches:
+  - path: patches/krakend-patch.yaml
+
+labels:
+  - pairs:
+      environment: local
+    includeSelectors: false
+
+replicas:
+  - name: krakend
+    count: 1
+
+images:
+  - name: ghcr.io/1enterprisesight/es1-platform/krakend
+    newTag: local

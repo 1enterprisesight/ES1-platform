@@ -1,0 +1,42 @@
+# Infrastructure only - for hybrid development
+# Run services locally while using containerized Postgres + Redis
+# Usage: docker compose -f docker-compose.infra.yml up -d
+
+services:
+  postgres:
+    build:
+      context: ./infrastructure/postgres
+      dockerfile: Dockerfile
+    container_name: es1-postgres
+    environment:
+      POSTGRES_DB: es1_platform
+      POSTGRES_USER: es1_user
+      POSTGRES_PASSWORD: es1_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U es1_user -d es1_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    build:
+      context: ./infrastructure/redis
+      dockerfile: Dockerfile
+    container_name: es1-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

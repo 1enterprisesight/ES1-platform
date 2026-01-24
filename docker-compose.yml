@@ -1,0 +1,73 @@
+# Full local development environment with hot reload
+# Usage: docker compose up -d
+
+services:
+  # ==========================================================================
+  # Infrastructure
+  # ==========================================================================
+  postgres:
+    build:
+      context: ./infrastructure/postgres
+      dockerfile: Dockerfile
+    container_name: es1-postgres
+    environment:
+      POSTGRES_DB: es1_platform
+      POSTGRES_USER: es1_user
+      POSTGRES_PASSWORD: es1_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U es1_user -d es1_platform"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - es1-network
+
+  redis:
+    build:
+      context: ./infrastructure/redis
+      dockerfile: Dockerfile
+    container_name: es1-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - es1-network
+
+  # ==========================================================================
+  # API Gateway (KrakenD)
+  # ==========================================================================
+  krakend:
+    build:
+      context: ./services/krakend
+      dockerfile: Dockerfile.dev
+    container_name: es1-krakend
+    ports:
+      - "8080:8080"   # API
+      - "8090:8090"   # Metrics
+    volumes:
+      - ./services/krakend/config:/etc/krakend:cached
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - es1-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  es1-network:
+    driver: bridge

@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1
+# Development Dockerfile - Node.js Service Template
+
+FROM node:20-slim
+
+LABEL org.opencontainers.image.source="https://github.com/1enterprisesight/ES1-platform"
+
+RUN groupadd --gid 1000 appgroup && \
+    useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+USER appuser
+
+ENV NODE_ENV=development \
+    PORT=8000
+
+EXPOSE 8000 9229
+
+CMD ["npm", "run", "dev"]

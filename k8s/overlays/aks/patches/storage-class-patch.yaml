@@ -1,0 +1,8 @@
+# AKS storage class for PVCs (managed-premium)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: postgres-pvc
+  namespace: es1-infrastructure
+spec:
+  storageClassName: managed-premium

@@ -1,0 +1,16 @@
+# syntax=docker/dockerfile:1
+# Development Dockerfile for KrakenD
+# Supports hot reload via watch mode
+
+FROM devopsfaith/krakend:2.6-watch
+
+LABEL org.opencontainers.image.source="https://github.com/1enterprisesight/ES1-platform"
+LABEL org.opencontainers.image.description="ES1 Platform API Gateway (KrakenD Development)"
+
+# Config will be mounted as volume for hot reload
+USER krakend
+
+EXPOSE 8080 8090
+
+ENTRYPOINT ["/usr/bin/krakend"]
+CMD ["run", "-d", "-c", "/etc/krakend/krakend.json", "-w"]

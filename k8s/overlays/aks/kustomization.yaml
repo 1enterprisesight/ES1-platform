@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../base
+
+patches:
+  - path: patches/krakend-patch.yaml
+  - path: patches/storage-class-patch.yaml
+
+labels:
+  - pairs:
+      environment: aks
+      azure.com/aks: "true"
+    includeSelectors: false
+
+replicas:
+  - name: krakend
+    count: 3
+
+images:
+  - name: ghcr.io/1enterprisesight/es1-platform/krakend
+    newTag: latest

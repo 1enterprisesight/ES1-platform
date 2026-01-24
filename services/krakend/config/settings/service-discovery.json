@@ -1,0 +1,15 @@
+{
+  "$schema": "https://www.krakend.io/schema/krakend.json",
+  "comment": "Service discovery configuration - customize backend hosts per environment",
+  "services": {
+    "comment": "Add your backend services here. Example:",
+    "user-service": {
+      "local": "http://user-service:8000",
+      "kubernetes": "http://user-service.es1-platform.svc.cluster.local:80"
+    },
+    "order-service": {
+      "local": "http://order-service:8000",
+      "kubernetes": "http://order-service.es1-platform.svc.cluster.local:80"
+    }
+  }
+}

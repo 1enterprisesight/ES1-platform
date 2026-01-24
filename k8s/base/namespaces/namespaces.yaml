@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: es1-platform
+  labels:
+    app.kubernetes.io/part-of: es1-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: es1-infrastructure
+  labels:
+    app.kubernetes.io/part-of: es1-platform
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: es1-monitoring
+  labels:
+    app.kubernetes.io/part-of: es1-platform

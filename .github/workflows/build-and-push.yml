@@ -1,0 +1,137 @@
+name: Build and Push Multi-Arch Images
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - '.github/workflows/build-and-push.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to build (leave empty for all)'
+        required: false
+        default: ''
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/es1-platform
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect changed services
+        id: changes
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && [[ -n "${{ github.event.inputs.service }}" ]]; then
+            echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
+          else
+            # Find services with changes
+            SERVICES=$(find services -maxdepth 1 -type d -not -name 'service-template-*' -not -name 'services' | \
+              xargs -I {} basename {} | \
+              jq -R -s -c 'split("\n") | map(select(length > 0))')
+            echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: needs.detect-changes.outputs.services != '[]'
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      fail-fast: false
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check if Dockerfile exists
+        id: dockerfile
+        run: |
+          if [[ -f "services/${{ matrix.service }}/Dockerfile" ]]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up QEMU
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        if: steps.dockerfile.outputs.exists == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.dockerfile.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+
+      - name: Build and push
+        if: steps.dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: services/${{ matrix.service }}
+          file: services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Case sensitivity check
+  case-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for case-sensitivity issues
+        run: |
+          echo "Checking for potential case-sensitivity issues..."
+
+          # Find potential import issues in Python
+          find services -name "*.py" -exec grep -l "^from\|^import" {} \; | while read file; do
+            # Check if any imported module exists with different case
+            dir=$(dirname "$file")
+            grep -E "^(from|import)" "$file" | grep -oE "[a-zA-Z_][a-zA-Z0-9_]*" | head -20 | while read module; do
+              if [[ -d "$dir/$module" ]] || [[ -f "$dir/$module.py" ]]; then
+                actual=$(ls -1 "$dir" 2>/dev/null | grep -i "^${module}\$" | head -1)
+                if [[ -n "$actual" ]] && [[ "$actual" != "$module" ]]; then
+                  echo "WARNING: Case mismatch in $file: imported '$module' but found '$actual'"
+                fi
+              fi
+            done
+          done
+
+          echo "Case sensitivity check complete"

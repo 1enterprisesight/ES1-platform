@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+# Development Dockerfile - Go Service Template
+
+FROM golang:1.22-alpine
+
+LABEL org.opencontainers.image.source="https://github.com/1enterprisesight/ES1-platform"
+
+# Install air for hot reload
+RUN go install github.com/air-verse/air@latest
+
+WORKDIR /app
+
+COPY go.mod go.sum* ./
+RUN go mod download
+
+# Source will be mounted as volume
+
+ENV PORT=8000
+
+EXPOSE 8000 2345
+
+CMD ["air", "-c", ".air.toml"]
