@@ -6,6 +6,7 @@ import App from './App'
 import { ThemeProvider } from './shared/contexts/ThemeContext'
 import { EventBusProvider } from './shared/contexts/EventBusContext'
 import { ToastProvider } from './shared/contexts/ToastContext'
+import { BrandingProvider } from './shared/contexts/BrandingContext'
 import './index.css'
 
 const queryClient = new QueryClient({
@@ -22,11 +23,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider>
-          <EventBusProvider>
-            <ToastProvider>
-              <App />
-            </ToastProvider>
-          </EventBusProvider>
+          <BrandingProvider>
+            <EventBusProvider>
+              <ToastProvider>
+                <App />
+              </ToastProvider>
+            </EventBusProvider>
+          </BrandingProvider>
         </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>

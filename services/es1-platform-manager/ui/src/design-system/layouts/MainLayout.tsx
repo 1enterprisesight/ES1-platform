@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/ThemeContext'
 import { useEventBus, PlatformEvent } from '@/shared/contexts/EventBusContext'
+import { useBranding } from '@/shared/contexts/BrandingContext'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '../components/Button'
 
@@ -29,14 +30,22 @@ const navItems = [
 export function MainLayout() {
   const { setTheme, resolvedTheme } = useTheme()
   const { events, connected } = useEventBus()
+  const { branding } = useBranding()
 
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
       <aside className="w-64 border-r bg-card flex flex-col">
         {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b">
-          <h1 className="text-lg font-semibold">ES1 Platform</h1>
+        <div className="h-14 flex items-center px-4 border-b gap-3">
+          {branding.logo_url && (
+            <img
+              src={resolvedTheme === 'dark' && branding.logo_dark_url ? branding.logo_dark_url : branding.logo_url}
+              alt={branding.name}
+              className="h-8 w-auto"
+            />
+          )}
+          <h1 className="text-lg font-semibold truncate">{branding.name}</h1>
         </div>
 
         {/* Navigation */}
