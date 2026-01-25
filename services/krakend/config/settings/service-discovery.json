@@ -2,14 +2,33 @@
   "$schema": "https://www.krakend.io/schema/krakend.json",
   "comment": "Service discovery configuration - customize backend hosts per environment",
   "services": {
-    "comment": "Add your backend services here. Example:",
-    "user-service": {
-      "local": "http://user-service:8000",
-      "kubernetes": "http://user-service.es1-platform.svc.cluster.local:80"
+    "gateway-manager-api": {
+      "local": "http://gateway-manager-api:8000",
+      "kubernetes": "http://gateway-manager-api.es1-platform.svc.cluster.local:8000"
     },
-    "order-service": {
-      "local": "http://order-service:8000",
-      "kubernetes": "http://order-service.es1-platform.svc.cluster.local:80"
+    "gateway-manager-ui": {
+      "local": "http://gateway-manager-ui:80",
+      "kubernetes": "http://gateway-manager-ui.es1-platform.svc.cluster.local:80"
+    },
+    "airflow": {
+      "local": "http://airflow-webserver:8080",
+      "kubernetes": "http://airflow-webserver.es1-infrastructure.svc.cluster.local:8080"
+    },
+    "langfuse": {
+      "local": "http://langfuse:3000",
+      "kubernetes": "http://langfuse.es1-infrastructure.svc.cluster.local:3000"
+    },
+    "langflow": {
+      "local": "http://langflow:7860",
+      "kubernetes": "http://langflow.es1-infrastructure.svc.cluster.local:7860"
+    },
+    "postgres": {
+      "local": "postgres:5432",
+      "kubernetes": "postgres.es1-infrastructure.svc.cluster.local:5432"
+    },
+    "redis": {
+      "local": "redis:6379",
+      "kubernetes": "redis.es1-infrastructure.svc.cluster.local:6379"
     }
   }
 }

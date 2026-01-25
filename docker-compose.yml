@@ -55,7 +55,16 @@ services:
       - "8080:8080"   # API
       - "8090:8090"   # Metrics
     volumes:
+      # Primary config from local filesystem (for development)
       - ./services/krakend/config:/etc/krakend:cached
+      # Shared config from Gateway Manager (for managed deployments)
+      - krakend_config:/shared/krakend:ro
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/__health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
     depends_on:
       postgres:
         condition: service_healthy
@@ -67,6 +76,8 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  krakend_config:
+    # Shared volume for Gateway Manager to deploy configs
 
 networks:
   es1-network:

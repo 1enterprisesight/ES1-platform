@@ -1,0 +1,62 @@
+# Langflow visual LLM pipeline builder for ES1 Platform
+# Usage: docker compose -f docker-compose.yml -f docker-compose.langflow.yml up -d
+#
+# Langflow provides:
+# - Visual drag-and-drop LLM flow builder
+# - Pre-built components for common LLM patterns
+# - Integration with Airflow DAGs for orchestration
+# - API endpoints for flow execution
+#
+# Access:
+# - Web UI: http://localhost:7860
+# - API: http://localhost:7860/api/v1/
+
+services:
+  langflow:
+    image: langflowai/langflow:latest
+    container_name: es1-langflow
+    user: root
+    ports:
+      - "7860:7860"
+    environment:
+      # Database
+      LANGFLOW_DATABASE_URL: postgresql://es1_user:es1_dev_password@postgres:5432/langflow
+      # Configuration
+      LANGFLOW_CONFIG_DIR: /tmp/langflow
+      LANGFLOW_LOG_LEVEL: info
+      # Server settings
+      LANGFLOW_HOST: 0.0.0.0
+      LANGFLOW_PORT: 7860
+      # Workers
+      LANGFLOW_WORKERS: 1
+      # Cache
+      LANGFLOW_CACHE_TYPE: memory
+      # Authentication - Disable auth for local development
+      LANGFLOW_AUTO_LOGIN: "true"
+      LANGFLOW_DO_NOT_TRACK: "true"
+      LANGFLOW_SKIP_AUTH_AUTO_LOGIN: "true"
+      # Superuser for API access (development only)
+      LANGFLOW_SUPERUSER: admin
+      LANGFLOW_SUPERUSER_PASSWORD: admin
+      LANGFLOW_NEW_USER_IS_ACTIVE: "true"
+      # Airflow connection for DAG triggering
+      AIRFLOW_API_URL: http://airflow-webserver:8080/api/v1
+      AIRFLOW_USERNAME: airflow
+      AIRFLOW_PASSWORD: airflow
+    volumes:
+      - langflow_data:/tmp/langflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - es1-network
+
+volumes:
+  langflow_data:

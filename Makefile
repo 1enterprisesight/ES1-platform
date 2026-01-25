@@ -1,7 +1,7 @@
 # ES1 Platform Makefile
 # Common commands for development and deployment
 
-.PHONY: help up down logs build build-all build-multiarch deploy-local setup clean new-service test lint
+.PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push
 
 REGISTRY ?= ghcr.io/1enterprisesight/es1-platform
 TAG ?= local
@@ -13,14 +13,53 @@ help: ## Show this help
 # Docker Compose Commands
 # =============================================================================
 
-up: ## Start all services with Docker Compose (hot reload)
+up: ## Start base services (Postgres, Redis, KrakenD)
 	docker compose up -d
 
 up-infra: ## Start only infrastructure (Postgres + Redis)
 	docker compose -f docker-compose.infra.yml up -d
 
+up-full: ## Start ALL services (infrastructure + Airflow + Langfuse + Langflow + Platform Manager)
+	docker compose \
+		-f docker-compose.yml \
+		-f docker-compose.airflow.yml \
+		-f docker-compose.langfuse.yml \
+		-f docker-compose.langflow.yml \
+		-f docker-compose.es1-platform-manager.yml \
+		up -d
+
+up-airflow: ## Start base + Airflow
+	docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d
+
+up-langfuse: ## Start base + Langfuse
+	docker compose -f docker-compose.yml -f docker-compose.langfuse.yml up -d
+
+up-langflow: ## Start base + Langflow
+	docker compose -f docker-compose.yml -f docker-compose.langflow.yml up -d
+
+up-gateway-manager: ## Start base + Gateway Manager (legacy)
+	docker compose -f docker-compose.yml -f docker-compose.gateway-manager.yml up -d
+
+up-platform-manager: ## Start base + ES1 Platform Manager
+	docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml up -d
+
+up-ml-stack: ## Start Airflow + Langfuse + Langflow (ML/AI stack)
+	docker compose \
+		-f docker-compose.yml \
+		-f docker-compose.airflow.yml \
+		-f docker-compose.langfuse.yml \
+		-f docker-compose.langflow.yml \
+		up -d
+
 down: ## Stop all Docker Compose services
-	docker compose down
+	docker compose \
+		-f docker-compose.yml \
+		-f docker-compose.airflow.yml \
+		-f docker-compose.langfuse.yml \
+		-f docker-compose.langflow.yml \
+		-f docker-compose.gateway-manager.yml \
+		-f docker-compose.es1-platform-manager.yml \
+		down 2>/dev/null || true
 	docker compose -f docker-compose.infra.yml down 2>/dev/null || true
 
 logs: ## Tail logs from all services
@@ -28,6 +67,15 @@ logs: ## Tail logs from all services
 
 logs-gw: ## Tail logs from KrakenD only
 	docker compose logs -f krakend
+
+logs-airflow: ## Tail logs from Airflow services
+	docker compose -f docker-compose.yml -f docker-compose.airflow.yml logs -f airflow-webserver airflow-scheduler airflow-worker
+
+logs-gateway-manager: ## Tail logs from Gateway Manager (legacy)
+	docker compose -f docker-compose.yml -f docker-compose.gateway-manager.yml logs -f gateway-manager-api gateway-manager-ui
+
+logs-platform-manager: ## Tail logs from ES1 Platform Manager
+	docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml logs -f es1-platform-manager-api es1-platform-manager-ui
 
 # =============================================================================
 # Build Commands

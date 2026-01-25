@@ -69,12 +69,200 @@
             "data": {
               "name": "ES1 Platform API",
               "version": "1.0.0",
-              "gateway": "krakend"
+              "gateway": "krakend",
+              "services": {
+                "gateway-manager": "/api/gateway-manager",
+                "airflow": "/api/airflow",
+                "langflow": "/api/langflow",
+                "langfuse": "/api/langfuse"
+              }
             },
             "strategy": "always"
           }
         }
       }
+    },
+    {
+      "@comment": "Gateway Manager API - Resource discovery and exposure management",
+      "endpoint": "/api/gateway-manager/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://gateway-manager-api:8000"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/gateway-manager/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://gateway-manager-api:8000"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/gateway-manager/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://gateway-manager-api:8000"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/gateway-manager/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://gateway-manager-api:8000"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "@comment": "Airflow REST API - DAG management and execution",
+      "endpoint": "/api/airflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op",
+          "extra_config": {
+            "auth/api-keys": {
+              "keys": []
+            }
+          }
+        }
+      ],
+      "extra_config": {
+        "auth/basic": {
+          "htpasswd_path": ""
+        }
+      }
+    },
+    {
+      "endpoint": "/api/airflow/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/airflow/{path}",
+      "method": "PATCH",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/airflow/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "@comment": "Langflow API - Visual LLM pipeline execution",
+      "endpoint": "/api/langflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://langflow:7860"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/langflow/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://langflow:7860"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/langflow/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://langflow:7860"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/langflow/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://langflow:7860"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "@comment": "Langfuse API - LLM observability and tracing",
+      "endpoint": "/api/langfuse/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://langfuse:3000"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/langfuse/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "backend": [
+        {
+          "host": ["http://langfuse:3000"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
     }
   ]
 }

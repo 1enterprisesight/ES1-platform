@@ -1,0 +1,176 @@
+import { Outlet, NavLink } from 'react-router-dom'
+import {
+  LayoutDashboard,
+  Network,
+  Workflow,
+  Brain,
+  Settings,
+  Moon,
+  Sun,
+  Activity,
+  Wifi,
+  WifiOff,
+  LineChart,
+} from 'lucide-react'
+import { useTheme } from '@/shared/contexts/ThemeContext'
+import { useEventBus, PlatformEvent } from '@/shared/contexts/EventBusContext'
+import { cn } from '@/shared/utils/cn'
+import { Button } from '../components/Button'
+
+const navItems = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/gateway', icon: Network, label: 'Gateway' },
+  { to: '/workflows', icon: Workflow, label: 'Workflows' },
+  { to: '/ai', icon: Brain, label: 'AI Flows' },
+  { to: '/observability', icon: LineChart, label: 'Observability' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
+]
+
+export function MainLayout() {
+  const { theme, setTheme, resolvedTheme } = useTheme()
+  const { events, connected } = useEventBus()
+
+  return (
+    <div className="flex h-screen bg-background">
+      {/* Sidebar */}
+      <aside className="w-64 border-r bg-card flex flex-col">
+        {/* Logo */}
+        <div className="h-14 flex items-center px-4 border-b">
+          <h1 className="text-lg font-semibold">ES1 Platform</h1>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4 space-y-1">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) =>
+                cn(
+                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                  isActive
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent hover:text-accent-foreground'
+                )
+              }
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Theme Toggle */}
+        <div className="p-4 border-t">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          >
+            {resolvedTheme === 'dark' ? (
+              <>
+                <Sun className="h-4 w-4 mr-2" />
+                Light Mode
+              </>
+            ) : (
+              <>
+                <Moon className="h-4 w-4 mr-2" />
+                Dark Mode
+              </>
+            )}
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Top Bar */}
+        <header className="h-14 border-b bg-card flex items-center justify-between px-6">
+          <div className="flex items-center gap-2">
+            {connected ? (
+              <Wifi className="h-4 w-4 text-green-500" />
+            ) : (
+              <WifiOff className="h-4 w-4 text-red-500" />
+            )}
+            <span className="text-sm text-muted-foreground">
+              {connected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+        </header>
+
+        {/* Page Content with Activity Feed */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Main Content Area */}
+          <main className="flex-1 overflow-auto p-6">
+            <Outlet />
+          </main>
+
+          {/* Activity Feed Sidebar */}
+          <aside className="w-80 border-l bg-card overflow-hidden flex flex-col">
+            <div className="h-12 flex items-center px-4 border-b">
+              <Activity className="h-4 w-4 mr-2" />
+              <h2 className="font-medium">Activity Feed</h2>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {events.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">
+                  No recent activity
+                </div>
+              ) : (
+                <div className="divide-y">
+                  {events.slice(0, 20).map((event) => (
+                    <ActivityItem key={event.id} event={event} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ActivityItem({ event }: { event: PlatformEvent }) {
+  const typeStyles: Record<string, string> = {
+    deployment_started: 'text-blue-500',
+    deployment_completed: 'text-green-500',
+    deployment_failed: 'text-red-500',
+    operation_started: 'text-blue-500',
+    operation_completed: 'text-green-500',
+    operation_failed: 'text-red-500',
+    exposure_created: 'text-purple-500',
+    exposure_approved: 'text-green-500',
+    resource_discovered: 'text-blue-500',
+    system_info: 'text-blue-500',
+    system_warning: 'text-yellow-500',
+    system_error: 'text-red-500',
+  }
+
+  const formatEventType = (type: string) => {
+    return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+  }
+
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp)
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  return (
+    <div className="p-3 hover:bg-accent/50 transition-colors">
+      <div className="flex items-start justify-between gap-2">
+        <span className={cn('text-xs font-medium', typeStyles[event.type] || 'text-muted-foreground')}>
+          {formatEventType(event.type)}
+        </span>
+        <span className="text-xs text-muted-foreground">{formatTime(event.timestamp)}</span>
+      </div>
+      {event.data.message && (
+        <p className="text-sm text-foreground mt-1 line-clamp-2">
+          {String(event.data.message)}
+        </p>
+      )}
+    </div>
+  )
+}

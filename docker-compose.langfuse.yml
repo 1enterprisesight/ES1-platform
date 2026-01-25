@@ -1,0 +1,43 @@
+# Langfuse LLM observability service for ES1 Platform
+# Usage: docker compose -f docker-compose.yml -f docker-compose.langfuse.yml up -d
+#
+# Langfuse provides:
+# - LLM request/response tracing
+# - Performance monitoring and analytics
+# - Cost tracking for LLM operations
+# - Prompt management and versioning
+#
+# Access:
+# - Web UI: http://localhost:3000
+# - API: http://localhost:3000/api/
+# - Default setup: Create account on first access
+
+services:
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: es1-langfuse
+    ports:
+      - "3000:3000"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://es1_user:es1_dev_password@postgres:5432/langfuse
+      # Auth (generate with: openssl rand -base64 32)
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: es1-langfuse-dev-secret-change-in-production
+      SALT: es1-langfuse-salt-change-in-production
+      # Telemetry (disable for local dev)
+      TELEMETRY_ENABLED: "false"
+      # Allow signup for local development
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/public/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - es1-network

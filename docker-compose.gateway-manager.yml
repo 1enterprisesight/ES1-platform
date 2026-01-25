@@ -1,0 +1,122 @@
+# Gateway Manager services for ES1 Platform
+# Usage: docker compose -f docker-compose.yml -f docker-compose.gateway-manager.yml up -d
+#
+# Gateway Manager provides:
+# - Resource discovery from Airflow DAGs, Langflow flows, and K8s services
+# - Exposure management for creating API endpoints
+# - KrakenD configuration generation and deployment
+# - Approval workflow for production changes
+#
+# Access:
+# - UI: http://localhost:3001
+# - API: http://localhost:8000
+# - Health: http://localhost:8000/health
+
+services:
+  gateway-manager-api:
+    build:
+      context: ./services/gateway-manager/api
+      dockerfile: Dockerfile
+    container_name: es1-gateway-manager-api
+    ports:
+      - "8000:8000"
+    environment:
+      # ==========================================================================
+      # Runtime Mode (docker or kubernetes)
+      # ==========================================================================
+      RUNTIME_MODE: docker
+
+      # ==========================================================================
+      # Database
+      # ==========================================================================
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: gateway_manager
+      POSTGRES_USER: es1_user
+      POSTGRES_PASSWORD: es1_dev_password
+
+      # ==========================================================================
+      # KrakenD Configuration
+      # ==========================================================================
+      KRAKEND_URL: http://krakend:8080
+      KRAKEND_HEALTH_URL: http://krakend:8080/__health
+      KRAKEND_METRICS_URL: http://krakend:9091/metrics
+      KRAKEND_CONFIG_PATH: /shared/krakend/krakend.json
+
+      # Kubernetes settings (used when RUNTIME_MODE=kubernetes)
+      K8S_NAMESPACE: es1-platform
+      KRAKEND_NAMESPACE: es1-infrastructure
+      KRAKEND_CONFIGMAP_NAME: krakend-config
+      KRAKEND_DEPLOYMENT_NAME: krakend
+
+      # ==========================================================================
+      # Airflow Integration
+      # ==========================================================================
+      AIRFLOW_API_URL: http://airflow-webserver:8080/api/v1
+      AIRFLOW_BACKEND_HOST: http://airflow-webserver:8080
+      AIRFLOW_USERNAME: airflow
+      AIRFLOW_PASSWORD: airflow
+
+      # ==========================================================================
+      # Langflow Integration
+      # ==========================================================================
+      LANGFLOW_URL: http://langflow:7860
+      LANGFLOW_API_URL: http://langflow:7860/api/v1
+      LANGFLOW_ENABLED: "true"
+
+      # ==========================================================================
+      # Langfuse Integration (Observability)
+      # ==========================================================================
+      LANGFUSE_URL: http://langfuse:3000
+      LANGFUSE_API_URL: http://langfuse:3000/api
+      LANGFUSE_ENABLED: "true"
+
+      # ==========================================================================
+      # Database API Pattern (for connection exposure)
+      # ==========================================================================
+      DB_API_HOST_PATTERN: http://db-api-{db_type}:8080
+
+    volumes:
+      # Shared volume for KrakenD config deployment
+      - krakend_config:/shared/krakend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - es1-network
+
+  gateway-manager-ui:
+    build:
+      context: ./services/gateway-manager/ui
+      dockerfile: Dockerfile
+    container_name: es1-gateway-manager-ui
+    ports:
+      - "3001:80"
+    environment:
+      # API URL is handled by nginx proxy in production
+      # For development, vite proxy handles /api/* requests
+      NGINX_UPSTREAM_API: gateway-manager-api:8000
+    depends_on:
+      gateway-manager-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - es1-network
+
+volumes:
+  krakend_config:
+    # Shared between gateway-manager-api and krakend
+    # Gateway Manager writes config, KrakenD reads it
