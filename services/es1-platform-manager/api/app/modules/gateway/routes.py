@@ -40,7 +40,13 @@ from app.modules.gateway.schemas import (
     RejectRequest,
     RollbackRequest,
     ResourceInfo,
+    CurrentConfigResponse,
+    ConfigFileInfo,
+    ConfigDiffRequest,
+    ConfigDiffResponse,
 )
+from app.core.config import settings
+from app.core.runtime import RUNTIME_MODE
 from app.modules.gateway.services import DeploymentEngine
 from app.modules.gateway.generators import GeneratorRegistry
 
@@ -618,3 +624,108 @@ async def get_gateway_status(db: AsyncSession = Depends(get_db)):
         "pending_approvals": pending_count or 0,
         "ready_to_deploy": approved_count or 0,
     }
+
+
+# =============================================================================
+# Current Config Routes
+# =============================================================================
+
+@router.get("/gateway/config/current", response_model=CurrentConfigResponse)
+async def get_current_gateway_config():
+    """
+    Get the currently deployed KrakenD configuration.
+
+    This returns the actual configuration file that is currently
+    being used by the KrakenD gateway.
+    """
+    engine = DeploymentEngine()
+    config = await engine.get_current_config()
+
+    endpoint_count = 0
+    if config and "endpoints" in config:
+        endpoint_count = len(config.get("endpoints", []))
+
+    return CurrentConfigResponse(
+        config=config,
+        config_path=settings.KRAKEND_CONFIG_PATH,
+        mode=RUNTIME_MODE.value,
+        has_config=config is not None,
+        endpoint_count=endpoint_count,
+    )
+
+
+@router.get("/gateway/config/files", response_model=list[ConfigFileInfo])
+async def list_config_files():
+    """
+    List available configuration version files.
+
+    In Docker mode, this returns the backup files stored on disk.
+    In Kubernetes mode, this returns ConfigMap revisions.
+    """
+    engine = DeploymentEngine()
+    files = await engine.list_config_files()
+    return [ConfigFileInfo(**f) for f in files]
+
+
+@router.post("/gateway/config/diff", response_model=ConfigDiffResponse)
+async def diff_config_versions(
+    data: ConfigDiffRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Compare two configuration versions and return the differences.
+
+    Useful for reviewing what changed between deployments.
+    """
+    # Get version A
+    query_a = select(ConfigVersion).where(ConfigVersion.version == data.version_a)
+    result_a = await db.execute(query_a)
+    version_a = result_a.scalar_one_or_none()
+
+    if not version_a:
+        raise HTTPException(status_code=404, detail=f"Version {data.version_a} not found")
+
+    # Get version B
+    query_b = select(ConfigVersion).where(ConfigVersion.version == data.version_b)
+    result_b = await db.execute(query_b)
+    version_b = result_b.scalar_one_or_none()
+
+    if not version_b:
+        raise HTTPException(status_code=404, detail=f"Version {data.version_b} not found")
+
+    # Compare endpoints
+    endpoints_a = {e.get("endpoint", ""): e for e in version_a.config_snapshot.get("endpoints", [])}
+    endpoints_b = {e.get("endpoint", ""): e for e in version_b.config_snapshot.get("endpoints", [])}
+
+    added = list(set(endpoints_b.keys()) - set(endpoints_a.keys()))
+    removed = list(set(endpoints_a.keys()) - set(endpoints_b.keys()))
+
+    # Find modified endpoints
+    modified = []
+    common = set(endpoints_a.keys()) & set(endpoints_b.keys())
+    for endpoint in common:
+        if endpoints_a[endpoint] != endpoints_b[endpoint]:
+            modified.append(endpoint)
+
+    # Build detailed diff
+    diff = []
+    for endpoint in added:
+        diff.append({"type": "added", "endpoint": endpoint, "config": endpoints_b[endpoint]})
+    for endpoint in removed:
+        diff.append({"type": "removed", "endpoint": endpoint, "config": endpoints_a[endpoint]})
+    for endpoint in modified:
+        diff.append({
+            "type": "modified",
+            "endpoint": endpoint,
+            "before": endpoints_a[endpoint],
+            "after": endpoints_b[endpoint],
+        })
+
+    return ConfigDiffResponse(
+        version_a=data.version_a,
+        version_b=data.version_b,
+        diff=diff,
+        added_endpoints=added,
+        removed_endpoints=removed,
+        modified_endpoints=modified,
+    )

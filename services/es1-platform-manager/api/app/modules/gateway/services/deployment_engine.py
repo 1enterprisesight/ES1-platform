@@ -352,3 +352,15 @@ class DeploymentEngine:
         if latest:
             return latest.version + 1
         return 1
+
+    async def get_current_config(self) -> dict[str, Any] | None:
+        """Get the currently deployed configuration from the gateway."""
+        if hasattr(self._backend, 'get_current_config'):
+            return await self._backend.get_current_config()
+        return None
+
+    async def list_config_files(self) -> list[dict[str, Any]]:
+        """List available configuration files from the backend."""
+        if hasattr(self._backend, 'list_config_versions'):
+            return await self._backend.list_config_versions()
+        return []

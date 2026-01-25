@@ -2,6 +2,7 @@ import { Routes, Route, NavLink } from 'react-router-dom'
 import { DagsView } from './views/DagsView'
 import { DagRunsView } from './views/DagRunsView'
 import { ConnectionsView } from './views/ConnectionsView'
+import { DagEditorView } from './views/DagEditorView'
 
 export function WorkflowsModule() {
   return (
@@ -37,6 +38,18 @@ export function WorkflowsModule() {
           DAG Runs
         </NavLink>
         <NavLink
+          to="/workflows/editor"
+          className={({ isActive }) =>
+            `pb-2 px-1 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              isActive
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`
+          }
+        >
+          DAG Editor
+        </NavLink>
+        <NavLink
           to="/workflows/connections"
           className={({ isActive }) =>
             `pb-2 px-1 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -53,6 +66,7 @@ export function WorkflowsModule() {
       <Routes>
         <Route path="/" element={<DagsView />} />
         <Route path="/runs" element={<DagRunsView />} />
+        <Route path="/editor" element={<DagEditorView />} />
         <Route path="/connections" element={<ConnectionsView />} />
       </Routes>
     </div>

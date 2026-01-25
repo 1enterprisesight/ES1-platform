@@ -114,3 +114,66 @@ class DiscoveryResultResponse(BaseModel):
     dags_discovered: int
     connections_discovered: int
     message: str
+
+
+# =============================================================================
+# DAG File Management Schemas
+# =============================================================================
+
+class DAGFileInfo(BaseModel):
+    """Schema for DAG file info."""
+    filename: str
+    dag_id: str
+    path: str
+    size: int
+    modified_at: str
+    created_at: str
+
+
+class DAGFileListResponse(BaseModel):
+    """Schema for DAG file list response."""
+    files: list[DAGFileInfo]
+    total: int
+    dags_path: str
+
+
+class DAGFileContentResponse(BaseModel):
+    """Schema for DAG file content response."""
+    filename: str
+    content: str
+    size: int
+
+
+class DAGFileWriteRequest(BaseModel):
+    """Schema for writing/updating a DAG file."""
+    filename: str
+    content: str
+
+
+class DAGFileWriteResponse(BaseModel):
+    """Schema for DAG file write response."""
+    success: bool
+    filename: str
+    message: str
+
+
+class CreateDAGFromTemplateRequest(BaseModel):
+    """Schema for creating a DAG from template."""
+    dag_id: str
+    template: str = "basic"
+    description: str = ""
+    owner: str = "airflow"
+    schedule: str | None = None
+    tags: list[str] = []
+
+
+class DAGTemplateInfo(BaseModel):
+    """Schema for DAG template info."""
+    id: str
+    name: str
+    description: str
+
+
+class DAGTemplateListResponse(BaseModel):
+    """Schema for DAG template list response."""
+    templates: list[DAGTemplateInfo]

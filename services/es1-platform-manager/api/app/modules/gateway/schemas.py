@@ -249,3 +249,39 @@ class RollbackRequest(BaseModel):
     version: int
     deployed_by: str
     reason: str | None = None
+
+
+# =============================================================================
+# Current Config Schemas
+# =============================================================================
+
+class CurrentConfigResponse(BaseModel):
+    """Schema for current gateway config response."""
+    config: dict[str, Any] | None
+    config_path: str | None = None
+    mode: str  # docker, kubernetes
+    has_config: bool
+    endpoint_count: int = 0
+
+
+class ConfigFileInfo(BaseModel):
+    """Schema for config file version info."""
+    version: int
+    file: str
+    modified_at: str
+
+
+class ConfigDiffRequest(BaseModel):
+    """Schema for requesting config diff between versions."""
+    version_a: int
+    version_b: int
+
+
+class ConfigDiffResponse(BaseModel):
+    """Schema for config diff response."""
+    version_a: int
+    version_b: int
+    diff: list[dict[str, Any]]  # List of differences
+    added_endpoints: list[str]
+    removed_endpoints: list[str]
+    modified_endpoints: list[str]

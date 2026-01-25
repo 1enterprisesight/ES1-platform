@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     AIRFLOW_CREDENTIALS_SECRET: str = "airflow-credentials"
     AIRFLOW_CREDENTIALS_NAMESPACE: str = "es1-infrastructure"
 
+    # DAG file management (path to Airflow dags folder)
+    AIRFLOW_DAGS_PATH: str = "/shared/airflow/dags"
+
     # ==========================================================================
     # Langflow Integration
     # ==========================================================================

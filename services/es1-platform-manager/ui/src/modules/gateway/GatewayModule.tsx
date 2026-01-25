@@ -4,11 +4,13 @@ import { ResourcesView } from './views/ResourcesView'
 import { ExposuresView } from './views/ExposuresView'
 import { DeploymentsView } from './views/DeploymentsView'
 import { HealthView } from './views/HealthView'
+import { ConfigView } from './views/ConfigView'
 
 const tabs = [
   { path: '/gateway', label: 'Resources', exact: true },
   { path: '/gateway/exposures', label: 'Exposures' },
   { path: '/gateway/deployments', label: 'Deployments' },
+  { path: '/gateway/config', label: 'Config' },
   { path: '/gateway/health', label: 'Health' },
 ]
 
@@ -54,6 +56,7 @@ export function GatewayModule() {
         <Route index element={<ResourcesView />} />
         <Route path="exposures" element={<ExposuresView />} />
         <Route path="deployments" element={<DeploymentsView />} />
+        <Route path="config" element={<ConfigView />} />
         <Route path="health" element={<HealthView />} />
       </Routes>
     </div>

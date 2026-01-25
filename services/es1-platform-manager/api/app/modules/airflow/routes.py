@@ -16,6 +16,14 @@ from .schemas import (
     ConnectionListResponse,
     AirflowHealthResponse,
     DiscoveryResultResponse,
+    DAGFileInfo,
+    DAGFileListResponse,
+    DAGFileContentResponse,
+    DAGFileWriteRequest,
+    DAGFileWriteResponse,
+    CreateDAGFromTemplateRequest,
+    DAGTemplateInfo,
+    DAGTemplateListResponse,
 )
 
 router = APIRouter(prefix="/airflow", tags=["Airflow"])
@@ -312,3 +320,114 @@ async def discover_resources(db: AsyncSession = Depends(get_db)):
             },
         )
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# DAG File Management Routes
+# =============================================================================
+
+@router.get("/dag-files", response_model=DAGFileListResponse)
+async def list_dag_files():
+    """List all DAG files in the dags directory."""
+    files = airflow_client.list_dag_files()
+    return DAGFileListResponse(
+        files=[DAGFileInfo(**f) for f in files],
+        total=len(files),
+        dags_path=str(airflow_client.get_dags_path()),
+    )
+
+
+@router.get("/dag-files/{filename}", response_model=DAGFileContentResponse)
+async def get_dag_file(filename: str):
+    """Get the content of a DAG file."""
+    content = airflow_client.read_dag_file(filename)
+    if content is None:
+        raise HTTPException(status_code=404, detail=f"DAG file not found: {filename}")
+
+    return DAGFileContentResponse(
+        filename=filename,
+        content=content,
+        size=len(content),
+    )
+
+
+@router.put("/dag-files", response_model=DAGFileWriteResponse)
+async def write_dag_file(request: DAGFileWriteRequest):
+    """Create or update a DAG file."""
+    success = airflow_client.write_dag_file(request.filename, request.content)
+
+    if success:
+        await event_bus.publish(
+            EventType.OPERATION_COMPLETED,
+            {
+                "operation": "dag_file_saved",
+                "filename": request.filename,
+                "message": f"DAG file {request.filename} saved",
+            },
+        )
+        return DAGFileWriteResponse(
+            success=True,
+            filename=request.filename,
+            message=f"DAG file {request.filename} saved successfully",
+        )
+    else:
+        raise HTTPException(status_code=500, detail="Failed to write DAG file")
+
+
+@router.delete("/dag-files/{filename}")
+async def delete_dag_file(filename: str):
+    """Delete a DAG file."""
+    success = airflow_client.delete_dag_file(filename)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"DAG file not found: {filename}")
+
+    await event_bus.publish(
+        EventType.OPERATION_COMPLETED,
+        {
+            "operation": "dag_file_deleted",
+            "filename": filename,
+            "message": f"DAG file {filename} deleted",
+        },
+    )
+
+    return {"success": True, "message": f"DAG file {filename} deleted"}
+
+
+@router.get("/dag-templates", response_model=DAGTemplateListResponse)
+async def list_dag_templates():
+    """List available DAG templates."""
+    templates = airflow_client.get_available_templates()
+    return DAGTemplateListResponse(
+        templates=[DAGTemplateInfo(**t) for t in templates]
+    )
+
+
+@router.post("/dag-files/from-template", response_model=DAGFileWriteResponse)
+async def create_dag_from_template(request: CreateDAGFromTemplateRequest):
+    """Create a new DAG file from a template."""
+    success, result = airflow_client.create_dag_from_template(
+        dag_id=request.dag_id,
+        template=request.template,
+        description=request.description,
+        owner=request.owner,
+        schedule=request.schedule,
+        tags=request.tags,
+    )
+
+    if success:
+        await event_bus.publish(
+            EventType.OPERATION_COMPLETED,
+            {
+                "operation": "dag_created",
+                "dag_id": request.dag_id,
+                "filename": result,
+                "message": f"DAG {request.dag_id} created from template {request.template}",
+            },
+        )
+        return DAGFileWriteResponse(
+            success=True,
+            filename=result,
+            message=f"DAG {request.dag_id} created successfully",
+        )
+    else:
+        raise HTTPException(status_code=400, detail=result)
