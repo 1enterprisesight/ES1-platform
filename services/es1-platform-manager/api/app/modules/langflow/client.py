@@ -47,12 +47,17 @@ class LangflowClient:
             return {"status": "disabled", "message": "Langflow integration is disabled"}
 
         try:
-            client = await self._get_client()
-            # Langflow health endpoint
-            response = await client.get("/health")
-            if response.status_code == 200:
-                return {"status": "healthy", "data": response.json()}
-            return {"status": "unhealthy", "error": f"HTTP {response.status_code}"}
+            # Health endpoint is at root, not API path
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{settings.LANGFLOW_URL}/health")
+                if response.status_code == 200:
+                    data = response.json()
+                    # Langflow returns {"status": "ok"} when healthy
+                    status = data.get("status", "unknown")
+                    if status in ("ok", "healthy"):
+                        return {"status": "healthy", "data": data}
+                    return {"status": "unhealthy", "error": f"Status: {status}"}
+                return {"status": "unhealthy", "error": f"HTTP {response.status_code}"}
         except Exception as e:
             return {"status": "unhealthy", "error": str(e)}
 
