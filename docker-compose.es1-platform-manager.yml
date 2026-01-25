@@ -85,9 +85,16 @@ services:
       # ==========================================================================
       DB_API_HOST_PATTERN: http://db-api-{db_type}:8080
 
+      # ==========================================================================
+      # Airflow DAG Management
+      # ==========================================================================
+      AIRFLOW_DAGS_PATH: /shared/airflow/dags
+
     volumes:
       # Shared volume for KrakenD config deployment
       - krakend_config:/shared/krakend
+      # Shared access to Airflow DAGs for DAG editor
+      - ./services/airflow/dags:/shared/airflow/dags
     depends_on:
       postgres:
         condition: service_healthy
