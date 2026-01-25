@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Network, Workflow, Brain, Activity, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { Network, Workflow, Brain, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/design-system/components'
 import { StatusIndicator } from '@/design-system/components/StatusIndicator'
 

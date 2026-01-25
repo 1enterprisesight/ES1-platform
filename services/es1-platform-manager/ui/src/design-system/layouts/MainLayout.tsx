@@ -27,7 +27,7 @@ const navItems = [
 ]
 
 export function MainLayout() {
-  const { theme, setTheme, resolvedTheme } = useTheme()
+  const { setTheme, resolvedTheme } = useTheme()
   const { events, connected } = useEventBus()
 
   return (
@@ -166,11 +166,11 @@ function ActivityItem({ event }: { event: PlatformEvent }) {
         </span>
         <span className="text-xs text-muted-foreground">{formatTime(event.timestamp)}</span>
       </div>
-      {event.data.message && (
+      {event.data.message ? (
         <p className="text-sm text-foreground mt-1 line-clamp-2">
           {String(event.data.message)}
         </p>
-      )}
+      ) : null}
     </div>
   )
 }

@@ -9,9 +9,16 @@ interface Toast {
   type: 'success' | 'error' | 'warning' | 'info'
 }
 
+interface AddToastInput {
+  title?: string
+  message?: string  // Alias for title
+  description?: string
+  type: 'success' | 'error' | 'warning' | 'info'
+}
+
 interface ToastContextType {
   toasts: Toast[]
-  addToast: (toast: Omit<Toast, 'id'>) => void
+  addToast: (toast: AddToastInput) => void
   removeToast: (id: string) => void
 }
 
@@ -20,9 +27,15 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined)
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  const addToast = useCallback((toast: Omit<Toast, 'id'>) => {
+  const addToast = useCallback((input: AddToastInput) => {
     const id = Math.random().toString(36).substring(7)
-    setToasts((prev) => [...prev, { ...toast, id }])
+    const toast: Toast = {
+      id,
+      title: input.title || input.message || '',
+      description: input.description,
+      type: input.type,
+    }
+    setToasts((prev) => [...prev, toast])
 
     // Auto-remove after 5 seconds
     setTimeout(() => {

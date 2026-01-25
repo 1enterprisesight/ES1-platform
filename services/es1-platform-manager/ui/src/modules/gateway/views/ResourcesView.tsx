@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, RefreshCw, ExternalLink } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 import { Button, Card, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 

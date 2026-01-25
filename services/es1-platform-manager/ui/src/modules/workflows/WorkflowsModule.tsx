@@ -1,5 +1,4 @@
-import { useState } from 'react'
-import { Routes, Route, NavLink, useNavigate } from 'react-router-dom'
+import { Routes, Route, NavLink } from 'react-router-dom'
 import { DagsView } from './views/DagsView'
 import { DagRunsView } from './views/DagRunsView'
 import { ConnectionsView } from './views/ConnectionsView'
