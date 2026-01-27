@@ -32,7 +32,7 @@ x-airflow-common:
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     # Connection to Gateway Manager for notifications
     AIRFLOW_CONN_GATEWAY_MANAGER: 'http://gateway-manager-api:8000'
-    _PIP_ADDITIONAL_REQUIREMENTS: ''
+    _PIP_ADDITIONAL_REQUIREMENTS: 'pg8000 cloud-sql-python-connector'
   volumes:
     - ./services/airflow/dags:/opt/airflow/dags
     - airflow_logs:/opt/airflow/logs

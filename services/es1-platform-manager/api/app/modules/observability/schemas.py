@@ -69,6 +69,7 @@ class LangfuseHealthResponse(BaseModel):
     """Schema for Langfuse health response."""
     status: str
     message: str | None = None
+    setup_url: str | None = None
 
 
 class MetricsResponse(BaseModel):

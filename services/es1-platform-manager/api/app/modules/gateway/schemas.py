@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Any
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 # =============================================================================
@@ -28,15 +28,20 @@ class ResourceUpdate(BaseModel):
     status: str | None = None
 
 
-class ResourceResponse(ResourceBase):
+class ResourceResponse(BaseModel):
     """Schema for resource response."""
     id: UUID
+    type: str
+    source: str
+    source_id: str
+    metadata: dict[str, Any] = Field(validation_alias="resource_metadata")
     discovered_at: datetime
     last_updated: datetime
     status: str
 
     class Config:
         from_attributes = True
+        populate_by_name = True
 
 
 class ResourceListResponse(BaseModel):
@@ -73,7 +78,11 @@ class ResourceInfo(BaseModel):
     type: str
     source: str
     source_id: str
-    metadata: dict[str, Any]
+    metadata: dict[str, Any] = Field(validation_alias="resource_metadata")
+
+    class Config:
+        from_attributes = True
+        populate_by_name = True
 
 
 class ExposureResponse(ExposureBase):

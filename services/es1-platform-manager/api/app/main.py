@@ -32,6 +32,7 @@ from app.modules.observability.routes import router as observability_router
 from app.modules.system.routes import router as system_router
 from app.modules.auth.routes import router as auth_router
 from app.modules.settings.routes import router as settings_router
+from app.modules.n8n.routes import router as n8n_router
 
 
 @asynccontextmanager
@@ -88,6 +89,7 @@ app.include_router(observability_router, prefix=settings.API_V1_PREFIX)
 app.include_router(system_router, prefix=settings.API_V1_PREFIX)
 app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
 app.include_router(settings_router, prefix=settings.API_V1_PREFIX)
+app.include_router(n8n_router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/health")

@@ -167,6 +167,109 @@ with DAG(
 
     start >> extract_task >> transform_task >> load_task >> end
 ''',
+    "cloudsql_query": '''"""
+{description}
+
+CloudSQL PostgreSQL Query DAG
+Connects to a GCP Cloud SQL instance and executes read-only queries.
+
+Requirements:
+- pg8000 package installed
+- Cloud SQL instance accessible (public IP or Cloud SQL Proxy)
+- Airflow Variables configured:
+  - cloudsql_host: Cloud SQL public IP address
+  - cloudsql_database: Database name (default: {database})
+  - cloudsql_user: Database user
+  - cloudsql_password: Database password
+  - cloudsql_port: Port (default: 5432)
+"""
+from datetime import datetime, timedelta
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.models import Variable
+import logging
+
+logger = logging.getLogger(__name__)
+
+default_args = {{
+    'owner': '{owner}',
+    'depends_on_past': False,
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'retries': 1,
+    'retry_delay': timedelta(minutes=5),
+}}
+
+# Database configuration from Airflow Variables
+DB_CONFIG = {{
+    "host": Variable.get("cloudsql_host", default_var=""),
+    "database": Variable.get("cloudsql_database", default_var="{database}"),
+    "user": Variable.get("cloudsql_user", default_var="{db_user}"),
+    "password": Variable.get("cloudsql_password", default_var=""),
+    "port": int(Variable.get("cloudsql_port", default_var="5432")),
+}}
+
+
+def execute_query(**context):
+    """Execute a read-only query against CloudSQL."""
+    import pg8000
+
+    if not DB_CONFIG["host"]:
+        raise ValueError("cloudsql_host Airflow Variable not set")
+
+    logger.info(f"Connecting to {{DB_CONFIG['host']}}:{{DB_CONFIG['port']}}/{{DB_CONFIG['database']}}")
+
+    conn = pg8000.connect(
+        host=DB_CONFIG["host"],
+        port=DB_CONFIG["port"],
+        database=DB_CONFIG["database"],
+        user=DB_CONFIG["user"],
+        password=DB_CONFIG["password"],
+    )
+
+    cursor = conn.cursor()
+
+    # Query to execute - customize as needed
+    query = """
+        SELECT table_schema, table_name, table_type
+        FROM information_schema.tables
+        WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+        ORDER BY table_schema, table_name
+        LIMIT 100;
+    """
+
+    logger.info("Executing query...")
+    cursor.execute(query)
+    results = cursor.fetchall()
+
+    logger.info(f"Query returned {{len(results)}} rows")
+    for row in results:
+        logger.info(f"  {{row}}")
+
+    context['ti'].xcom_push(key='row_count', value=len(results))
+    context['ti'].xcom_push(key='results', value=[list(r) for r in results])
+
+    cursor.close()
+    conn.close()
+
+    return f"Query completed: {{len(results)}} rows"
+
+
+with DAG(
+    dag_id='{dag_id}',
+    default_args=default_args,
+    description='{description}',
+    schedule_interval={schedule},
+    start_date=datetime(2024, 1, 1),
+    catchup=False,
+    tags={tags},
+) as dag:
+
+    query_task = PythonOperator(
+        task_id='execute_query',
+        python_callable=execute_query,
+    )
+''',
 }
 
 
@@ -345,6 +448,46 @@ class AirflowClient:
             raise
         except Exception as e:
             logger.error(f"Error getting DAG runs for {dag_id}: {e}")
+            raise
+
+    async def get_all_dag_runs(
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        state: str | None = None,
+        order_by: str = "-start_date",
+    ) -> dict[str, Any]:
+        """
+        List DAG runs across all DAGs.
+
+        Args:
+            limit: Maximum number of runs to return
+            offset: Number of runs to skip
+            state: Filter by state (running, success, failed, etc.)
+            order_by: Field to order by (prefix with - for descending)
+
+        Returns:
+            dict with 'dag_runs' list and 'total_entries' count
+        """
+        try:
+            client = await self._get_client()
+            params: dict[str, Any] = {
+                "limit": limit,
+                "offset": offset,
+                "order_by": order_by,
+            }
+            if state:
+                params["state"] = state
+
+            # Use the batch endpoint for all DAG runs
+            response = await client.get("/dags/~/dagRuns", params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to get all DAG runs: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting all DAG runs: {e}")
             raise
 
     async def get_dag_run(self, dag_id: str, dag_run_id: str) -> dict[str, Any]:
@@ -688,6 +831,7 @@ class AirflowClient:
             {"id": "basic", "name": "Basic DAG", "description": "Simple DAG with Python operators"},
             {"id": "http_api", "name": "HTTP API DAG", "description": "DAG that calls HTTP APIs"},
             {"id": "data_pipeline", "name": "ETL Pipeline", "description": "Extract, Transform, Load pipeline"},
+            {"id": "cloudsql_query", "name": "CloudSQL Query", "description": "Query GCP Cloud SQL PostgreSQL database"},
         ]
 
 

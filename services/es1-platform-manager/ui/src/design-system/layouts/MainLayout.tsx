@@ -11,6 +11,7 @@ import {
   Wifi,
   WifiOff,
   LineChart,
+  Zap,
 } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/ThemeContext'
 import { useEventBus, PlatformEvent } from '@/shared/contexts/EventBusContext'
@@ -22,6 +23,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/gateway', icon: Network, label: 'Gateway' },
   { to: '/workflows', icon: Workflow, label: 'Workflows' },
+  { to: '/automation', icon: Zap, label: 'Automation' },
   { to: '/ai', icon: Brain, label: 'AI Flows' },
   { to: '/observability', icon: LineChart, label: 'Observability' },
   { to: '/settings', icon: Settings, label: 'Settings' },

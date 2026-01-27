@@ -22,6 +22,7 @@ async def get_langfuse_health():
     return LangfuseHealthResponse(
         status=result.get("status", "unknown"),
         message=result.get("message") or result.get("error"),
+        setup_url=result.get("setup_url"),
     )
 
 

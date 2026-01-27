@@ -43,7 +43,9 @@ services:
       KRAKEND_URL: http://krakend:8080
       KRAKEND_HEALTH_URL: http://krakend:8080/__health
       KRAKEND_METRICS_URL: http://krakend:9091/metrics
-      KRAKEND_CONFIG_PATH: /shared/krakend/krakend.json
+      # In dev mode, read from the mounted host directory
+      # In prod mode, this would be /shared/krakend/krakend.json (managed volume)
+      KRAKEND_CONFIG_PATH: /etc/krakend/krakend.json
 
       # Kubernetes settings (used when RUNTIME_MODE=kubernetes)
       K8S_NAMESPACE: es1-platform
@@ -72,13 +74,17 @@ services:
       LANGFUSE_URL: http://langfuse:3000
       LANGFUSE_API_URL: http://langfuse:3000/api
       LANGFUSE_ENABLED: "true"
+      LANGFUSE_PUBLIC_KEY: "pk-lf-613401d7-ffd4-40e0-9386-644f24731ee9"
+      LANGFUSE_SECRET_KEY: "sk-lf-32cde39e-0b9e-4c74-8686-3e91d8b57e1e"
 
       # ==========================================================================
       # n8n Integration (Automation)
       # ==========================================================================
       N8N_URL: http://n8n:5678
       N8N_API_URL: http://n8n:5678/api/v1
-      N8N_ENABLED: "false"
+      N8N_ENABLED: "true"
+      # Generate API key in n8n: Settings > API > Create API Key
+      N8N_API_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmIyODQxMS0xZGZjLTQ5NTktYjkwZS1hMmVkMzRmY2RjZTciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MzgzODEyfQ.PDHzYdnHDjORTLpfgB1VLC5IexNAReNY5cYVZSdRgzs"
 
       # ==========================================================================
       # Database API Pattern (for connection exposure)
@@ -91,7 +97,9 @@ services:
       AIRFLOW_DAGS_PATH: /shared/airflow/dags
 
     volumes:
-      # Shared volume for KrakenD config deployment
+      # KrakenD config - read-only access to current config for display
+      - ./services/krakend/config:/etc/krakend:ro
+      # Shared volume for KrakenD config deployment (managed mode)
       - krakend_config:/shared/krakend
       # Shared access to Airflow DAGs for DAG editor
       - ./services/airflow/dags:/shared/airflow/dags

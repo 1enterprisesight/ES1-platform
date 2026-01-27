@@ -106,6 +106,7 @@ class Settings(BaseSettings):
     N8N_URL: str = "http://n8n:5678"
     N8N_API_URL: str = "http://n8n:5678/api/v1"
     N8N_ENABLED: bool = False
+    N8N_API_KEY: str = ""  # API key generated from n8n Settings > API
 
     # ==========================================================================
     # Database API Services (for database connection exposure)

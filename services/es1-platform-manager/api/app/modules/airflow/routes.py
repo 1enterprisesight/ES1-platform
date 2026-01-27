@@ -167,6 +167,41 @@ async def pause_dag(dag_id: str, is_paused: bool = True):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/dag-runs", response_model=DAGRunListResponse)
+async def list_all_dag_runs(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    state: str | None = None,
+):
+    """List DAG runs across all DAGs."""
+    try:
+        result = await airflow_client.get_all_dag_runs(
+            limit=limit,
+            offset=offset,
+            state=state,
+        )
+        return DAGRunListResponse(
+            dag_runs=[
+                DAGRunResponse(
+                    dag_run_id=r.get("dag_run_id", ""),
+                    dag_id=r.get("dag_id", ""),
+                    state=r.get("state", ""),
+                    logical_date=r.get("logical_date"),
+                    start_date=r.get("start_date"),
+                    end_date=r.get("end_date"),
+                    execution_date=r.get("execution_date"),
+                    external_trigger=r.get("external_trigger", False),
+                    conf=r.get("conf", {}),
+                    note=r.get("note"),
+                )
+                for r in result.get("dag_runs", [])
+            ],
+            total_entries=result.get("total_entries", 0),
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/dags/{dag_id}/runs", response_model=DAGRunListResponse)
 async def list_dag_runs(
     dag_id: str,

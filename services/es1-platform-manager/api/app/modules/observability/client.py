@@ -58,10 +58,21 @@ class LangfuseClient:
             client = await self._get_client()
             response = await client.get("/public/health")
             if response.status_code == 200:
+                # Check if API keys are configured
+                if not self._is_authenticated():
+                    return {
+                        "status": "setup_required",
+                        "message": "Langfuse is running but API keys not configured. Create API keys in Langfuse UI.",
+                        "setup_url": "http://localhost:3000/project/default/settings/api-keys",
+                    }
                 return {"status": "healthy", "data": response.json()}
             return {"status": "unhealthy", "error": f"HTTP {response.status_code}"}
         except Exception as e:
             return {"status": "unhealthy", "error": str(e)}
+
+    def _is_authenticated(self) -> bool:
+        """Check if API keys are configured."""
+        return bool(self.public_key and self.secret_key)
 
     async def list_traces(
         self,
@@ -84,8 +95,8 @@ class LangfuseClient:
         Returns:
             Dict with 'data' list and pagination info
         """
-        if not self.enabled:
-            return {"data": [], "meta": {"totalItems": 0}}
+        if not self.enabled or not self._is_authenticated():
+            return {"data": [], "meta": {"totalItems": 0, "page": page, "limit": limit}}
 
         try:
             client = await self._get_client()
@@ -117,8 +128,8 @@ class LangfuseClient:
         Returns:
             Trace details dict
         """
-        if not self.enabled:
-            raise ValueError("Langfuse integration is disabled")
+        if not self.enabled or not self._is_authenticated():
+            raise ValueError("Langfuse integration is disabled or not configured")
 
         try:
             client = await self._get_client()
@@ -147,8 +158,8 @@ class LangfuseClient:
         Returns:
             Dict with 'data' list and pagination info
         """
-        if not self.enabled:
-            return {"data": [], "meta": {"totalItems": 0}}
+        if not self.enabled or not self._is_authenticated():
+            return {"data": [], "meta": {"totalItems": 0, "page": page, "limit": limit}}
 
         try:
             client = await self._get_client()
@@ -173,8 +184,8 @@ class LangfuseClient:
         Returns:
             Session details dict
         """
-        if not self.enabled:
-            raise ValueError("Langfuse integration is disabled")
+        if not self.enabled or not self._is_authenticated():
+            raise ValueError("Langfuse integration is disabled or not configured")
 
         try:
             client = await self._get_client()
@@ -207,8 +218,8 @@ class LangfuseClient:
         Returns:
             Dict with 'data' list and pagination info
         """
-        if not self.enabled:
-            return {"data": [], "meta": {"totalItems": 0}}
+        if not self.enabled or not self._is_authenticated():
+            return {"data": [], "meta": {"totalItems": 0, "page": page, "limit": limit}}
 
         try:
             client = await self._get_client()

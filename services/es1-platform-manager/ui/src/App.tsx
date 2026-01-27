@@ -5,6 +5,7 @@ import { GatewayModule } from './modules/gateway/GatewayModule'
 import { WorkflowsModule } from './modules/workflows/WorkflowsModule'
 import { AIModule } from './modules/ai/AIModule'
 import { ObservabilityModule } from './modules/observability/ObservabilityModule'
+import { AutomationModule } from './modules/automation/AutomationModule'
 import { SettingsModule } from './modules/settings/SettingsModule'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/workflows/*" element={<WorkflowsModule />} />
         <Route path="/ai/*" element={<AIModule />} />
         <Route path="/observability/*" element={<ObservabilityModule />} />
+        <Route path="/automation/*" element={<AutomationModule />} />
         <Route path="/settings" element={<SettingsModule />} />
       </Route>
     </Routes>
