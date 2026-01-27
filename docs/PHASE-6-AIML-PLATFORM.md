@@ -454,10 +454,10 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 **Goal:** Unified knowledge layer for all agents
 
 - [x] **6.6a** Add graph schema to aiml database (entities, relationships, entity_types, relationship_types)
-- [ ] **6.6b** Create Airflow DAG templates for data ingestion
-- [ ] **6.6c** Implement document processing pipeline
-- [ ] **6.6d** Build embedding generation service (using Ollama)
-- [ ] **6.6e** Create entity extraction pipeline
+- [x] **6.6b** Create Airflow DAG templates for data ingestion
+- [x] **6.6c** Implement document processing pipeline
+- [x] **6.6d** Build embedding generation service (using Ollama)
+- [x] **6.6e** Create entity extraction pipeline (spaCy + LLM hybrid)
 - [ ] **6.6f** Knowledge base management API
 - [ ] **6.6g** Platform Manager knowledge graph explorer
 
@@ -520,9 +520,10 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 - Architecture and scope documented in this file
 - Phase 6.0a-c complete: Audit schema + KrakenD routes for all services
 - Phase 6.6a complete: Graph schema for knowledge graph
+- Phase 6.6b-e complete: Airflow knowledge ingestion pipeline (plugins + DAGs)
 
 **What's Next:**
-- Phase 6.6b-c: Airflow DAG templates for data ingestion
+- Phase 6.6f-g: Knowledge base management API and UI
 - Phase 6.5: Agent frameworks (CrewAI, AutoGen, Agent Router)
 - Phase 6.9: Platform Manager UI integration
 
@@ -531,6 +532,19 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 - Main planning doc: `docs/ES1-PLATFORM-PLANNING.md`
 - AI/ML compose file: `docker-compose.aiml.yml`
 - AI/ML database init: `infrastructure/aiml-postgres/init/`
+
+**Airflow Knowledge Ingestion Plugin:**
+- `services/airflow/plugins/knowledge/__init__.py` - Plugin entry point
+- `services/airflow/plugins/knowledge/config.py` - Configuration (DB, Ollama, chunking)
+- `services/airflow/plugins/knowledge/database.py` - AIMLDatabase & PlatformDatabase connectors
+- `services/airflow/plugins/knowledge/embeddings.py` - OllamaEmbeddings client
+- `services/airflow/plugins/knowledge/processors.py` - DocumentProcessor, FileParser, chunking strategies
+- `services/airflow/plugins/knowledge/extractors.py` - EntityExtractor (spaCy + LLM hybrid)
+
+**Airflow DAG Templates:**
+- `services/airflow/dags/knowledge_ingestion/document_ingestion_dag.py` - Single document ingestion
+- `services/airflow/dags/knowledge_ingestion/batch_ingestion_dag.py` - Batch document processing
+- `services/airflow/dags/knowledge_ingestion/web_scraper_dag.py` - Website crawling and ingestion
 
 **Running Containers:**
 ```bash
@@ -595,3 +609,4 @@ docker exec -it es1-aiml-postgres psql -U aiml_user -d aiml
 | Date | Version | Changes |
 |------|---------|---------|
 | 2026-01-26 | 1.0 | Initial document creation |
+| 2026-01-26 | 1.1 | Added Phase 6.6b-e: Airflow knowledge ingestion pipeline (plugins + DAGs) |

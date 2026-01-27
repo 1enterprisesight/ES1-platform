@@ -37,11 +37,33 @@ x-airflow-common:
     AIRFLOW__METRICS__STATSD_PREFIX: airflow
     # Connection to Gateway Manager for notifications
     AIRFLOW_CONN_GATEWAY_MANAGER: 'http://gateway-manager-api:8000'
-    _PIP_ADDITIONAL_REQUIREMENTS: 'pg8000 cloud-sql-python-connector'
+    _PIP_ADDITIONAL_REQUIREMENTS: >-
+      pg8000
+      cloud-sql-python-connector
+      psycopg2-binary
+      requests
+      spacy
+      pdfplumber
+      PyPDF2
+    # AI/ML Database connection for knowledge ingestion
+    AIML_DB_HOST: aiml-postgres
+    AIML_DB_PORT: '5432'
+    AIML_DB_NAME: aiml
+    AIML_DB_USER: aiml_user
+    AIML_DB_PASSWORD: aiml_dev_password
+    # Platform Database connection for audit logging
+    PLATFORM_DB_HOST: postgres
+    PLATFORM_DB_PORT: '5432'
+    PLATFORM_DB_NAME: es1_platform
+    PLATFORM_DB_USER: es1_user
+    PLATFORM_DB_PASSWORD: es1_dev_password
+    # Ollama configuration
+    OLLAMA_BASE_URL: http://ollama:11434
+    OLLAMA_EMBEDDING_MODEL: nomic-embed-text
   volumes:
     - ./services/airflow/dags:/opt/airflow/dags
+    - ./services/airflow/plugins:/opt/airflow/plugins
     - airflow_logs:/opt/airflow/logs
-    - airflow_plugins:/opt/airflow/plugins
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -217,4 +239,3 @@ services:
 
 volumes:
   airflow_logs:
-  airflow_plugins:
