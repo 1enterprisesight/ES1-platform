@@ -1,0 +1,83 @@
+# Prometheus configuration for ES1 Platform
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'es1-platform'
+
+# Alertmanager configuration (optional - can be added later)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load rules
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter - Host metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'es1-host'
+
+  # cAdvisor - Container metrics
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+
+  # PostgreSQL Exporter
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # KrakenD API Gateway
+  - job_name: 'krakend'
+    static_configs:
+      - targets: ['krakend:9091']
+    metrics_path: '/__stats/'
+
+  # ES1 Platform Manager API
+  - job_name: 'es1-platform-manager'
+    static_configs:
+      - targets: ['es1-platform-manager-api:8000']
+    metrics_path: '/metrics'
+
+  # Airflow
+  - job_name: 'airflow'
+    static_configs:
+      - targets: ['airflow-webserver:8080']
+    metrics_path: '/admin/metrics'
+
+  # Langflow
+  - job_name: 'langflow'
+    static_configs:
+      - targets: ['langflow:7860']
+    metrics_path: '/metrics'
+
+  # n8n
+  - job_name: 'n8n'
+    static_configs:
+      - targets: ['n8n:5678']
+    metrics_path: '/metrics'
+
+  # Langfuse
+  - job_name: 'langfuse'
+    static_configs:
+      - targets: ['langfuse:3000']
+    metrics_path: '/api/public/metrics'

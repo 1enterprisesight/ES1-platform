@@ -1,7 +1,7 @@
 # ES1 Platform - Comprehensive Planning Document
 
-**Version:** 1.0
-**Last Updated:** 2026-01-24
+**Version:** 1.1
+**Last Updated:** 2026-01-26
 **Project Location:** `/Users/michaelreed/projects/ES1-platform`
 **GitHub:** `1enterprisesight/ES1-platform`
 
@@ -641,11 +641,24 @@ The UI must provide full transparency into system operations:
 - [ ] Airflow DAG file backups
 - [ ] Disaster recovery runbook
 
-#### 4.4 Monitoring & Alerting
-- [ ] Prometheus metrics endpoints
-- [ ] Grafana dashboards
-- [ ] Alert rules for critical failures
-- [ ] Log aggregation (Loki or ELK)
+#### 4.4 Monitoring & Alerting ✅ COMPLETE
+- [x] Prometheus metrics collection (port 9090)
+- [x] Grafana dashboards (port 3002, admin/admin)
+  - System Overview (all service health)
+  - Docker Containers (cAdvisor metrics)
+  - Node Resources (host CPU/memory/disk)
+  - PostgreSQL Database
+  - Redis Cache
+  - KrakenD API Gateway
+- [x] Alert rules for critical failures
+  - Service down alerts
+  - High CPU/memory alerts
+  - Container restart alerts
+  - Database connection alerts
+- [x] Container metrics via cAdvisor
+- [x] Host metrics via Node Exporter
+- [x] Database exporters (PostgreSQL, Redis)
+- [ ] Log aggregation (Loki or ELK) - Future
 
 ### Phase 5: Enterprise Features
 **Goal:** Enterprise-ready platform
@@ -684,6 +697,7 @@ The UI must provide full transparency into system operations:
 | D8 | shadcn/ui for components | Accessible, customizable, we own code | 2026-01-24 |
 | D9 | SSE + WebSocket for real-time | SSE for broadcasts, WS for interactive | 2026-01-24 |
 | D10 | New Platform Manager over refactor | Fresh UI, better architecture | 2026-01-24 |
+| D11 | Prometheus + Grafana for monitoring | Industry standard, open source, extensible | 2026-01-26 |
 
 ### Pending Decisions
 
@@ -707,11 +721,20 @@ cd ~/projects/ES1-platform
 # Start full stack locally
 make up-full
 
+# Start full stack with monitoring
+make up-full-monitoring
+
+# Start just monitoring stack
+make up-monitoring
+
 # Check logs
 make logs
 
-# View Gateway Manager logs
-make logs-gateway-manager
+# View Platform Manager logs
+make logs-platform-manager
+
+# View Monitoring logs
+make logs-monitoring
 
 # Stop everything
 make down
@@ -731,6 +754,10 @@ make status
 | Airflow | http://localhost:8081 | airflow/airflow |
 | Langflow | http://localhost:7860 | admin/admin |
 | Langfuse | http://localhost:3000 | See .env |
+| n8n | http://localhost:5678 | - |
+| Grafana | http://localhost:3002 | admin/admin |
+| Prometheus | http://localhost:9090 | - |
+| cAdvisor | http://localhost:8081 | - |
 | PostgreSQL | localhost:5432 | es1_user/es1_dev_password |
 | Redis | localhost:6379 | - |
 

@@ -1,7 +1,7 @@
 # ES1 Platform Makefile
 # Common commands for development and deployment
 
-.PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push
+.PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack up-monitoring down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager logs-monitoring build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push
 
 REGISTRY ?= ghcr.io/1enterprisesight/es1-platform
 TAG ?= local
@@ -51,6 +51,19 @@ up-ml-stack: ## Start Airflow + Langfuse + Langflow (ML/AI stack)
 		-f docker-compose.langflow.yml \
 		up -d
 
+up-monitoring: ## Start base + Monitoring (Prometheus, Grafana)
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
+
+up-full-monitoring: ## Start ALL services + Monitoring
+	docker compose \
+		-f docker-compose.yml \
+		-f docker-compose.airflow.yml \
+		-f docker-compose.langfuse.yml \
+		-f docker-compose.langflow.yml \
+		-f docker-compose.es1-platform-manager.yml \
+		-f docker-compose.monitoring.yml \
+		up -d
+
 down: ## Stop all Docker Compose services
 	docker compose \
 		-f docker-compose.yml \
@@ -59,6 +72,7 @@ down: ## Stop all Docker Compose services
 		-f docker-compose.langflow.yml \
 		-f docker-compose.gateway-manager.yml \
 		-f docker-compose.es1-platform-manager.yml \
+		-f docker-compose.monitoring.yml \
 		down 2>/dev/null || true
 	docker compose -f docker-compose.infra.yml down 2>/dev/null || true
 
@@ -76,6 +90,9 @@ logs-gateway-manager: ## Tail logs from Gateway Manager (legacy)
 
 logs-platform-manager: ## Tail logs from ES1 Platform Manager
 	docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml logs -f es1-platform-manager-api es1-platform-manager-ui
+
+logs-monitoring: ## Tail logs from Monitoring stack
+	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml logs -f prometheus grafana
 
 # =============================================================================
 # Build Commands
