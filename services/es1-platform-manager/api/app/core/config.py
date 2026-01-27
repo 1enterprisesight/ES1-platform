@@ -116,12 +116,52 @@ class Settings(BaseSettings):
     # {db_type} is replaced with: postgres, mysql, mongodb, redis
     DB_API_HOST_PATTERN: str = "http://db-api-{db_type}:8080"
 
+    # ==========================================================================
+    # AI/ML Database (for knowledge management)
+    # ==========================================================================
+
+    AIML_POSTGRES_HOST: str = "aiml-postgres"
+    AIML_POSTGRES_PORT: int = 5432
+    AIML_POSTGRES_DB: str = "aiml"
+    AIML_POSTGRES_USER: str = "aiml_user"
+    AIML_POSTGRES_PASSWORD: str = "aiml_dev_password"
+
+    # ==========================================================================
+    # Ollama (for embeddings and LLM inference)
+    # ==========================================================================
+
+    OLLAMA_URL: str = "http://ollama:11434"
+    OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"
+
+    # ==========================================================================
+    # MLflow (experiment tracking and model registry)
+    # ==========================================================================
+
+    MLFLOW_URL: str = "http://mlflow:5000"
+    MLFLOW_ENABLED: bool = True
+
+    # ==========================================================================
+    # Agent Services
+    # ==========================================================================
+
+    CREWAI_URL: str = "http://crewai:8100"
+    AUTOGEN_URL: str = "http://autogen:8101"
+    AGENT_ROUTER_URL: str = "http://agent-router:8102"
+
     @property
     def database_url(self) -> str:
         """Construct PostgreSQL connection URL."""
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def aiml_database_url(self) -> str:
+        """Construct AI/ML PostgreSQL connection URL."""
+        return (
+            f"postgresql+asyncpg://{self.AIML_POSTGRES_USER}:{self.AIML_POSTGRES_PASSWORD}"
+            f"@{self.AIML_POSTGRES_HOST}:{self.AIML_POSTGRES_PORT}/{self.AIML_POSTGRES_DB}"
         )
 
     class Config:

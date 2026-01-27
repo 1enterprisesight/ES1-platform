@@ -5,6 +5,8 @@ import {
   Network,
   Workflow,
   Brain,
+  Bot,
+  Database,
   Settings,
   Moon,
   Sun,
@@ -14,6 +16,8 @@ import {
   Zap,
   BarChart3,
   Keyboard,
+  Activity,
+  Box,
 } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/ThemeContext'
 import { useEventBus } from '@/shared/contexts/EventBusContext'
@@ -30,6 +34,10 @@ const navItems = [
   { to: '/workflows', icon: Workflow, label: 'Workflows' },
   { to: '/automation', icon: Zap, label: 'Automation' },
   { to: '/ai', icon: Brain, label: 'AI Flows' },
+  { to: '/agents', icon: Bot, label: 'Agents' },
+  { to: '/knowledge', icon: Database, label: 'Knowledge' },
+  { to: '/traffic', icon: Activity, label: 'API Traffic' },
+  { to: '/models', icon: Box, label: 'Models' },
   { to: '/observability', icon: LineChart, label: 'Observability' },
   { to: '/monitoring', icon: BarChart3, label: 'Monitoring' },
   { to: '/settings', icon: Settings, label: 'Settings' },

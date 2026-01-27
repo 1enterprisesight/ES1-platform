@@ -448,7 +448,7 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 - [x] **6.5c** Implement Agent Router API
 - [x] **6.5d** Set up Redis pub/sub for agent messaging (built into router)
 - [x] **6.5e** Shared context store for cross-agent memory (built into router)
-- [ ] **6.5f** Platform Manager agent monitoring UI
+- [x] **6.5f** Platform Manager agent monitoring UI
 
 ### Phase 6.6: Knowledge Graph & Ingestion
 **Goal:** Unified knowledge layer for all agents
@@ -458,8 +458,8 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 - [x] **6.6c** Implement document processing pipeline
 - [x] **6.6d** Build embedding generation service (using Ollama)
 - [x] **6.6e** Create entity extraction pipeline (spaCy + LLM hybrid)
-- [ ] **6.6f** Knowledge base management API
-- [ ] **6.6g** Platform Manager knowledge graph explorer
+- [x] **6.6f** Knowledge base management API
+- [x] **6.6g** Platform Manager knowledge graph explorer
 
 ### Phase 6.9: Platform Manager Integration
 **Goal:** Unified visibility and control
@@ -526,19 +526,29 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 - Ollama + Open WebUI + MLflow running
 - Architecture and scope documented in this file
 - Phase 6.0a-c complete: Audit schema + KrakenD routes for all services
+- Phase 6.5a-f complete: Multi-framework agents (CrewAI, AutoGen, Agent Router) + UI
 - Phase 6.6a complete: Graph schema for knowledge graph
 - Phase 6.6b-e complete: Airflow knowledge ingestion pipeline (plugins + DAGs)
+- Phase 6.6f-g complete: Knowledge base management API and UI
 
 **What's Next:**
-- Phase 6.6f-g: Knowledge base management API and UI
-- Phase 6.5f: Platform Manager agent monitoring UI
-- Phase 6.9: Platform Manager UI integration
+- Phase 6.0d-f: Service-to-service JWT auth, correlation IDs, API traffic dashboard
+- Phase 6.9: Platform Manager UI integration (remaining dashboards)
 
 **Agent Services (Phase 6.5):**
 - `services/agents/crewai/` - CrewAI role-based teams (port 8100)
 - `services/agents/autogen/` - AutoGen multi-agent conversations (port 8101)
 - `services/agents/router/` - Unified Agent Router API (port 8102)
 - `docker-compose.agents.yml` - Docker compose for agent services
+- Platform Manager UI: `/agents/*` - Frameworks, Registry, Tasks, Networks views
+
+**Knowledge Management (Phase 6.6f-g):**
+- API: `services/es1-platform-manager/api/app/modules/knowledge/`
+  - `client.py` - AI/ML database client, Ollama client, Airflow client
+  - `schemas.py` - Pydantic schemas for KB, sources, documents, entities, search
+  - `services.py` - Business logic for CRUD, search, graph queries
+  - `routes.py` - REST API endpoints
+- Platform Manager UI: `/knowledge/*` - Knowledge Bases, Documents, Graph Explorer, Search
 
 **Key Files:**
 - This document: `docs/PHASE-6-AIML-PLATFORM.md`
@@ -624,3 +634,4 @@ docker exec -it es1-aiml-postgres psql -U aiml_user -d aiml
 | 2026-01-26 | 1.0 | Initial document creation |
 | 2026-01-26 | 1.1 | Added Phase 6.6b-e: Airflow knowledge ingestion pipeline (plugins + DAGs) |
 | 2026-01-27 | 1.2 | Added Phase 6.5a-e: Multi-framework agents (CrewAI, AutoGen, Agent Router) |
+| 2026-01-27 | 1.3 | Added Phase 6.5f + 6.6f-g: Agent UI module + Knowledge management API & UI |

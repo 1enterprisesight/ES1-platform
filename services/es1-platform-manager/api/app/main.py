@@ -12,6 +12,11 @@ from app.core.init_db import create_tables
 from app.core.events import event_bus, EventType
 from app.core.logging import logger
 from app.core.scheduler import discovery_scheduler
+from app.core.middleware import (
+    CorrelationIdMiddleware,
+    RequestLoggingMiddleware,
+    AuditMiddleware,
+)
 
 # Import models to register them with SQLAlchemy
 from app.modules.gateway.models import (
@@ -34,6 +39,11 @@ from app.modules.system.routes import router as system_router
 from app.modules.auth.routes import router as auth_router
 from app.modules.settings.routes import router as settings_router
 from app.modules.n8n.routes import router as n8n_router
+from app.modules.knowledge.routes import router as knowledge_router
+from app.modules.traffic.routes import router as traffic_router
+from app.modules.mlflow.routes import router as mlflow_router
+from app.modules.ollama.routes import router as ollama_router
+from app.modules.models.routes import router as models_router
 
 
 @asynccontextmanager
@@ -82,6 +92,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Add custom middleware (order matters - first added = last executed)
+# Audit logging (logs to database)
+app.add_middleware(AuditMiddleware, enabled=True)
+# Request logging (logs to stdout)
+app.add_middleware(RequestLoggingMiddleware)
+# Correlation ID (must be first to generate ID for other middleware)
+app.add_middleware(CorrelationIdMiddleware)
+
 # Include routers
 app.include_router(gateway_router, prefix=settings.API_V1_PREFIX)
 app.include_router(airflow_router, prefix=settings.API_V1_PREFIX)
@@ -91,6 +109,11 @@ app.include_router(system_router, prefix=settings.API_V1_PREFIX)
 app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
 app.include_router(settings_router, prefix=settings.API_V1_PREFIX)
 app.include_router(n8n_router, prefix=settings.API_V1_PREFIX)
+app.include_router(knowledge_router, prefix=settings.API_V1_PREFIX)
+app.include_router(traffic_router, prefix=settings.API_V1_PREFIX)
+app.include_router(mlflow_router, prefix=settings.API_V1_PREFIX)
+app.include_router(ollama_router, prefix=settings.API_V1_PREFIX)
+app.include_router(models_router, prefix=settings.API_V1_PREFIX)
 
 # Prometheus metrics instrumentation
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
@@ -109,7 +132,7 @@ async def root():
         "name": settings.PROJECT_NAME,
         "version": "1.0.0",
         "status": "running",
-        "modules": ["gateway", "airflow", "langflow", "observability", "automation"],
+        "modules": ["gateway", "airflow", "langflow", "observability", "automation", "knowledge", "agents", "traffic", "mlflow", "ollama", "models"],
     }
 
 
