@@ -53,11 +53,11 @@ services:
       # Uncomment for GPU support (requires nvidia-docker)
       # - NVIDIA_VISIBLE_DEVICES=all
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
     networks:
       - es1-network
     # GPU support (uncomment if you have NVIDIA GPU)
@@ -85,37 +85,29 @@ services:
       - WEBUI_NAME=ES1 AI Chat
     depends_on:
       ollama:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+        condition: service_started
     networks:
       - es1-network
 
   # ==========================================================================
   # MLflow - ML Experiment Tracking & Model Registry
+  # Using SQLite for storage (simpler setup, can migrate to PostgreSQL later)
   # ==========================================================================
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.10.2
     container_name: es1-mlflow
     command: >
       mlflow server
-      --backend-store-uri postgresql://aiml_user:aiml_dev_password@aiml-postgres:5432/aiml
+      --backend-store-uri sqlite:///mlflow/mlflow.db
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
       --port 5000
     ports:
       - "5050:5000"
     volumes:
-      - mlflow_artifacts:/mlflow/artifacts
-    depends_on:
-      aiml-postgres:
-        condition: service_healthy
+      - mlflow_data:/mlflow
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/health\")'"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -130,5 +122,5 @@ volumes:
     name: es1-ollama-data
   ollama_webui_data:
     name: es1-ollama-webui-data
-  mlflow_artifacts:
-    name: es1-mlflow-artifacts
+  mlflow_data:
+    name: es1-mlflow-data

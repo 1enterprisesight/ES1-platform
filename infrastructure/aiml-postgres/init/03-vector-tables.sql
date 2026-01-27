@@ -60,6 +60,7 @@ CREATE TABLE vectors.embeddings_768 (
 CREATE INDEX ON vectors.embeddings_768 USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX idx_embeddings_768_collection ON vectors.embeddings_768(collection_id);
 
+-- 4096 dimensions exceeds HNSW limit of 2000, use IVFFlat instead
 CREATE TABLE vectors.embeddings_4096 (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     collection_id UUID NOT NULL REFERENCES vectors.collections(id) ON DELETE CASCADE,
@@ -69,5 +70,7 @@ CREATE TABLE vectors.embeddings_4096 (
     metadata JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
-CREATE INDEX ON vectors.embeddings_4096 USING hnsw (embedding vector_cosine_ops);
+-- IVFFlat index for dimensions > 2000 (requires training data, created separately)
+-- CREATE INDEX ON vectors.embeddings_4096 USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 CREATE INDEX idx_embeddings_4096_collection ON vectors.embeddings_4096(collection_id);
+CREATE INDEX idx_embeddings_4096_content_hash ON vectors.embeddings_4096(content_hash);
