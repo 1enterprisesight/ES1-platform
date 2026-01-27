@@ -154,14 +154,24 @@ class AgentEvent(BaseModel):
 
 # ==================== Agent Registry ====================
 
+# Health check endpoints per framework (some use different paths)
+FRAMEWORK_HEALTH_PATHS = {
+    AgentFramework.CREWAI: "/health",
+    AgentFramework.AUTOGEN: "/health",
+    AgentFramework.LANGFLOW: "/health",
+    AgentFramework.N8N: "/healthz",  # n8n uses /healthz not /health
+}
+
+
 @app.get("/health")
 async def health_check():
     """Health check with service connectivity"""
     services = {}
 
     for framework, url in FRAMEWORK_URLS.items():
+        health_path = FRAMEWORK_HEALTH_PATHS.get(framework, "/health")
         try:
-            response = await http_client.get(f"{url}/health", timeout=5.0)
+            response = await http_client.get(f"{url}{health_path}", timeout=5.0)
             services[framework.value] = "healthy" if response.status_code == 200 else "unhealthy"
         except Exception:
             services[framework.value] = "unreachable"
@@ -514,13 +524,17 @@ async def list_frameworks():
 
     for framework in AgentFramework:
         url = FRAMEWORK_URLS[framework]
+        health_path = FRAMEWORK_HEALTH_PATHS.get(framework, "/health")
         status = "unknown"
 
         try:
-            response = await http_client.get(f"{url}/health", timeout=5.0)
+            response = await http_client.get(f"{url}{health_path}", timeout=5.0)
             if response.status_code == 200:
                 status = "healthy"
-                health_data = response.json()
+                try:
+                    health_data = response.json()
+                except Exception:
+                    health_data = {"status": "ok"}  # Some return plain text
             else:
                 status = "unhealthy"
                 health_data = {}
@@ -551,11 +565,16 @@ async def list_framework_agents(framework: AgentFramework):
             response = await http_client.get(f"{url}/conversations")
             return response.json()
         elif framework == AgentFramework.LANGFLOW:
-            response = await http_client.get(f"{url}/api/v1/flows")
-            return response.json()
+            # Langflow API needs trailing slash
+            response = await http_client.get(f"{url}/api/v1/flows/")
+            try:
+                flows = response.json()
+                return {"flows": flows if isinstance(flows, list) else []}
+            except Exception:
+                return {"flows": [], "note": "Failed to parse Langflow response"}
         elif framework == AgentFramework.N8N:
             # n8n requires authentication, return placeholder
-            return {"workflows": [], "note": "n8n requires authentication"}
+            return {"workflows": [], "note": "n8n requires API key configuration"}
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"Framework {framework.value} unavailable: {e}")
 

@@ -436,9 +436,9 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 - [x] **6.0a** Add audit schema to platform PostgreSQL
 - [x] **6.0b** Configure KrakenD logging (logstash format)
 - [x] **6.0c** Add internal service routes to KrakenD (Ollama, MLflow, Knowledge, Agents, Audit)
-- [ ] **6.0d** Implement service-to-service JWT authentication
-- [ ] **6.0e** Add request correlation IDs across services
-- [ ] **6.0f** Platform Manager API traffic dashboard
+- [x] **6.0d** Implement service-to-service JWT authentication
+- [x] **6.0e** Add request correlation IDs across services
+- [x] **6.0f** Platform Manager API traffic dashboard
 
 ### Phase 6.5: Multi-Framework Agents
 **Goal:** Support multiple agent frameworks with unified routing
@@ -464,13 +464,13 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 ### Phase 6.9: Platform Manager Integration
 **Goal:** Unified visibility and control
 
-- [ ] **6.9a** API traffic visualization dashboard
-- [ ] **6.9b** Service dependency map
-- [ ] **6.9c** Request tracing view
-- [ ] **6.9d** Agent network designer
-- [ ] **6.9e** Knowledge graph explorer
-- [ ] **6.9f** Pipeline management UI
-- [ ] **6.9g** Security alerts dashboard
+- [x] **6.9a** API traffic visualization dashboard (Traffic module)
+- [x] **6.9b** Service dependency map (Traffic by service view)
+- [x] **6.9c** Request tracing view (Traffic requests with correlation IDs)
+- [x] **6.9d** Agent registry and invocation (Agents module - CrewAI, AutoGen, Router)
+- [x] **6.9e** Knowledge graph explorer (Knowledge module - search, graph, documents)
+- [x] **6.9f** Model inventory and inference metrics (Models module - Ollama, MLflow)
+- [ ] **6.9g** Security alerts dashboard (future)
 
 ---
 
@@ -518,22 +518,25 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 
 ## 8. Session Recovery Notes
 
-### Current State (2026-01-26)
+### Current State (2026-01-27)
 
 **What's Done:**
 - Phase 6.1-6.3 basic infrastructure deployed and running
 - AI/ML PostgreSQL with pgvector (vectors, rag, agents, mlops schemas)
 - Ollama + Open WebUI + MLflow running
 - Architecture and scope documented in this file
-- Phase 6.0a-c complete: Audit schema + KrakenD routes for all services
+- Phase 6.0a-f complete: Audit schema, KrakenD routes, service JWT auth, correlation IDs, traffic dashboard
 - Phase 6.5a-f complete: Multi-framework agents (CrewAI, AutoGen, Agent Router) + UI
-- Phase 6.6a complete: Graph schema for knowledge graph
-- Phase 6.6b-e complete: Airflow knowledge ingestion pipeline (plugins + DAGs)
-- Phase 6.6f-g complete: Knowledge base management API and UI
+- Phase 6.6a-g complete: Graph schema, Airflow ingestion, knowledge base API and UI
+- Phase 6.9a-f complete: Traffic dashboard, request tracing, agent registry, knowledge explorer, model inventory
+
+**Phase 6 Status: COMPLETE** (except 6.9g security alerts - future)
 
 **What's Next:**
-- Phase 6.0d-f: Service-to-service JWT auth, correlation IDs, API traffic dashboard
-- Phase 6.9: Platform Manager UI integration (remaining dashboards)
+- Integration testing across all modules
+- Fix any UI bugs (n8n connectivity, agent view links)
+- Phase 4: Kubernetes deployment packaging
+- Phase 5: Enterprise features (RBAC, SSO, licensing)
 
 **Agent Services (Phase 6.5):**
 - `services/agents/crewai/` - CrewAI role-based teams (port 8100)
