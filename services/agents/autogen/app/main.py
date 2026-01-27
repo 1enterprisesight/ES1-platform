@@ -29,12 +29,93 @@ AGENT_ROUTER_URL = os.getenv("AGENT_ROUTER_URL", "http://agent-router:8102")
 redis_client: Optional[redis.Redis] = None
 
 
+async def register_template_agents():
+    """Register template agents with the Agent Router"""
+    templates = [
+        {
+            "name": "Code Assistant",
+            "framework": "autogen",
+            "description": "AI coding assistant that helps with coding tasks, explains code, debugs issues, and suggests improvements",
+            "capabilities": ["coding", "debugging", "code-explanation", "refactoring"],
+            "metadata": {"template": "code_assistant", "agent_type": "assistant"}
+        },
+        {
+            "name": "User Proxy",
+            "framework": "autogen",
+            "description": "User proxy agent that represents human input in conversations",
+            "capabilities": ["user-interaction", "task-initiation", "feedback"],
+            "metadata": {"template": "code_assistant", "agent_type": "user_proxy"}
+        },
+        {
+            "name": "Proponent",
+            "framework": "autogen",
+            "description": "Debate agent that argues in favor of topics with strong arguments and evidence",
+            "capabilities": ["argumentation", "persuasion", "evidence-presentation"],
+            "metadata": {"template": "debate", "agent_type": "assistant"}
+        },
+        {
+            "name": "Opponent",
+            "framework": "autogen",
+            "description": "Debate agent that argues against topics with counterarguments and challenges",
+            "capabilities": ["counterargument", "critical-analysis", "rebuttal"],
+            "metadata": {"template": "debate", "agent_type": "assistant"}
+        },
+        {
+            "name": "Moderator",
+            "framework": "autogen",
+            "description": "Debate moderator that ensures fair discussion, summarizes points, and declares conclusions",
+            "capabilities": ["moderation", "summarization", "decision-making"],
+            "metadata": {"template": "debate", "agent_type": "assistant"}
+        },
+        {
+            "name": "Ideator",
+            "framework": "autogen",
+            "description": "Brainstorming agent that generates creative ideas and possibilities",
+            "capabilities": ["ideation", "creativity", "brainstorming"],
+            "metadata": {"template": "brainstorm", "agent_type": "assistant"}
+        },
+        {
+            "name": "Critic",
+            "framework": "autogen",
+            "description": "Critical analysis agent that evaluates ideas and identifies potential issues",
+            "capabilities": ["critical-thinking", "evaluation", "risk-analysis"],
+            "metadata": {"template": "brainstorm", "agent_type": "assistant"}
+        },
+        {
+            "name": "Synthesizer",
+            "framework": "autogen",
+            "description": "Synthesis agent that combines ideas into cohesive solutions",
+            "capabilities": ["synthesis", "integration", "solution-design"],
+            "metadata": {"template": "brainstorm", "agent_type": "assistant"}
+        },
+    ]
+
+    async with httpx.AsyncClient() as client:
+        for agent in templates:
+            try:
+                response = await client.post(
+                    f"{AGENT_ROUTER_URL}/agents/register",
+                    json=agent,
+                    timeout=5.0
+                )
+                if response.status_code == 200:
+                    logger.info(f"Registered agent: {agent['name']}")
+                else:
+                    logger.warning(f"Failed to register agent {agent['name']}: {response.status_code}")
+            except Exception as e:
+                logger.warning(f"Could not register agent {agent['name']} with router: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     global redis_client
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
     logger.info("AutoGen Service starting up...")
+
+    # Register template agents with the router
+    await register_template_agents()
+
     yield
     if redis_client:
         await redis_client.close()

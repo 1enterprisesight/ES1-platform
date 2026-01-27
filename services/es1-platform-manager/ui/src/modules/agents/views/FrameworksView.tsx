@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/design-system/components/Card'
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
@@ -48,6 +49,7 @@ const FRAMEWORK_INFO: Record<string, {
 }
 
 export function FrameworksView() {
+  const navigate = useNavigate()
   const [frameworks, setFrameworks] = useState<Framework[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -160,7 +162,7 @@ export function FrameworksView() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => window.open(`http://localhost:8102/frameworks/${framework.name}/agents`, '_blank')}
+                    onClick={() => navigate(`/agents/registry?framework=${framework.name}`)}
                     disabled={framework.status !== 'healthy'}
                   >
                     View Agents

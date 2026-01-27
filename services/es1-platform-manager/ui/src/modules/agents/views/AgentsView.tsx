@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/design-system/components/Card'
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
@@ -20,11 +21,12 @@ interface AgentsResponse {
 }
 
 export function AgentsView() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [agents, setAgents] = useState<Agent[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [filterFramework, setFilterFramework] = useState<string>('')
+  const [filterFramework, setFilterFramework] = useState<string>(searchParams.get('framework') || '')
 
   const fetchAgents = async () => {
     setLoading(true)
@@ -118,7 +120,15 @@ export function AgentsView() {
         </div>
         <select
           value={filterFramework}
-          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFilterFramework(e.target.value)}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+            const value = e.target.value
+            setFilterFramework(value)
+            if (value) {
+              setSearchParams({ framework: value })
+            } else {
+              setSearchParams({})
+            }
+          }}
           className="px-3 py-2 border rounded-md bg-background text-sm"
         >
           <option value="">All Frameworks</option>

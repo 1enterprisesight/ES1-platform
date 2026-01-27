@@ -29,12 +29,100 @@ AGENT_ROUTER_URL = os.getenv("AGENT_ROUTER_URL", "http://agent-router:8102")
 redis_client: Optional[redis.Redis] = None
 
 
+async def register_template_agents():
+    """Register template agents with the Agent Router"""
+    templates = [
+        {
+            "name": "Researcher",
+            "framework": "crewai",
+            "description": "Senior Research Analyst - finds comprehensive and accurate information on given topics",
+            "capabilities": ["research", "analysis", "information-gathering"],
+            "metadata": {"template": "research_team", "role": "Senior Research Analyst"}
+        },
+        {
+            "name": "Writer",
+            "framework": "crewai",
+            "description": "Content Writer - transforms research findings into clear, engaging content",
+            "capabilities": ["writing", "content-creation", "documentation"],
+            "metadata": {"template": "research_team", "role": "Content Writer"}
+        },
+        {
+            "name": "Editor",
+            "framework": "crewai",
+            "description": "Editor - ensures content is polished, accurate, and well-structured",
+            "capabilities": ["editing", "review", "quality-assurance"],
+            "metadata": {"template": "research_team", "role": "Editor"}
+        },
+        {
+            "name": "Code Reviewer",
+            "framework": "crewai",
+            "description": "Code Review Specialist - reviews code for quality, patterns, and best practices",
+            "capabilities": ["code-review", "static-analysis", "best-practices"],
+            "metadata": {"template": "code_review", "role": "Code Reviewer"}
+        },
+        {
+            "name": "Security Analyst",
+            "framework": "crewai",
+            "description": "Security Analyst - identifies security vulnerabilities and risks in code",
+            "capabilities": ["security-analysis", "vulnerability-detection", "risk-assessment"],
+            "metadata": {"template": "code_review", "role": "Security Analyst"}
+        },
+        {
+            "name": "Documentation Writer",
+            "framework": "crewai",
+            "description": "Documentation Writer - creates clear technical documentation",
+            "capabilities": ["documentation", "technical-writing", "api-docs"],
+            "metadata": {"template": "code_review", "role": "Documentation Writer"}
+        },
+        {
+            "name": "Intake Specialist",
+            "framework": "crewai",
+            "description": "Intake Specialist - handles initial customer inquiries and routing",
+            "capabilities": ["customer-intake", "triage", "routing"],
+            "metadata": {"template": "customer_support", "role": "Intake Specialist"}
+        },
+        {
+            "name": "Technical Support",
+            "framework": "crewai",
+            "description": "Technical Support Agent - resolves technical issues and provides solutions",
+            "capabilities": ["technical-support", "troubleshooting", "problem-solving"],
+            "metadata": {"template": "customer_support", "role": "Technical Support"}
+        },
+        {
+            "name": "Quality Assurance",
+            "framework": "crewai",
+            "description": "QA Specialist - ensures support quality and customer satisfaction",
+            "capabilities": ["quality-assurance", "feedback-analysis", "process-improvement"],
+            "metadata": {"template": "customer_support", "role": "Quality Assurance"}
+        },
+    ]
+
+    async with httpx.AsyncClient() as client:
+        for agent in templates:
+            try:
+                response = await client.post(
+                    f"{AGENT_ROUTER_URL}/agents/register",
+                    json=agent,
+                    timeout=5.0
+                )
+                if response.status_code == 200:
+                    logger.info(f"Registered agent: {agent['name']}")
+                else:
+                    logger.warning(f"Failed to register agent {agent['name']}: {response.status_code}")
+            except Exception as e:
+                logger.warning(f"Could not register agent {agent['name']} with router: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     global redis_client
     redis_client = redis.from_url(REDIS_URL, decode_responses=True)
     logger.info("CrewAI Service starting up...")
+
+    # Register template agents with the router
+    await register_template_agents()
+
     yield
     if redis_client:
         await redis_client.close()
