@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.config import settings
 from app.core.init_db import create_tables
@@ -90,6 +91,9 @@ app.include_router(system_router, prefix=settings.API_V1_PREFIX)
 app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
 app.include_router(settings_router, prefix=settings.API_V1_PREFIX)
 app.include_router(n8n_router, prefix=settings.API_V1_PREFIX)
+
+# Prometheus metrics instrumentation
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 
 @app.get("/health")

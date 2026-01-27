@@ -46,11 +46,11 @@ scrape_configs:
     static_configs:
       - targets: ['redis-exporter:9121']
 
-  # KrakenD API Gateway
+  # KrakenD API Gateway (metrics on port 8090)
   - job_name: 'krakend'
     static_configs:
-      - targets: ['krakend:9091']
-    metrics_path: '/__stats/'
+      - targets: ['krakend:8090']
+    metrics_path: '/__stats'
 
   # ES1 Platform Manager API
   - job_name: 'es1-platform-manager'

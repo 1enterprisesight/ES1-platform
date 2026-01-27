@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import {
   Network, Workflow, Brain, Zap, Activity,
-  CheckCircle, Clock, AlertCircle, Settings
+  CheckCircle, Clock, AlertCircle, Settings,
+  BarChart3, Server, Database, HardDrive
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/design-system/components'
 import { StatusIndicator } from '@/design-system/components/StatusIndicator'
@@ -271,6 +272,74 @@ export function Dashboard() {
               </p>
             </CardContent>
           </Card>
+        </div>
+      </div>
+
+      {/* System Monitoring */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">System Monitoring</h2>
+          <Link
+            to="/monitoring"
+            className="text-sm text-primary hover:underline flex items-center gap-1"
+          >
+            <BarChart3 className="h-4 w-4" />
+            View Dashboards
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Link to="/monitoring/system-overview">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">System Overview</CardTitle>
+                <BarChart3 className="h-4 w-4 text-blue-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  All services health at a glance
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/monitoring/containers">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Containers</CardTitle>
+                <Server className="h-4 w-4 text-green-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Docker container metrics
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/monitoring/postgresql">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">PostgreSQL</CardTitle>
+                <Database className="h-4 w-4 text-purple-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Database performance
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/monitoring/redis">
+            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Redis</CardTitle>
+                <HardDrive className="h-4 w-4 text-orange-500" />
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Cache performance
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       </div>
 

@@ -6,6 +6,7 @@ import { WorkflowsModule } from './modules/workflows/WorkflowsModule'
 import { AIModule } from './modules/ai/AIModule'
 import { ObservabilityModule } from './modules/observability/ObservabilityModule'
 import { AutomationModule } from './modules/automation/AutomationModule'
+import { MonitoringModule } from './modules/monitoring/MonitoringModule'
 import { SettingsModule } from './modules/settings/SettingsModule'
 
 function App() {
@@ -18,6 +19,7 @@ function App() {
         <Route path="/ai/*" element={<AIModule />} />
         <Route path="/observability/*" element={<ObservabilityModule />} />
         <Route path="/automation/*" element={<AutomationModule />} />
+        <Route path="/monitoring/*" element={<MonitoringModule />} />
         <Route path="/settings" element={<SettingsModule />} />
       </Route>
     </Routes>
