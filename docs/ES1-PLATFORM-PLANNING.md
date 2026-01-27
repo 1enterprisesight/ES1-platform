@@ -574,34 +574,34 @@ The UI must provide full transparency into system operations:
 - [x] Langflow integration (list, run, discover flows)
 - [x] Langfuse integration (traces, sessions, metrics)
 
-### Phase 3: Integration & Polish (NEXT - Priority 1)
+### Phase 3: Integration & Polish ✅ COMPLETE (Core)
 **Goal:** Connect everything together and polish UI
 
-**Status:** IN PROGRESS
+**Status:** COMPLETE (core items), remaining items deferred
 
-#### 3.1 UI Polish (Priority) ✅ COMPLETE
+#### 3.1 UI Polish ✅ COMPLETE
 - [x] Fix UI container health check (IPv6 issue, curl-based check)
-- [ ] Add setup wizard for first-time configuration (deferred to Phase 5)
 - [x] Implement real-time activity feed sidebar with filtering, search, expandable details
 - [x] Add loading states and skeleton screens (Skeleton, SkeletonTable, SkeletonList, etc.)
 - [x] Improve error messages with actionable guidance (ErrorDisplay, ServiceConnectionError, EmptyState)
 - [x] Add keyboard shortcuts (Ctrl+1-6 navigation, Ctrl+Shift+D dark mode, Ctrl+/ help)
 
-#### 3.2 Integration Testing
+#### 3.2 Integration Testing (Deferred - can be done during Phase 4/5)
 - [ ] Test full gateway flow (discover → expose → approve → deploy)
 - [ ] Create n8n workflow that triggers Airflow DAG
 - [ ] Create Langflow flow that calls Airflow DAG
 - [ ] Generate traces in Langfuse
 
-#### 3.3 Cross-Module Features
+#### 3.3 Cross-Module Features (Deferred to Phase 5)
 - [ ] Unified search across all modules
 - [ ] Bulk operations for exposures
 - [ ] Export/import configurations
+- [ ] Setup wizard for first-time configuration
 
-### Phase 4: Kubernetes & Production (NEXT - Priority 2)
+### Phase 4: Kubernetes & Production (CURRENT PRIORITY)
 **Goal:** Production-ready K8s deployment with safe upgrades
 
-**Status:** PLANNED
+**Status:** STARTING
 
 #### 4.1 Kubernetes Deployment
 - [ ] K8s manifests for es1-platform-manager
