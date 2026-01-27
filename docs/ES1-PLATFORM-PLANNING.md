@@ -582,7 +582,7 @@ The UI must provide full transparency into system operations:
 #### 3.1 UI Polish (Priority)
 - [ ] Fix UI container health check
 - [ ] Add setup wizard for first-time configuration
-- [ ] Implement real-time activity feed sidebar (backend SSE ready)
+- [x] Implement real-time activity feed sidebar with filtering, search, expandable details
 - [ ] Add loading states and skeleton screens
 - [ ] Improve error messages with actionable guidance
 - [ ] Add keyboard shortcuts
@@ -743,23 +743,62 @@ make down
 make status
 ```
 
-### Service URLs (Local Development)
+### Service URLs & Ports (Local Development)
 
-| Service | URL | Credentials |
-|---------|-----|-------------|
-| KrakenD API | http://localhost:8080 | - |
-| KrakenD Metrics | http://localhost:9091 | - |
-| ES1 Platform Manager API | http://localhost:8000/docs | - |
-| ES1 Platform Manager UI | http://localhost:3001 | - |
-| Airflow | http://localhost:8081 | airflow/airflow |
-| Langflow | http://localhost:7860 | admin/admin |
-| Langfuse | http://localhost:3000 | See .env |
-| n8n | http://localhost:5678 | - |
-| Grafana | http://localhost:3002 | admin/admin |
-| Prometheus | http://localhost:9090 | - |
-| cAdvisor | http://localhost:8081 | - |
-| PostgreSQL | localhost:5432 | es1_user/es1_dev_password |
-| Redis | localhost:6379 | - |
+#### ES1 Platform Manager (Main Interface)
+| Service | URL | Port | Credentials | Description |
+|---------|-----|------|-------------|-------------|
+| Platform Manager UI | http://localhost:3001 | 3001 | - | Main admin interface |
+| Platform Manager API | http://localhost:8000 | 8000 | - | REST API |
+| Platform Manager API Docs | http://localhost:8000/docs | 8000 | - | Swagger/OpenAPI docs |
+| Platform Manager Metrics | http://localhost:8000/metrics | 8000 | - | Prometheus metrics |
+| SSE Event Stream | http://localhost:8000/api/v1/events/stream | 8000 | - | Real-time events |
+
+#### API Gateway
+| Service | URL | Port | Credentials | Description |
+|---------|-----|------|-------------|-------------|
+| KrakenD Gateway | http://localhost:8080 | 8080 | - | API Gateway (external traffic) |
+| KrakenD Metrics | http://localhost:9091/metrics | 9091 | - | Prometheus OpenCensus metrics |
+
+#### Workflow & Automation Services
+| Service | URL | Port | Credentials | Description |
+|---------|-----|------|-------------|-------------|
+| Airflow Web UI | http://localhost:8081 | 8081 | airflow/airflow | DAG management |
+| Airflow API | http://localhost:8081/api/v1 | 8081 | airflow/airflow | REST API |
+| n8n | http://localhost:5678 | 5678 | (setup on first run) | Workflow automation |
+
+#### AI Services
+| Service | URL | Port | Credentials | Description |
+|---------|-----|------|-------------|-------------|
+| Langflow | http://localhost:7860 | 7860 | (setup on first run) | LLM flow builder |
+| Langfuse | http://localhost:3000 | 3000 | See .env | LLM observability |
+
+#### Monitoring Stack
+| Service | URL | Port | Credentials | Description |
+|---------|-----|------|-------------|-------------|
+| Grafana | http://localhost:3002 | 3002 | admin/admin | Dashboards & visualization |
+| Prometheus | http://localhost:9090 | 9090 | - | Metrics collection |
+| cAdvisor | http://localhost:8082 | 8082 | - | Container metrics |
+| Node Exporter | http://localhost:9100/metrics | 9100 | - | Host metrics |
+| PostgreSQL Exporter | http://localhost:9187/metrics | 9187 | - | Database metrics |
+| Redis Exporter | http://localhost:9121/metrics | 9121 | - | Cache metrics |
+| StatsD Exporter | http://localhost:9102/metrics | 9102 | - | Airflow metrics |
+
+#### Infrastructure
+| Service | URL/Host | Port | Credentials | Description |
+|---------|----------|------|-------------|-------------|
+| PostgreSQL | localhost:5432 | 5432 | es1_user/es1_dev_password | Primary database |
+| Redis | localhost:6379 | 6379 | - | Cache & Celery broker |
+
+#### Grafana Pre-configured Dashboards
+| Dashboard | Description |
+|-----------|-------------|
+| System Overview | All service health at a glance |
+| Docker Containers | Container CPU, memory, network (cAdvisor) |
+| Node Resources | Host CPU, memory, disk, network |
+| PostgreSQL Database | Connections, queries, locks |
+| Redis Cache | Memory, commands, connections |
+| KrakenD API Gateway | Request rates, latencies, errors |
 
 ### Git Status
 
