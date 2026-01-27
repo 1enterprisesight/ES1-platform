@@ -433,9 +433,9 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 ### Phase 6.0: API Infrastructure Foundation
 **Goal:** Full visibility into all API traffic
 
-- [ ] **6.0a** Add audit schema to platform PostgreSQL
-- [ ] **6.0b** Configure KrakenD audit logging plugin
-- [ ] **6.0c** Add internal service routes to KrakenD
+- [x] **6.0a** Add audit schema to platform PostgreSQL
+- [x] **6.0b** Configure KrakenD logging (logstash format)
+- [x] **6.0c** Add internal service routes to KrakenD (Ollama, MLflow, Knowledge, Agents, Audit)
 - [ ] **6.0d** Implement service-to-service JWT authentication
 - [ ] **6.0e** Add request correlation IDs across services
 - [ ] **6.0f** Platform Manager API traffic dashboard
@@ -453,7 +453,7 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 ### Phase 6.6: Knowledge Graph & Ingestion
 **Goal:** Unified knowledge layer for all agents
 
-- [ ] **6.6a** Add graph schema to aiml database
+- [x] **6.6a** Add graph schema to aiml database (entities, relationships, entity_types, relationship_types)
 - [ ] **6.6b** Create Airflow DAG templates for data ingestion
 - [ ] **6.6c** Implement document processing pipeline
 - [ ] **6.6d** Build embedding generation service (using Ollama)
@@ -518,10 +518,13 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 - AI/ML PostgreSQL with pgvector (vectors, rag, agents, mlops schemas)
 - Ollama + Open WebUI + MLflow running
 - Architecture and scope documented in this file
+- Phase 6.0a-c complete: Audit schema + KrakenD routes for all services
+- Phase 6.6a complete: Graph schema for knowledge graph
 
 **What's Next:**
-- Review open questions with user
-- Begin Phase 6.0 (API Infrastructure) or Phase 6.6 (Knowledge Graph)
+- Phase 6.6b-c: Airflow DAG templates for data ingestion
+- Phase 6.5: Agent frameworks (CrewAI, AutoGen, Agent Router)
+- Phase 6.9: Platform Manager UI integration
 
 **Key Files:**
 - This document: `docs/PHASE-6-AIML-PLATFORM.md`
