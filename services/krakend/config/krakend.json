@@ -20,6 +20,20 @@
       "collection_time": "30s",
       "listen_address": ":8090"
     },
+    "telemetry/opencensus": {
+      "sample_rate": 100,
+      "reporting_period": 10,
+      "exporters": {
+        "prometheus": {
+          "port": 9091,
+          "namespace": "krakend",
+          "tag_host": false,
+          "tag_path": true,
+          "tag_method": true,
+          "tag_statuscode": true
+        }
+      }
+    },
     "security/cors": {
       "allow_origins": ["*"],
       "allow_methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],

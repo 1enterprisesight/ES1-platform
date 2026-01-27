@@ -46,11 +46,11 @@ scrape_configs:
     static_configs:
       - targets: ['redis-exporter:9121']
 
-  # KrakenD API Gateway (metrics on port 8090)
+  # KrakenD API Gateway (Prometheus via OpenCensus on port 9091)
   - job_name: 'krakend'
     static_configs:
-      - targets: ['krakend:8090']
-    metrics_path: '/__stats'
+      - targets: ['krakend:9091']
+    metrics_path: '/metrics'
 
   # ES1 Platform Manager API
   - job_name: 'es1-platform-manager'
@@ -58,26 +58,28 @@ scrape_configs:
       - targets: ['es1-platform-manager-api:8000']
     metrics_path: '/metrics'
 
-  # Airflow
+  # Airflow (via StatsD Exporter)
   - job_name: 'airflow'
     static_configs:
-      - targets: ['airflow-webserver:8080']
-    metrics_path: '/admin/metrics'
-
-  # Langflow
-  - job_name: 'langflow'
-    static_configs:
-      - targets: ['langflow:7860']
+      - targets: ['statsd-exporter:9102']
     metrics_path: '/metrics'
 
-  # n8n
+  # Langflow (FastAPI-based, no built-in Prometheus metrics)
+  # To enable: would need to add prometheus-fastapi-instrumentator to Langflow
+  # - job_name: 'langflow'
+  #   static_configs:
+  #     - targets: ['langflow:7860']
+  #   metrics_path: '/metrics'
+
+  # n8n (has built-in metrics when enabled)
   - job_name: 'n8n'
     static_configs:
       - targets: ['n8n:5678']
     metrics_path: '/metrics'
 
-  # Langfuse
-  - job_name: 'langfuse'
-    static_configs:
-      - targets: ['langfuse:3000']
-    metrics_path: '/api/public/metrics'
+  # Langfuse (Next.js app, no built-in Prometheus metrics)
+  # To enable: would need custom metrics endpoint or sidecar
+  # - job_name: 'langfuse'
+  #   static_configs:
+  #     - targets: ['langfuse:3000']
+  #   metrics_path: '/api/public/metrics'

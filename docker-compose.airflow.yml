@@ -30,6 +30,11 @@ x-airflow-common:
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
     AIRFLOW__WEBSERVER__RBAC: 'true'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    # StatsD metrics for Prometheus
+    AIRFLOW__METRICS__STATSD_ON: 'true'
+    AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+    AIRFLOW__METRICS__STATSD_PORT: 9125
+    AIRFLOW__METRICS__STATSD_PREFIX: airflow
     # Connection to Gateway Manager for notifications
     AIRFLOW_CONN_GATEWAY_MANAGER: 'http://gateway-manager-api:8000'
     _PIP_ADDITIONAL_REQUIREMENTS: 'pg8000 cloud-sql-python-connector'
@@ -195,6 +200,20 @@ services:
       <<: *airflow-common-depends-on
       airflow-init:
         condition: service_completed_successfully
+
+  # StatsD Exporter for Airflow metrics
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.26.0
+    container_name: statsd-exporter
+    ports:
+      - "9102:9102"   # Prometheus metrics
+      - "9125:9125/udp"  # StatsD UDP
+    command:
+      - '--statsd.listen-udp=:9125'
+      - '--web.listen-address=:9102'
+    restart: unless-stopped
+    networks:
+      - es1-network
 
 volumes:
   airflow_logs:
