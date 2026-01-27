@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
+from app.core.events import event_bus, EventType
 from .client import n8n_client, N8NAPIKeyMissingError
 from .schemas import (
     WorkflowResponse,
@@ -97,11 +98,26 @@ async def execute_workflow(workflow_id: str, request: ExecuteWorkflowRequest | N
         result = await n8n_client.execute_workflow(workflow_id, data=data)
 
         execution = result.get("data", {})
+        workflow_name = execution.get("workflowData", {}).get("name", f"Workflow {workflow_id}")
+        status = execution.get("status", "running")
+
+        # Emit workflow executed event
+        await event_bus.publish(
+            EventType.WORKFLOW_EXECUTED,
+            {
+                "message": f"Executed workflow: {workflow_name}",
+                "workflow_id": workflow_id,
+                "workflow_name": workflow_name,
+                "execution_id": str(execution.get("id", "")),
+                "status": status,
+            },
+        )
+
         return ExecutionResponse(
             id=str(execution.get("id", "")),
             workflow_id=workflow_id,
-            workflow_name=execution.get("workflowData", {}).get("name"),
-            status=execution.get("status", "running"),
+            workflow_name=workflow_name,
+            status=status,
             started_at=execution.get("startedAt"),
             finished_at=execution.get("stoppedAt"),
             mode=execution.get("mode"),
@@ -112,6 +128,14 @@ async def execute_workflow(workflow_id: str, request: ExecuteWorkflowRequest | N
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to execute workflow {workflow_id}: {e}")
+        await event_bus.publish(
+            EventType.WORKFLOW_EXECUTION_FAILED,
+            {
+                "message": f"Failed to execute workflow {workflow_id}",
+                "workflow_id": workflow_id,
+                "error": str(e),
+            },
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -120,10 +144,21 @@ async def activate_workflow(workflow_id: str):
     """Activate a workflow."""
     try:
         w = await n8n_client.activate_workflow(workflow_id, active=True)
+        workflow_name = w.get("name", f"Workflow {workflow_id}")
+
+        # Emit workflow activated event
+        await event_bus.publish(
+            EventType.WORKFLOW_ACTIVATED,
+            {
+                "message": f"Activated workflow: {workflow_name}",
+                "workflow_id": workflow_id,
+                "workflow_name": workflow_name,
+            },
+        )
 
         return WorkflowResponse(
             id=str(w.get("id", "")),
-            name=w.get("name", ""),
+            name=workflow_name,
             active=w.get("active", False),
             created_at=w.get("createdAt"),
             updated_at=w.get("updatedAt"),
@@ -144,10 +179,21 @@ async def deactivate_workflow(workflow_id: str):
     """Deactivate a workflow."""
     try:
         w = await n8n_client.activate_workflow(workflow_id, active=False)
+        workflow_name = w.get("name", f"Workflow {workflow_id}")
+
+        # Emit workflow deactivated event
+        await event_bus.publish(
+            EventType.WORKFLOW_DEACTIVATED,
+            {
+                "message": f"Deactivated workflow: {workflow_name}",
+                "workflow_id": workflow_id,
+                "workflow_name": workflow_name,
+            },
+        )
 
         return WorkflowResponse(
             id=str(w.get("id", "")),
-            name=w.get("name", ""),
+            name=workflow_name,
             active=w.get("active", False),
             created_at=w.get("createdAt"),
             updated_at=w.get("updatedAt"),

@@ -42,6 +42,24 @@ class EventType(str, Enum):
     SYSTEM_WARNING = "system_warning"
     SYSTEM_ERROR = "system_error"
 
+    # Workflow events (n8n)
+    WORKFLOW_EXECUTED = "workflow_executed"
+    WORKFLOW_ACTIVATED = "workflow_activated"
+    WORKFLOW_DEACTIVATED = "workflow_deactivated"
+    WORKFLOW_EXECUTION_COMPLETED = "workflow_execution_completed"
+    WORKFLOW_EXECUTION_FAILED = "workflow_execution_failed"
+
+    # DAG events (Airflow)
+    DAG_TRIGGERED = "dag_triggered"
+    DAG_PAUSED = "dag_paused"
+    DAG_UNPAUSED = "dag_unpaused"
+    DAG_DISCOVERED = "dag_discovered"
+
+    # AI Flow events (Langflow)
+    FLOW_EXECUTED = "flow_executed"
+    FLOW_CREATED = "flow_created"
+    FLOW_UPDATED = "flow_updated"
+
 
 class Event(BaseModel):
     """Event model for broadcasting to clients."""

@@ -7,7 +7,6 @@ import {
   Settings,
   Moon,
   Sun,
-  Activity,
   Wifi,
   WifiOff,
   LineChart,
@@ -15,10 +14,11 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/ThemeContext'
-import { useEventBus, PlatformEvent } from '@/shared/contexts/EventBusContext'
+import { useEventBus } from '@/shared/contexts/EventBusContext'
 import { useBranding } from '@/shared/contexts/BrandingContext'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '../components/Button'
+import { ActivityFeed } from '../components/ActivityFeed'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -33,7 +33,7 @@ const navItems = [
 
 export function MainLayout() {
   const { setTheme, resolvedTheme } = useTheme()
-  const { events, connected } = useEventBus()
+  const { events, connected, clearEvents } = useEventBus()
   const { branding } = useBranding()
 
   return (
@@ -121,69 +121,11 @@ export function MainLayout() {
           </main>
 
           {/* Activity Feed Sidebar */}
-          <aside className="w-80 border-l bg-card overflow-hidden flex flex-col">
-            <div className="h-12 flex items-center px-4 border-b">
-              <Activity className="h-4 w-4 mr-2" />
-              <h2 className="font-medium">Activity Feed</h2>
-            </div>
-            <div className="flex-1 overflow-auto">
-              {events.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No recent activity
-                </div>
-              ) : (
-                <div className="divide-y">
-                  {events.slice(0, 20).map((event) => (
-                    <ActivityItem key={event.id} event={event} />
-                  ))}
-                </div>
-              )}
-            </div>
+          <aside className="w-80 border-l bg-card overflow-hidden">
+            <ActivityFeed events={events} onClear={clearEvents} />
           </aside>
         </div>
       </div>
-    </div>
-  )
-}
-
-function ActivityItem({ event }: { event: PlatformEvent }) {
-  const typeStyles: Record<string, string> = {
-    deployment_started: 'text-blue-500',
-    deployment_completed: 'text-green-500',
-    deployment_failed: 'text-red-500',
-    operation_started: 'text-blue-500',
-    operation_completed: 'text-green-500',
-    operation_failed: 'text-red-500',
-    exposure_created: 'text-purple-500',
-    exposure_approved: 'text-green-500',
-    resource_discovered: 'text-blue-500',
-    system_info: 'text-blue-500',
-    system_warning: 'text-yellow-500',
-    system_error: 'text-red-500',
-  }
-
-  const formatEventType = (type: string) => {
-    return type.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-  }
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  }
-
-  return (
-    <div className="p-3 hover:bg-accent/50 transition-colors">
-      <div className="flex items-start justify-between gap-2">
-        <span className={cn('text-xs font-medium', typeStyles[event.type] || 'text-muted-foreground')}>
-          {formatEventType(event.type)}
-        </span>
-        <span className="text-xs text-muted-foreground">{formatTime(event.timestamp)}</span>
-      </div>
-      {event.data.message ? (
-        <p className="text-sm text-foreground mt-1 line-clamp-2">
-          {String(event.data.message)}
-        </p>
-      ) : null}
     </div>
   )
 }

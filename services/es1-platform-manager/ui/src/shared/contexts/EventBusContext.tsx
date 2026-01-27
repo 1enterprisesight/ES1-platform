@@ -11,6 +11,7 @@ interface EventBusContextType {
   events: PlatformEvent[]
   connected: boolean
   subscribe: (eventType: string, handler: (event: PlatformEvent) => void) => () => void
+  clearEvents: () => void
 }
 
 const EventBusContext = createContext<EventBusContextType | undefined>(undefined)
@@ -62,22 +63,46 @@ export function EventBusProvider({ children }: { children: ReactNode }) {
 
     // Handle specific event types
     const eventTypes = [
+      // Operation events
       'operation_started',
       'operation_progress',
       'operation_completed',
       'operation_failed',
+      // Deployment events
       'deployment_started',
       'deployment_progress',
       'deployment_completed',
       'deployment_failed',
       'deployment_rolled_back',
+      // Resource events
       'resource_discovered',
       'resource_updated',
+      'resource_deleted',
+      // Exposure events
       'exposure_created',
       'exposure_approved',
+      'exposure_rejected',
+      'exposure_deployed',
+      // System events
       'system_info',
       'system_warning',
       'system_error',
+      'health_status_changed',
+      // Workflow events (n8n)
+      'workflow_executed',
+      'workflow_activated',
+      'workflow_deactivated',
+      'workflow_execution_completed',
+      'workflow_execution_failed',
+      // DAG events (Airflow)
+      'dag_triggered',
+      'dag_paused',
+      'dag_unpaused',
+      'dag_discovered',
+      // AI Flow events (Langflow)
+      'flow_executed',
+      'flow_created',
+      'flow_updated',
     ]
 
     eventTypes.forEach((type) => {
@@ -136,8 +161,12 @@ export function EventBusProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const clearEvents = useCallback(() => {
+    setEvents([])
+  }, [])
+
   return (
-    <EventBusContext.Provider value={{ events, connected, subscribe }}>
+    <EventBusContext.Provider value={{ events, connected, subscribe, clearEvents }}>
       {children}
     </EventBusContext.Provider>
   )

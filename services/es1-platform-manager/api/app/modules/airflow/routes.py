@@ -113,9 +113,8 @@ async def trigger_dag(dag_id: str, request: TriggerDAGRequest):
 
         # Emit event
         await event_bus.publish(
-            EventType.OPERATION_COMPLETED,
+            EventType.DAG_TRIGGERED,
             {
-                "operation": "trigger_dag",
                 "dag_id": dag_id,
                 "dag_run_id": result.get("dag_run_id"),
                 "message": f"DAG {dag_id} triggered successfully",
@@ -152,11 +151,11 @@ async def pause_dag(dag_id: str, is_paused: bool = True):
     try:
         result = await airflow_client.pause_dag(dag_id, is_paused)
         action = "paused" if is_paused else "unpaused"
+        event_type = EventType.DAG_PAUSED if is_paused else EventType.DAG_UNPAUSED
 
         await event_bus.publish(
-            EventType.OPERATION_COMPLETED,
+            event_type,
             {
-                "operation": f"dag_{action}",
                 "dag_id": dag_id,
                 "message": f"DAG {dag_id} {action}",
             },
@@ -332,9 +331,8 @@ async def discover_resources(db: AsyncSession = Depends(get_db)):
         connections_count = len(result.get("connections", []))
 
         await event_bus.publish(
-            EventType.OPERATION_COMPLETED,
+            EventType.DAG_DISCOVERED,
             {
-                "operation": "airflow_discovery",
                 "dags_discovered": dags_count,
                 "connections_discovered": connections_count,
                 "message": f"Discovered {dags_count} DAGs and {connections_count} connections",
