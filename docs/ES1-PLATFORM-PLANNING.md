@@ -579,13 +579,13 @@ The UI must provide full transparency into system operations:
 
 **Status:** IN PROGRESS
 
-#### 3.1 UI Polish (Priority)
-- [ ] Fix UI container health check
-- [ ] Add setup wizard for first-time configuration
+#### 3.1 UI Polish (Priority) ✅ COMPLETE
+- [x] Fix UI container health check (IPv6 issue, curl-based check)
+- [ ] Add setup wizard for first-time configuration (deferred to Phase 5)
 - [x] Implement real-time activity feed sidebar with filtering, search, expandable details
-- [ ] Add loading states and skeleton screens
-- [ ] Improve error messages with actionable guidance
-- [ ] Add keyboard shortcuts
+- [x] Add loading states and skeleton screens (Skeleton, SkeletonTable, SkeletonList, etc.)
+- [x] Improve error messages with actionable guidance (ErrorDisplay, ServiceConnectionError, EmptyState)
+- [x] Add keyboard shortcuts (Ctrl+1-6 navigation, Ctrl+Shift+D dark mode, Ctrl+/ help)
 
 #### 3.2 Integration Testing
 - [ ] Test full gateway flow (discover → expose → approve → deploy)
