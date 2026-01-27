@@ -10,6 +10,7 @@ import {
   XCircle,
   Clock,
 } from 'lucide-react'
+import { Skeleton, SkeletonTable } from '../../../design-system/components'
 
 interface Workflow {
   id: string
@@ -110,8 +111,15 @@ export function N8NWorkflowsView() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-32" />
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-8 w-28" />
+          </div>
+        </div>
+        <SkeletonTable rows={5} columns={6} />
       </div>
     )
   }

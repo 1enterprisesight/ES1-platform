@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -12,13 +13,16 @@ import {
   LineChart,
   Zap,
   BarChart3,
+  Keyboard,
 } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/ThemeContext'
 import { useEventBus } from '@/shared/contexts/EventBusContext'
 import { useBranding } from '@/shared/contexts/BrandingContext'
+import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '../components/Button'
 import { ActivityFeed } from '../components/ActivityFeed'
+import { KeyboardShortcutsHelp } from '../components/KeyboardShortcutsHelp'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -35,6 +39,19 @@ export function MainLayout() {
   const { setTheme, resolvedTheme } = useTheme()
   const { events, connected, clearEvents } = useEventBus()
   const { branding } = useBranding()
+  const [showShortcuts, setShowShortcuts] = useState(false)
+
+  // Initialize keyboard shortcuts
+  useKeyboardShortcuts(() => setShowShortcuts(true))
+
+  // Close on Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowShortcuts(false)
+    }
+    window.addEventListener('keydown', handleEscape)
+    return () => window.removeEventListener('keydown', handleEscape)
+  }, [])
 
   return (
     <div className="flex h-screen bg-background">
@@ -111,6 +128,15 @@ export function MainLayout() {
               {connected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowShortcuts(true)}
+            className="text-muted-foreground"
+          >
+            <Keyboard className="h-4 w-4 mr-2" />
+            <span className="text-xs">Ctrl+/</span>
+          </Button>
         </header>
 
         {/* Page Content with Activity Feed */}
@@ -126,6 +152,12 @@ export function MainLayout() {
           </aside>
         </div>
       </div>
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp
+        isOpen={showShortcuts}
+        onClose={() => setShowShortcuts(false)}
+      />
     </div>
   )
 }

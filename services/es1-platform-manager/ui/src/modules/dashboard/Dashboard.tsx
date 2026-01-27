@@ -5,7 +5,7 @@ import {
   CheckCircle, Clock, AlertCircle, Settings,
   BarChart3, Server, Database, HardDrive
 } from 'lucide-react'
-import { Card, CardHeader, CardTitle, CardContent } from '@/design-system/components'
+import { Card, CardHeader, CardTitle, CardContent, Skeleton, SkeletonServiceCard } from '@/design-system/components'
 import { StatusIndicator } from '@/design-system/components/StatusIndicator'
 
 interface GatewayStatus {
@@ -43,8 +43,11 @@ function ServiceStatusCard({
   description: string
   colorClass: string
 }) {
+  if (isLoading) {
+    return <SkeletonServiceCard />
+  }
+
   const getStatusDisplay = () => {
-    if (isLoading) return { status: 'neutral' as const, text: 'Loading...' }
     if (!health) return { status: 'error' as const, text: 'Error' }
 
     switch (health.status) {
@@ -210,21 +213,26 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               {gatewayLoading ? (
-                <div className="text-2xl font-bold">...</div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <StatusIndicator
-                    status={gatewayStatus?.health.status || 'unhealthy'}
-                  />
-                  <span className="text-2xl font-bold capitalize">
-                    {gatewayStatus?.health.status || 'Unknown'}
-                  </span>
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-3 w-40" />
                 </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2">
+                    <StatusIndicator
+                      status={gatewayStatus?.health.status || 'unhealthy'}
+                    />
+                    <span className="text-2xl font-bold capitalize">
+                      {gatewayStatus?.health.status || 'Unknown'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Mode: {gatewayStatus?.health.mode || 'unknown'} |
+                    Pods: {gatewayStatus?.health.running_pods || 0}/{gatewayStatus?.health.pod_count || 0}
+                  </p>
+                </>
               )}
-              <p className="text-xs text-muted-foreground mt-1">
-                Mode: {gatewayStatus?.health.mode || 'unknown'} |
-                Pods: {gatewayStatus?.health.running_pods || 0}/{gatewayStatus?.health.pod_count || 0}
-              </p>
             </CardContent>
           </Card>
 

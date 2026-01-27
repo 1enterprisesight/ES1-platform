@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Card, Button, Badge, StatusIndicator } from '../../../design-system/components'
+import { Workflow } from 'lucide-react'
+import { Card, Button, Badge, StatusIndicator, Skeleton, SkeletonList, ErrorDisplay, EmptyState } from '../../../design-system/components'
 import { useToast } from '../../../shared/contexts/ToastContext'
 
 interface Dag {
@@ -43,7 +44,7 @@ export function DagsView() {
   const queryClient = useQueryClient()
   const { addToast } = useToast()
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['airflow', 'dags'],
     queryFn: fetchDags,
   })
@@ -71,14 +72,26 @@ export function DagsView() {
   })
 
   if (isLoading) {
-    return <div className="text-muted-foreground">Loading DAGs...</div>
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <SkeletonList items={4} />
+      </div>
+    )
   }
 
   if (error) {
     return (
-      <Card className="p-4 border-destructive">
-        <p className="text-destructive">Failed to load DAGs: {(error as Error).message}</p>
-      </Card>
+      <ErrorDisplay
+        title="Failed to load DAGs"
+        message="Could not fetch DAGs from Airflow. The service may be unavailable or still starting."
+        error={error as Error}
+        onRetry={() => refetch()}
+        suggestion="Check if Airflow is running and healthy. You can also try accessing Airflow directly."
+        helpLink={{ label: 'Open Airflow', url: 'http://localhost:8081' }}
+      />
     )
   }
 
@@ -86,12 +99,12 @@ export function DagsView() {
 
   if (dags.length === 0) {
     return (
-      <Card className="p-8 text-center">
-        <p className="text-muted-foreground">No DAGs found</p>
-        <p className="text-sm text-muted-foreground mt-1">
-          DAGs will appear here once Airflow is connected and has workflows defined.
-        </p>
-      </Card>
+      <EmptyState
+        icon={Workflow}
+        title="No DAGs found"
+        description="DAGs will appear here once Airflow has workflows defined. Create a new DAG file or use the DAG Editor to get started."
+        action={{ label: 'Open Airflow', href: 'http://localhost:8081' }}
+      />
     )
   }
 
