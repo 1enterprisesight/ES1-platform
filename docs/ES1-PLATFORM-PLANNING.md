@@ -722,21 +722,27 @@ The UI must provide full transparency into system operations:
 ### Phase 6: AI/ML Platform (CURRENT PRIORITY - Do First)
 **Goal:** Complete AI/ML platform for building services, agent networks, and model meshes
 
-**Status:** STARTING
+**Status:** IN PROGRESS (6.1-6.3 basic setup complete)
 
 #### 6.1 Dedicated AI/ML Database
 Separate from platform database - for user workloads, large datasets, vectors
-- [ ] PostgreSQL 16 with pgvector extension (dedicated instance)
+- [x] PostgreSQL 16 with pgvector extension (dedicated instance on port 5433)
+- [x] Vector tables with multiple dimension support (384, 768, 1536, 4096)
+- [x] HNSW indexes for fast similarity search
+- [x] Schemas: vectors, rag, agents, mlops
+- [x] RAG tables (sources, documents, chunks, knowledge_bases)
+- [x] Agent tables (definitions, sessions, messages, memory, networks)
+- [x] MLOps tables (models, deployments, inference_logs, feature_groups, prompts)
 - [ ] Configure for large dataset workloads (shared_buffers, work_mem)
-- [ ] Vector indexes (IVFFlat, HNSW) for similarity search
 - [ ] Connection pooling (PgBouncer) for high concurrency
 - [ ] Optional: Qdrant for dedicated vector-only workloads (faster, purpose-built)
 
 #### 6.2 LLM Serving Stack
-- [ ] **Ollama** - Local model inference (Llama, Mistral, CodeLlama, etc.)
+- [x] **Ollama** - Local model inference (port 11434)
   - Easy model management (pull, run, serve)
   - Good for development and moderate workloads
   - Air-gapped friendly (models stored locally)
+- [x] **Open WebUI** - Ollama web interface (port 3010)
 - [ ] **vLLM** - High-throughput production inference
   - PagedAttention for efficient memory
   - Continuous batching for throughput
@@ -747,11 +753,12 @@ Separate from platform database - for user workloads, large datasets, vectors
   - Tensor parallelism for large models
 
 #### 6.3 MLOps & Experiment Tracking
-- [ ] **MLflow** - Complete MLOps platform
+- [x] **MLflow** - Complete MLOps platform (port 5050)
   - Experiment tracking (metrics, params, artifacts)
   - Model registry (versioning, staging, production)
-  - Model serving (REST API deployment)
-  - Projects (reproducible runs)
+  - Connected to AI/ML PostgreSQL backend
+- [ ] Model serving (REST API deployment)
+- [ ] Projects (reproducible runs)
 - [ ] Integration with Platform Manager UI
   - View experiments from dashboard
   - Promote models to serving
@@ -911,11 +918,20 @@ make status
 | Airflow API | http://localhost:8081/api/v1 | 8081 | airflow/airflow | REST API |
 | n8n | http://localhost:5678 | 5678 | (setup on first run) | Workflow automation |
 
-#### AI Services
+#### AI Services (Langflow, Langfuse)
 | Service | URL | Port | Credentials | Description |
 |---------|-----|------|-------------|-------------|
 | Langflow | http://localhost:7860 | 7860 | (setup on first run) | LLM flow builder |
 | Langfuse | http://localhost:3000 | 3000 | See .env | LLM observability |
+
+#### AI/ML Platform (Phase 6)
+| Service | URL | Port | Credentials | Description |
+|---------|-----|------|-------------|-------------|
+| AI/ML PostgreSQL | localhost:5433 | 5433 | aiml_user/aiml_dev_password | Dedicated AI/ML database with pgvector |
+| Ollama | http://localhost:11434 | 11434 | - | Local LLM inference server |
+| Ollama API | http://localhost:11434/api | 11434 | - | REST API for model management |
+| Open WebUI | http://localhost:3010 | 3010 | - | ChatGPT-style interface for Ollama |
+| MLflow | http://localhost:5050 | 5050 | - | ML experiment tracking & model registry |
 
 #### Monitoring Stack
 | Service | URL | Port | Credentials | Description |
@@ -931,7 +947,8 @@ make status
 #### Infrastructure
 | Service | URL/Host | Port | Credentials | Description |
 |---------|----------|------|-------------|-------------|
-| PostgreSQL | localhost:5432 | 5432 | es1_user/es1_dev_password | Primary database |
+| PostgreSQL (Platform) | localhost:5432 | 5432 | es1_user/es1_dev_password | Platform database |
+| PostgreSQL (AI/ML) | localhost:5433 | 5433 | aiml_user/aiml_dev_password | Dedicated AI/ML database |
 | Redis | localhost:6379 | 6379 | - | Cache & Celery broker |
 
 #### Grafana Pre-configured Dashboards

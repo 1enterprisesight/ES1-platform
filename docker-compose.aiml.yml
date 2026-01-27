@@ -1,0 +1,134 @@
+# AI/ML Stack for ES1 Platform
+# Dedicated infrastructure for AI/ML workloads
+# Usage: docker compose -f docker-compose.yml -f docker-compose.aiml.yml up -d
+
+services:
+  # ==========================================================================
+  # AI/ML Database (PostgreSQL + pgvector)
+  # Dedicated database for vectors, embeddings, and ML data
+  # ==========================================================================
+  aiml-postgres:
+    build:
+      context: ./infrastructure/aiml-postgres
+      dockerfile: Dockerfile
+    container_name: es1-aiml-postgres
+    environment:
+      POSTGRES_DB: aiml
+      POSTGRES_USER: aiml_user
+      POSTGRES_PASSWORD: aiml_dev_password
+      # Performance tuning for vector workloads
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    ports:
+      - "5433:5432"
+    volumes:
+      - aiml_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aiml_user -d aiml"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - es1-network
+    # Resource limits for vector operations
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+
+  # ==========================================================================
+  # Ollama - Local LLM Server
+  # Run open-source LLMs locally
+  # ==========================================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: es1-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      # Uncomment for GPU support (requires nvidia-docker)
+      # - NVIDIA_VISIBLE_DEVICES=all
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - es1-network
+    # GPU support (uncomment if you have NVIDIA GPU)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ==========================================================================
+  # Ollama Web UI - User-friendly interface for Ollama
+  # ==========================================================================
+  ollama-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: es1-ollama-webui
+    ports:
+      - "3010:8080"
+    volumes:
+      - ollama_webui_data:/app/backend/data
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_AUTH=false
+      - WEBUI_NAME=ES1 AI Chat
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - es1-network
+
+  # ==========================================================================
+  # MLflow - ML Experiment Tracking & Model Registry
+  # ==========================================================================
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.10.2
+    container_name: es1-mlflow
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://aiml_user:aiml_dev_password@aiml-postgres:5432/aiml
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+    ports:
+      - "5050:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    depends_on:
+      aiml-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - es1-network
+
+volumes:
+  aiml_postgres_data:
+    name: es1-aiml-postgres-data
+  ollama_data:
+    name: es1-ollama-data
+  ollama_webui_data:
+    name: es1-ollama-webui-data
+  mlflow_artifacts:
+    name: es1-mlflow-artifacts
