@@ -443,11 +443,11 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 ### Phase 6.5: Multi-Framework Agents
 **Goal:** Support multiple agent frameworks with unified routing
 
-- [ ] **6.5a** Create CrewAI service container
-- [ ] **6.5b** Create AutoGen service container
-- [ ] **6.5c** Implement Agent Router API
-- [ ] **6.5d** Set up Redis pub/sub for agent messaging
-- [ ] **6.5e** Shared context store for cross-agent memory
+- [x] **6.5a** Create CrewAI service container
+- [x] **6.5b** Create AutoGen service container
+- [x] **6.5c** Implement Agent Router API
+- [x] **6.5d** Set up Redis pub/sub for agent messaging (built into router)
+- [x] **6.5e** Shared context store for cross-agent memory (built into router)
 - [ ] **6.5f** Platform Manager agent monitoring UI
 
 ### Phase 6.6: Knowledge Graph & Ingestion
@@ -502,6 +502,13 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 
 ### Parking Lot (Future Considerations)
 
+- **Airflow Custom Dockerfile**: Knowledge ingestion plugin requires additional packages
+  (psycopg2-binary, requests, pdfplumber, spacy, PyPDF2). Currently DAGs load but will
+  fail at runtime. Address during upgrade process to design as proper package with:
+  - Custom Airflow image with pre-installed dependencies
+  - Proper Python package structure for knowledge plugin
+  - Version pinning and dependency management
+  - Consider airflow-provider pattern for distribution
 - Graph query language: Consider Apache AGE for Cypher support on PostgreSQL
 - Vector search: Consider Qdrant for high-volume vector workloads
 - Model mesh: KServe/Seldon when moving to Kubernetes
@@ -524,8 +531,14 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 
 **What's Next:**
 - Phase 6.6f-g: Knowledge base management API and UI
-- Phase 6.5: Agent frameworks (CrewAI, AutoGen, Agent Router)
+- Phase 6.5f: Platform Manager agent monitoring UI
 - Phase 6.9: Platform Manager UI integration
+
+**Agent Services (Phase 6.5):**
+- `services/agents/crewai/` - CrewAI role-based teams (port 8100)
+- `services/agents/autogen/` - AutoGen multi-agent conversations (port 8101)
+- `services/agents/router/` - Unified Agent Router API (port 8102)
+- `docker-compose.agents.yml` - Docker compose for agent services
 
 **Key Files:**
 - This document: `docs/PHASE-6-AIML-PLATFORM.md`
@@ -610,3 +623,4 @@ docker exec -it es1-aiml-postgres psql -U aiml_user -d aiml
 |------|---------|---------|
 | 2026-01-26 | 1.0 | Initial document creation |
 | 2026-01-26 | 1.1 | Added Phase 6.6b-e: Airflow knowledge ingestion pipeline (plugins + DAGs) |
+| 2026-01-27 | 1.2 | Added Phase 6.5a-e: Multi-framework agents (CrewAI, AutoGen, Agent Router) |

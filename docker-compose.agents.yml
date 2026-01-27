@@ -1,0 +1,99 @@
+# Agent Framework Services for ES1 Platform
+# Usage: docker compose -f docker-compose.yml -f docker-compose.agents.yml up -d
+#
+# Provides multi-framework agent support:
+# - CrewAI: Role-based agent teams
+# - AutoGen: Multi-agent conversations
+# - Agent Router: Unified API for all frameworks
+#
+# Existing services (Langflow, n8n) are configured elsewhere
+
+services:
+  # ==========================================================================
+  # CrewAI Service - Role-based Agent Teams
+  # ==========================================================================
+  crewai:
+    build:
+      context: ./services/agents/crewai
+      dockerfile: Dockerfile
+    container_name: es1-crewai
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - AGENT_ROUTER_URL=http://agent-router:8102
+    ports:
+      - "8100:8100"
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - es1-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # AutoGen Service - Multi-Agent Conversations
+  # ==========================================================================
+  autogen:
+    build:
+      context: ./services/agents/autogen
+      dockerfile: Dockerfile
+    container_name: es1-autogen
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - AGENT_ROUTER_URL=http://agent-router:8102
+    ports:
+      - "8101:8101"
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8101/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - es1-network
+    restart: unless-stopped
+
+  # ==========================================================================
+  # Agent Router - Unified Agent API
+  # Routes requests to CrewAI, AutoGen, Langflow, n8n
+  # ==========================================================================
+  agent-router:
+    build:
+      context: ./services/agents/router
+      dockerfile: Dockerfile
+    container_name: es1-agent-router
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CREWAI_URL=http://crewai:8100
+      - AUTOGEN_URL=http://autogen:8101
+      - LANGFLOW_URL=http://langflow:7860
+      - N8N_URL=http://n8n:5678
+      - AIML_DB_URL=postgresql://aiml_user:aiml_dev_password@aiml-postgres:5432/aiml
+    ports:
+      - "8102:8102"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8102/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - es1-network
+    restart: unless-stopped
