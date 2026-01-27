@@ -97,8 +97,8 @@ services:
       AIRFLOW_DAGS_PATH: /shared/airflow/dags
 
     volumes:
-      # KrakenD config - read-only access to current config for display
-      - ./services/krakend/config:/etc/krakend:ro
+      # KrakenD config - writable for deployment operations
+      - ./services/krakend/config:/etc/krakend
       # Shared volume for KrakenD config deployment (managed mode)
       - krakend_config:/shared/krakend
       # Shared access to Airflow DAGs for DAG editor
