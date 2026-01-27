@@ -484,16 +484,21 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 | Knowledge graph storage | PostgreSQL (not Neo4j) | Simpler, already have pgvector | 2026-01-26 |
 | API logging approach | KrakenD → PostgreSQL | Centralized, queryable | 2026-01-26 |
 | LLM serving for embeddings | Ollama | Already deployed, air-gapped friendly | 2026-01-26 |
+| Internal API routing | Hybrid (critical via KrakenD, others async log) | Balance visibility vs latency | 2026-01-26 |
+| Agent Router | Custom FastAPI service | More control, cleaner API than n8n routing | 2026-01-26 |
+| Cross-agent memory | Redis (working) + PostgreSQL (persistent) | Fast access + durable storage | 2026-01-26 |
+| Entity extraction | spaCy + LLM refinement | Speed for bulk, accuracy for complex | 2026-01-26 |
+| Embedding model | Configurable per knowledge base | Flexibility for different use cases | 2026-01-26 |
 
 ### Open Questions (Need Discussion)
 
 | # | Question | Options | Impact | Status |
 |---|----------|---------|--------|--------|
-| 1 | Should internal services ALWAYS route through KrakenD, or only log to audit? | A) All traffic through KrakenD<br>B) Direct + async logging<br>C) Hybrid (critical through KrakenD, others logged) | Performance vs visibility | **OPEN** |
-| 2 | Agent Router: build custom or use existing? | A) Custom FastAPI service<br>B) Use n8n as router<br>C) KrakenD backend routing | Complexity vs flexibility | **OPEN** |
-| 3 | Cross-agent memory: Redis vs PostgreSQL? | A) Redis (fast, ephemeral)<br>B) PostgreSQL (persistent, queryable)<br>C) Both (Redis cache + PG persist) | Performance vs durability | **OPEN** |
-| 4 | Entity extraction: which NER model? | A) spaCy (fast, general)<br>B) Ollama + LLM (flexible)<br>C) Both (spaCy + LLM refinement) | Accuracy vs speed | **OPEN** |
-| 5 | Embedding model for knowledge graph? | A) Ollama nomic-embed-text<br>B) Ollama mxbai-embed-large<br>C) Configurable per KB | Quality vs flexibility | **OPEN** |
+| 1 | Should internal services ALWAYS route through KrakenD, or only log to audit? | A) All traffic through KrakenD<br>B) Direct + async logging<br>C) Hybrid (critical through KrakenD, others logged) | Performance vs visibility | **RESOLVED: C** |
+| 2 | Agent Router: build custom or use existing? | A) Custom FastAPI service<br>B) Use n8n as router<br>C) KrakenD backend routing | Complexity vs flexibility | **RESOLVED: A** |
+| 3 | Cross-agent memory: Redis vs PostgreSQL? | A) Redis (fast, ephemeral)<br>B) PostgreSQL (persistent, queryable)<br>C) Both (Redis cache + PG persist) | Performance vs durability | **RESOLVED: C** |
+| 4 | Entity extraction: which NER model? | A) spaCy (fast, general)<br>B) Ollama + LLM (flexible)<br>C) Both (spaCy + LLM refinement) | Accuracy vs speed | **RESOLVED: C** |
+| 5 | Embedding model for knowledge graph? | A) Ollama nomic-embed-text<br>B) Ollama mxbai-embed-large<br>C) Configurable per KB | Quality vs flexibility | **RESOLVED: C** |
 
 ### Parking Lot (Future Considerations)
 

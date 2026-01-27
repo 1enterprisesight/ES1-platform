@@ -14,7 +14,8 @@
       "level": "INFO",
       "prefix": "[KRAKEND]",
       "syslog": false,
-      "stdout": true
+      "stdout": true,
+      "format": "logstash"
     },
     "telemetry/metrics": {
       "collection_time": "30s",
@@ -37,13 +38,14 @@
     "security/cors": {
       "allow_origins": ["*"],
       "allow_methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-      "allow_headers": ["Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID"],
-      "expose_headers": ["X-Request-ID"],
+      "allow_headers": ["Origin", "Content-Type", "Accept", "Authorization", "X-Request-ID", "X-Source-Service"],
+      "expose_headers": ["X-Request-ID", "X-Krakend-Completed"],
       "max_age": "12h"
     }
   },
   "endpoints": [
     {
+      "@comment": "Health check endpoint",
       "endpoint": "/health",
       "method": "GET",
       "output_encoding": "json",
@@ -67,6 +69,7 @@
       }
     },
     {
+      "@comment": "API Gateway info endpoint",
       "endpoint": "/api/v1/info",
       "method": "GET",
       "output_encoding": "json",
@@ -81,15 +84,19 @@
         "proxy": {
           "static": {
             "data": {
-              "name": "ES1 Platform API",
+              "name": "ES1 Platform API Gateway",
               "version": "1.0.0",
               "gateway": "krakend",
               "services": {
-                "platform-manager": "http://localhost:8000 (direct)",
-                "airflow": "/api/airflow",
-                "langflow": "/api/langflow",
-                "langfuse": "/api/langfuse",
-                "n8n-webhooks": "/webhook"
+                "platform-manager": "/api/v1/platform/*",
+                "airflow": "/api/v1/airflow/*",
+                "langflow": "/api/v1/langflow/*",
+                "langfuse": "/api/v1/langfuse/*",
+                "ollama": "/api/v1/ollama/*",
+                "mlflow": "/api/v1/mlflow/*",
+                "knowledge": "/api/v1/knowledge/*",
+                "agents": "/api/v1/agents/*",
+                "n8n-webhooks": "/webhook/*"
               },
               "admin_ui": "http://localhost:3001"
             },
@@ -98,96 +105,121 @@
         }
       }
     },
+
     {
-      "@comment": "Airflow REST API - DAG management and execution",
-      "endpoint": "/api/airflow/{path}",
+      "@comment": "=== PLATFORM MANAGER API ===",
+      "endpoint": "/api/v1/platform/{path}",
       "method": "GET",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://airflow-webserver:8080"],
+          "host": ["http://es1-platform-manager-api:8000"],
           "url_pattern": "/api/v1/{path}",
           "encoding": "no-op"
         }
       ]
     },
     {
-      "endpoint": "/api/airflow/{path}",
+      "endpoint": "/api/v1/platform/{path}",
       "method": "POST",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://airflow-webserver:8080"],
+          "host": ["http://es1-platform-manager-api:8000"],
           "url_pattern": "/api/v1/{path}",
           "encoding": "no-op"
         }
       ]
     },
     {
-      "endpoint": "/api/airflow/{path}",
-      "method": "PATCH",
-      "output_encoding": "no-op",
-      "backend": [
-        {
-          "host": ["http://airflow-webserver:8080"],
-          "url_pattern": "/api/v1/{path}",
-          "encoding": "no-op"
-        }
-      ]
-    },
-    {
-      "endpoint": "/api/airflow/{path}",
-      "method": "DELETE",
-      "output_encoding": "no-op",
-      "backend": [
-        {
-          "host": ["http://airflow-webserver:8080"],
-          "url_pattern": "/api/v1/{path}",
-          "encoding": "no-op"
-        }
-      ]
-    },
-    {
-      "@comment": "Langflow API - Visual LLM pipeline execution",
-      "endpoint": "/api/langflow/{path}",
-      "method": "GET",
-      "output_encoding": "no-op",
-      "backend": [
-        {
-          "host": ["http://langflow:7860"],
-          "url_pattern": "/api/v1/{path}",
-          "encoding": "no-op"
-        }
-      ]
-    },
-    {
-      "endpoint": "/api/langflow/{path}",
-      "method": "POST",
-      "output_encoding": "no-op",
-      "backend": [
-        {
-          "host": ["http://langflow:7860"],
-          "url_pattern": "/api/v1/{path}",
-          "encoding": "no-op"
-        }
-      ]
-    },
-    {
-      "endpoint": "/api/langflow/{path}",
+      "endpoint": "/api/v1/platform/{path}",
       "method": "PUT",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://langflow:7860"],
+          "host": ["http://es1-platform-manager-api:8000"],
           "url_pattern": "/api/v1/{path}",
           "encoding": "no-op"
         }
       ]
     },
     {
-      "endpoint": "/api/langflow/{path}",
+      "endpoint": "/api/v1/platform/{path}",
       "method": "DELETE",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== AIRFLOW API ===",
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "PATCH",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://airflow-webserver:8080"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== LANGFLOW API ===",
+      "endpoint": "/api/v1/langflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
           "host": ["http://langflow:7860"],
@@ -197,22 +229,51 @@
       ]
     },
     {
-      "@comment": "Langfuse API - LLM observability and tracing",
-      "endpoint": "/api/langfuse/{path}",
-      "method": "GET",
-      "output_encoding": "no-op",
-      "backend": [
-        {
-          "host": ["http://langfuse:3000"],
-          "url_pattern": "/api/{path}",
-          "encoding": "no-op"
-        }
-      ]
-    },
-    {
-      "endpoint": "/api/langfuse/{path}",
+      "endpoint": "/api/v1/langflow/{path}",
       "method": "POST",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://langflow:7860"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/langflow/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://langflow:7860"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/langflow/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://langflow:7860"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== LANGFUSE API ===",
+      "endpoint": "/api/v1/langfuse/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
           "host": ["http://langfuse:3000"],
@@ -222,10 +283,237 @@
       ]
     },
     {
-      "@comment": "n8n Webhooks - Workflow automation triggers",
+      "endpoint": "/api/v1/langfuse/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://langfuse:3000"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== OLLAMA API (LLM Inference) ===",
+      "endpoint": "/api/v1/ollama/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://ollama:11434"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/ollama/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "timeout": "300s",
+      "backend": [
+        {
+          "host": ["http://ollama:11434"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op",
+          "extra_config": {
+            "backend/http": {
+              "return_error_details": "backend"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/ollama/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://ollama:11434"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== MLFLOW API ===",
+      "endpoint": "/api/v1/mlflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://mlflow:5000"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/mlflow/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://mlflow:5000"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== KNOWLEDGE GRAPH API (Platform Manager) ===",
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== AGENTS API (Platform Manager) ===",
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "timeout": "300s",
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== AUDIT API (Platform Manager) ===",
+      "endpoint": "/api/v1/audit/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/audit/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/audit/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://es1-platform-manager-api:8000"],
+          "url_pattern": "/api/v1/audit/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== N8N WEBHOOKS ===",
       "endpoint": "/webhook/{path}",
       "method": "GET",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
           "host": ["http://n8n:5678"],
@@ -238,6 +526,7 @@
       "endpoint": "/webhook/{path}",
       "method": "POST",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
           "host": ["http://n8n:5678"],
@@ -247,10 +536,10 @@
       ]
     },
     {
-      "@comment": "n8n Test Webhooks - Development testing",
       "endpoint": "/webhook-test/{path}",
       "method": "GET",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
           "host": ["http://n8n:5678"],
@@ -263,6 +552,7 @@
       "endpoint": "/webhook-test/{path}",
       "method": "POST",
       "output_encoding": "no-op",
+      "input_headers": ["*"],
       "backend": [
         {
           "host": ["http://n8n:5678"],
