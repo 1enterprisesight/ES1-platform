@@ -249,14 +249,37 @@ The `DeploymentEngine` class auto-detects the environment and uses the appropria
 | Redis | 7-alpine | 6379 | Cache + Celery broker |
 | KrakenD | 2.6 | 8080/9091 | API Gateway |
 
-### AI/ML Stack (Standard Namespace)
+### Workflow & Automation Stack
 
 | Component | Version | Port | Purpose |
 |-----------|---------|------|---------|
 | Airflow | 2.8.1 | 8081 | Workflow orchestration |
 | Langflow | latest | 7860 | LLM flow builder |
 | Langfuse | latest | 3000 | LLM observability |
-| n8n | (to add) | 5678 | Workflow automation |
+| n8n | latest | 5678 | Workflow automation |
+
+### AI/ML Stack (Phase 6 - To Build)
+
+| Component | Version | Port | Purpose | Priority |
+|-----------|---------|------|---------|----------|
+| **PostgreSQL AI** | 16 (pgvector) | 5433 | Dedicated AI/ML database with vectors | P0 |
+| **Ollama** | latest | 11434 | Local LLM inference (Llama, Mistral, etc.) | P0 |
+| **vLLM** | latest | 8001 | High-throughput production inference | P0 |
+| **MLflow** | 2.x | 5000 | Experiment tracking, model registry | P0 |
+| **Qdrant** | latest | 6333/6334 | Dedicated vector database | P1 |
+| **KServe** | latest | - | Model mesh, multi-model serving | P1 |
+| **Seldon Core** | latest | - | Model deployment, A/B testing | P2 |
+| **TGI** | latest | 8002 | HuggingFace text generation | P2 |
+| **Feast** | latest | 6566 | Feature store | P2 |
+| **Label Studio** | latest | 8085 | Data labeling/annotation | P2 |
+
+### Agent Frameworks (Integrated via Langflow or standalone)
+
+| Component | Purpose | Integration |
+|-----------|---------|-------------|
+| **LangGraph** | Multi-agent workflow graphs | Via Langflow or Python |
+| **CrewAI** | Role-based agent teams | Via Langflow or Python |
+| **AutoGen** | Microsoft multi-agent framework | Via Langflow or Python |
 
 ### ES1 Custom Components (ES1 Namespace)
 
@@ -264,20 +287,8 @@ The `DeploymentEngine` class auto-detects the environment and uses the appropria
 |-----------|---------|------|---------|
 | ES1 Platform Manager API | 1.0.0 | 8000 | Unified backend |
 | ES1 Platform Manager UI | 1.0.0 | 3001 | Admin interface |
-| License Server | (to build) | TBD | License validation |
-| License Validator | (to build) | TBD | License enforcement |
-
-### Future Components to Evaluate
-
-| Component | Category | Air-Gapped Ready | Notes |
-|-----------|----------|------------------|-------|
-| **Milvus** | Vector DB | Yes | Enterprise scale vectors |
-| **Qdrant** | Vector DB | Yes | Lightweight, fast filtering |
-| **Ollama** | Model Serving | Yes | Local LLM deployment |
-| **vLLM** | Model Serving | Yes | High-throughput inference |
-| **MLflow** | MLOps | Yes | Experiment tracking |
-| **Kubeflow** | MLOps | Yes | K8s-native ML pipelines |
-| **Label Studio** | Data Labeling | Yes | Annotation platform |
+| License Server | (Phase 5) | 8090 | License validation |
+| License Validator | (Phase 5) | - | Sidecar for enforcement |
 
 ---
 
@@ -598,10 +609,10 @@ The UI must provide full transparency into system operations:
 - [ ] Export/import configurations
 - [ ] Setup wizard for first-time configuration
 
-### Phase 4: Kubernetes & Production (CURRENT PRIORITY)
-**Goal:** Production-ready K8s deployment with safe upgrades
+### Phase 4: Kubernetes & Production (After Phase 5 & 6)
+**Goal:** Production-ready K8s deployment with safe upgrades - package complete system
 
-**Status:** STARTING
+**Status:** PLANNED (do after 6 and 5 for complete packaging)
 
 #### 4.1 Kubernetes Deployment
 - [ ] K8s manifests for es1-platform-manager
@@ -660,24 +671,157 @@ The UI must provide full transparency into system operations:
 - [x] Database exporters (PostgreSQL, Redis)
 - [ ] Log aggregation (Loki or ELK) - Future
 
-### Phase 5: Enterprise Features
-**Goal:** Enterprise-ready platform
+### Phase 5: Enterprise Features (After Phase 6)
+**Goal:** Enterprise-ready platform with auth, multi-tenancy, and compliance
 
+**Status:** PLANNED (do after Phase 6)
+
+#### 5.1 Authentication & Authorization
+- [ ] **RBAC Implementation**
+  - Role definitions (admin, developer, viewer, operator)
+  - Permission matrix (per module, per resource)
+  - API-level authorization
+  - UI permission enforcement
+- [ ] **SSO Integration**
+  - SAML 2.0 support
+  - LDAP/Active Directory
+  - OIDC (Keycloak, Okta, Auth0)
+  - Local user fallback
+- [ ] **API Keys & Service Accounts**
+  - API key generation/rotation
+  - Service account management
+  - Scoped permissions
+
+#### 5.2 Multi-Tenancy
+- [ ] Tenant/Organization model
+- [ ] Namespace isolation
+- [ ] Resource quotas per tenant
+- [ ] Data isolation (separate schemas or databases)
+- [ ] Tenant-specific branding
+
+#### 5.3 Licensing & Commercial
 - [ ] License server implementation
 - [ ] License validator sidecar
-- [ ] RBAC implementation
-- [ ] SSO integration (SAML/LDAP)
-- [ ] Multi-tenant support
-- [ ] Audit compliance reports
+- [ ] Feature gating by license tier
+- [ ] Usage metering
+- [ ] License key generation/validation
 
-### Phase 6: AI/ML Expansion
-**Goal:** Complete AI platform
+#### 5.4 Compliance & Audit
+- [ ] Comprehensive audit logging
+- [ ] Audit log export (SIEM integration)
+- [ ] Compliance reports (SOC2, HIPAA templates)
+- [ ] Data retention policies
+- [ ] PII detection/masking
 
-- [ ] Vector database integration (Milvus/Qdrant)
-- [ ] Model serving (Ollama/vLLM)
-- [ ] MLflow integration
+#### 5.5 User Experience
+- [ ] Setup wizard for first-time configuration
+- [ ] Onboarding flow
+- [ ] In-app help/documentation
+- [ ] Notification preferences
+
+### Phase 6: AI/ML Platform (CURRENT PRIORITY - Do First)
+**Goal:** Complete AI/ML platform for building services, agent networks, and model meshes
+
+**Status:** STARTING
+
+#### 6.1 Dedicated AI/ML Database
+Separate from platform database - for user workloads, large datasets, vectors
+- [ ] PostgreSQL 16 with pgvector extension (dedicated instance)
+- [ ] Configure for large dataset workloads (shared_buffers, work_mem)
+- [ ] Vector indexes (IVFFlat, HNSW) for similarity search
+- [ ] Connection pooling (PgBouncer) for high concurrency
+- [ ] Optional: Qdrant for dedicated vector-only workloads (faster, purpose-built)
+
+#### 6.2 LLM Serving Stack
+- [ ] **Ollama** - Local model inference (Llama, Mistral, CodeLlama, etc.)
+  - Easy model management (pull, run, serve)
+  - Good for development and moderate workloads
+  - Air-gapped friendly (models stored locally)
+- [ ] **vLLM** - High-throughput production inference
+  - PagedAttention for efficient memory
+  - Continuous batching for throughput
+  - OpenAI-compatible API
+  - GPU optimized (CUDA)
+- [ ] **Text Generation Inference (TGI)** - Alternative high-performance option
+  - HuggingFace native
+  - Tensor parallelism for large models
+
+#### 6.3 MLOps & Experiment Tracking
+- [ ] **MLflow** - Complete MLOps platform
+  - Experiment tracking (metrics, params, artifacts)
+  - Model registry (versioning, staging, production)
+  - Model serving (REST API deployment)
+  - Projects (reproducible runs)
+- [ ] Integration with Platform Manager UI
+  - View experiments from dashboard
+  - Promote models to serving
+  - Track lineage
+
+#### 6.4 Model Mesh & Multi-Model Serving
+- [ ] **KServe** - Kubernetes-native model serving
+  - Serverless inference (scale to zero)
+  - Multi-framework support (TensorFlow, PyTorch, sklearn, XGBoost)
+  - Canary rollouts, A/B testing
+  - Request batching, GPU autoscaling
+- [ ] **Seldon Core** - Alternative/complement
+  - Model deployment pipelines
+  - Explainability (SHAP, Anchors)
+  - Outlier/drift detection
+- [ ] Model routing and load balancing
+
+#### 6.5 Agent Networks & Orchestration
+- [ ] **LangGraph** - Agent workflow graphs
+  - Multi-agent coordination
+  - State management
+  - Human-in-the-loop
+- [ ] **CrewAI** - Multi-agent framework
+  - Role-based agents
+  - Task delegation
+  - Agent collaboration
+- [ ] **AutoGen** - Microsoft's multi-agent framework
+  - Conversable agents
+  - Code execution
+  - Group chat
+- [ ] Agent registry in Platform Manager
+  - Define agent configurations
+  - Version agent prompts/tools
+  - Monitor agent runs
+
+#### 6.6 RAG & Knowledge Management
 - [ ] RAG pipeline templates
-- [ ] Model registry
+  - Document ingestion (PDF, web, code)
+  - Chunking strategies
+  - Embedding generation
+  - Retrieval (semantic, hybrid, reranking)
+- [ ] Knowledge base management
+  - Create/update knowledge bases
+  - Index management
+  - Query testing
+
+#### 6.7 Data & Feature Management
+- [ ] **Feast** - Feature store (optional)
+  - Feature registry
+  - Online/offline serving
+  - Point-in-time correctness
+- [ ] Data versioning (DVC or LakeFS)
+- [ ] Dataset management in Platform Manager
+
+#### 6.8 GPU & Resource Management
+- [ ] NVIDIA device plugin for Kubernetes
+- [ ] GPU scheduling and sharing
+- [ ] Resource quotas per user/team
+- [ ] Model caching strategies
+
+#### 6.9 Platform Manager Integration
+- [ ] AI/ML Dashboard
+  - Model inventory (all deployed models)
+  - Inference metrics (latency, throughput, errors)
+  - GPU utilization
+  - Cost tracking
+- [ ] Model deployment wizard
+- [ ] Agent builder/editor
+- [ ] RAG pipeline builder
+- [ ] Experiment browser
 
 ---
 
