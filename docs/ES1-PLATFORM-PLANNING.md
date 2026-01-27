@@ -527,113 +527,125 @@ The UI must provide full transparency into system operations:
 
 ## 10. Development Roadmap
 
-### Phase 1: ES1 Platform Manager Foundation (CURRENT)
+### Phase 1: ES1 Platform Manager Foundation ✅ COMPLETE
 **Goal:** Create new ES1 Platform Manager with proper architecture
 
-**Decision Made:** Build new `es1-platform-manager` service. Migrate backend capabilities from gateway-manager, but build fresh UI.
+**Status:** COMPLETE as of 2026-01-26
 
-#### 1.1 Backend Architecture
-- [ ] Create `services/es1-platform-manager/api/` structure
-- [ ] Set up modular architecture:
-  ```
-  api/app/
-  ├── core/           # Shared: config, db, auth, events
-  ├── modules/
-  │   ├── gateway/    # Migrate from gateway-manager
-  │   ├── airflow/    # Airflow management
-  │   ├── langflow/   # Langflow management
-  │   ├── observability/ # Langfuse integration
-  │   └── automation/ # n8n management
-  └── main.py
-  ```
-- [ ] Implement event bus for real-time updates
-- [ ] Set up WebSocket support for live status
-- [ ] Migrate gateway database schema
-- [ ] Create unified logging service
+#### 1.1 Backend Architecture ✅
+- [x] Create `services/es1-platform-manager/api/` structure
+- [x] Set up modular architecture (gateway, airflow, langflow, observability, n8n)
+- [x] Implement event bus for real-time updates (SSE)
+- [x] Migrate gateway database schema
+- [x] Create unified logging service
+- [x] 85+ API endpoints implemented
 
-#### 1.2 New UI Design System
-- [ ] Create `services/es1-platform-manager/ui/` structure
-- [ ] Design system requirements:
-  - Simple and user-friendly
-  - Modern, extendable component library
-  - Consistent look and feel
-  - Event-driven with real-time status
-  - Full transparency (what is the system doing?)
-  - Clear error/failure logging
-- [ ] Component library:
-  ```
-  ui/src/
-  ├── design-system/
-  │   ├── components/   # Base components (Button, Card, etc.)
-  │   ├── layouts/      # Page layouts
-  │   └── themes/       # Theming support
-  ├── modules/
-  │   ├── dashboard/    # Unified system overview
-  │   ├── gateway/      # API gateway management
-  │   ├── workflows/    # Airflow + n8n
-  │   └── ai/           # Langflow + Langfuse
-  └── shared/
-      ├── hooks/        # Shared React hooks
-      ├── contexts/     # Event bus, auth, theme
-      └── utils/        # Helpers
-  ```
+#### 1.2 New UI Design System ✅
+- [x] Create `services/es1-platform-manager/ui/` structure
+- [x] Component library with shadcn/ui
+- [x] All modules implemented (dashboard, gateway, workflows, ai, automation, observability)
+- [x] Dark/light theme support
+- [x] Toast notifications
 
-#### 1.3 Event-Driven Architecture
-- [ ] Backend event emitter (SSE or WebSocket)
-- [ ] Frontend event listener/subscriber
-- [ ] Activity feed with real-time updates
-- [ ] Toast notifications for operations
-- [ ] System status indicators
+#### 1.3 Event-Driven Architecture ✅
+- [x] Backend event emitter (SSE)
+- [x] Toast notifications for operations
+- [x] System status indicators on dashboard
 
-### Phase 2: Module Implementation
+### Phase 2: Module Implementation ✅ COMPLETE
 **Goal:** Implement each management module
 
-#### 2.1 Gateway Module
-- [ ] Migrate KrakenD config management
-- [ ] Resource discovery (keep existing patterns)
-- [ ] Exposure management (simplified UI)
-- [ ] Deployment with rollback
-- [ ] Real-time deployment status
+#### 2.1 Gateway Module ✅
+- [x] KrakenD config management (view, versions, diff)
+- [x] Resource discovery from all services
+- [x] Exposure management with approval workflow
+- [x] Deployment with rollback
+- [x] Health monitoring
 
-#### 2.2 Workflow Module
-- [ ] Airflow DAG management
-  - List/view DAGs
-  - Trigger DAGs
-  - View DAG runs and logs
-  - Expose DAG endpoints via gateway
-- [ ] n8n workflow management
-  - List/view workflows
-  - Trigger workflows
-  - View execution history
+#### 2.2 Workflow Module ✅
+- [x] Airflow DAG management (list, trigger, pause/unpause)
+- [x] DAG runs view (global and per-DAG)
+- [x] DAG file editor with templates
+- [x] CloudSQL query DAG template
+- [x] n8n workflow management (list, execute, activate/deactivate)
+- [x] n8n execution history
 
-#### 2.3 AI Module
-- [ ] Langflow integration
-  - List/view flows
-  - Test flows
-  - Expose flow endpoints
-- [ ] Langfuse integration
-  - View traces
-  - Cost tracking
-  - Performance metrics
+#### 2.3 AI Module ✅
+- [x] Langflow integration (list, run, discover flows)
+- [x] Langfuse integration (traces, sessions, metrics)
 
-### Phase 3: Integration & Polish
-**Goal:** Connect everything together
+### Phase 3: Integration & Polish (NEXT - Priority 1)
+**Goal:** Connect everything together and polish UI
 
-- [ ] Cross-module workflows
+**Status:** IN PROGRESS
+
+#### 3.1 UI Polish (Priority)
+- [ ] Fix UI container health check
+- [ ] Add setup wizard for first-time configuration
+- [ ] Implement real-time activity feed sidebar (backend SSE ready)
+- [ ] Add loading states and skeleton screens
+- [ ] Improve error messages with actionable guidance
+- [ ] Add keyboard shortcuts
+
+#### 3.2 Integration Testing
+- [ ] Test full gateway flow (discover → expose → approve → deploy)
+- [ ] Create n8n workflow that triggers Airflow DAG
+- [ ] Create Langflow flow that calls Airflow DAG
+- [ ] Generate traces in Langfuse
+
+#### 3.3 Cross-Module Features
 - [ ] Unified search across all modules
-- [ ] Dashboard widgets for each module
-- [ ] Bulk operations
+- [ ] Bulk operations for exposures
 - [ ] Export/import configurations
 
-### Phase 4: Kubernetes & Production
-**Goal:** Production-ready K8s deployment
+### Phase 4: Kubernetes & Production (NEXT - Priority 2)
+**Goal:** Production-ready K8s deployment with safe upgrades
 
+**Status:** PLANNED
+
+#### 4.1 Kubernetes Deployment
 - [ ] K8s manifests for es1-platform-manager
-- [ ] Helm charts (optional)
-- [ ] Production secrets management
-- [ ] Health checks and probes
+- [ ] Helm charts with configurable values
+- [ ] Production secrets management (external-secrets or sealed-secrets)
+- [ ] Health checks and readiness probes
 - [ ] Horizontal pod autoscaling
-- [ ] Backup/restore procedures
+- [ ] Resource limits and requests
+
+#### 4.2 Upgrade Strategy (CRITICAL)
+**Requirement:** Upgrades must NOT impact existing configurations, settings, or data
+
+- [ ] Database migration strategy with Alembic
+  - Forward-only migrations
+  - Rollback scripts for each migration
+  - Pre-upgrade backup automation
+- [ ] Configuration preservation
+  - Settings stored in database, not files
+  - Environment variables for secrets only
+  - ConfigMaps for non-sensitive config
+- [ ] Zero-downtime deployment
+  - Rolling updates with health checks
+  - Blue-green deployment option
+  - Canary deployment option
+- [ ] Data persistence
+  - PersistentVolumeClaims for all stateful data
+  - Automated backup before upgrades
+  - Point-in-time recovery capability
+- [ ] Version compatibility matrix
+  - Document API version compatibility
+  - Deprecation policy for breaking changes
+  - Feature flags for gradual rollout
+
+#### 4.3 Backup & Recovery
+- [ ] Automated database backups (PostgreSQL pg_dump)
+- [ ] KrakenD config version backups
+- [ ] Airflow DAG file backups
+- [ ] Disaster recovery runbook
+
+#### 4.4 Monitoring & Alerting
+- [ ] Prometheus metrics endpoints
+- [ ] Grafana dashboards
+- [ ] Alert rules for critical failures
+- [ ] Log aggregation (Loki or ELK)
 
 ### Phase 5: Enterprise Features
 **Goal:** Enterprise-ready platform
