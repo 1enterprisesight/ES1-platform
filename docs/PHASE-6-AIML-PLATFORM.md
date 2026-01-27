@@ -532,11 +532,16 @@ CREATE INDEX idx_relationships_type ON graph.relationships(relationship_type);
 
 **Phase 6 Status: COMPLETE** (except 6.9g security alerts - future)
 
+**Integration Testing Completed (2026-01-27):**
+- Gateway Exposure Flow: Discover resource → Expose → Approve → Deploy ✅
+- n8n → Airflow DAG trigger via API ✅
+- Langflow → Ollama with Langfuse tracing ✅
+- Agent Services: 17 agents registered, all frameworks healthy ✅
+
 **What's Next:**
-- Integration testing across all modules
-- Fix any UI bugs (n8n connectivity, agent view links)
 - Phase 4: Kubernetes deployment packaging
 - Phase 5: Enterprise features (RBAC, SSO, licensing)
+- Phase 6.9g: Security alerts dashboard (future enhancement)
 
 **Agent Services (Phase 6.5):**
 - `services/agents/crewai/` - CrewAI role-based teams (port 8100)
@@ -638,3 +643,4 @@ docker exec -it es1-aiml-postgres psql -U aiml_user -d aiml
 | 2026-01-26 | 1.1 | Added Phase 6.6b-e: Airflow knowledge ingestion pipeline (plugins + DAGs) |
 | 2026-01-27 | 1.2 | Added Phase 6.5a-e: Multi-framework agents (CrewAI, AutoGen, Agent Router) |
 | 2026-01-27 | 1.3 | Added Phase 6.5f + 6.6f-g: Agent UI module + Knowledge management API & UI |
+| 2026-01-27 | 1.4 | Integration testing complete: Gateway flow, n8n-Airflow, Langflow-Langfuse, Agent services |

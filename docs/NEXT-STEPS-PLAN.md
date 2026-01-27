@@ -1,117 +1,96 @@
 # ES1 Platform Manager - Next Steps Plan
 
-## Current Issues to Address
+**Last Updated:** 2026-01-27
 
-### 1. UI Navigation Visibility
-The DAG Editor and Config tabs exist but may not be visible due to:
-- User needs to click on "Workflows" in sidebar to see DAG Editor tab
-- User needs to click on "Gateway" in sidebar to see Config tab
-- **Action**: Verify UI build is updated, improve discoverability
+## Current Status
 
-### 2. KrakenD Config Shows Empty
-The Config view shows no config because no deployments have been made yet.
-- **Action**: Create a base KrakenD config or improve empty state UI
+### Phase 6: AI/ML Platform - COMPLETE
+All Phase 6 implementation tasks are complete:
+- Multi-framework agent support (CrewAI, AutoGen, Agent Router)
+- Knowledge management (graph schema, ingestion pipelines, search)
+- Platform Manager UI (Traffic, Agents, Knowledge, Models modules)
+- Monitoring stack (Prometheus, Grafana with Docker/PostgreSQL dashboards)
+
+### Integration Testing - COMPLETE
+- Gateway Exposure Flow: Discover → Expose → Approve → Deploy
+- n8n → Airflow DAG trigger via API
+- Langflow → Ollama with Langfuse tracing
+- Agent Services: 17 agents registered, all frameworks healthy
 
 ---
 
-## New Features Requested
+## Recommended Next Steps
 
-### 1. Package Enable/Disable UI
-Allow administrators to enable/disable integrations (packages) from the UI.
+### Phase 4: Kubernetes Deployment Packaging
 
-**Packages to manage:**
-- Airflow (Workflows)
-- Langflow (AI Flows)
-- Langfuse (Observability)
-- n8n (Automation)
-
-**Implementation:**
-- Add Settings > Integrations page
-- Toggle switches for each package
-- Show connection status for each
-- Store settings in database
-- API updates to check enabled status
-
-### 2. UI Branding/White-labeling
-Allow customers to customize branding.
-
-**Customizable elements:**
-- Logo (sidebar, login page)
-- Application name (currently "ES1 Platform")
-- Primary color theme
-- Favicon
-- Company name in footer
-
-**Implementation:**
-- Add Settings > Branding page
-- Store branding config in database
-- Load branding on app startup
-- CSS variables for theme colors
-- Logo upload capability
-
-### 3. n8n Integration Setup
-Add n8n to the platform for workflow automation.
+**Goal:** Package ES1 Platform for production Kubernetes deployment
 
 **Tasks:**
-- Add n8n to docker-compose
-- Create n8n module in backend (client, routes, schemas)
-- Create n8n UI module
-- Add n8n health check to dashboard
-- Enable n8n in settings
+1. [ ] Create Helm charts for all services
+2. [ ] Set up Kubernetes manifests (deployments, services, configmaps)
+3. [ ] Configure horizontal pod autoscaling
+4. [ ] Add persistent volume claims for stateful services
+5. [ ] Create Kubernetes secrets management
+6. [ ] Set up ingress controllers for external access
+7. [ ] Configure KrakenD for Kubernetes service discovery
+8. [ ] Add liveness/readiness probes for all services
+9. [ ] Create CI/CD pipeline for K8s deployment
 
-### 4. Practical CloudSQL DAG Example
-Create a real-world DAG that:
-- Connects to GCP CloudSQL
-- Extracts data
-- Exposes via KrakenD endpoint
+### Phase 5: Enterprise Features
 
-**Components:**
-- Airflow connection for CloudSQL
-- DAG template for database queries
-- Auto-generate KrakenD endpoint for the DAG
+**Goal:** Add enterprise-grade features for production use
 
----
+**Tasks:**
+1. [ ] **RBAC (Role-Based Access Control)**
+   - User roles: admin, operator, viewer
+   - Resource-level permissions
+   - Team/organization support
 
-## Implementation Priority
+2. [ ] **SSO Integration**
+   - SAML 2.0 support
+   - OIDC/OAuth2 support
+   - LDAP/Active Directory integration
 
-### Phase 1: Fix Current Issues (Immediate)
-1. [ ] Rebuild and verify UI containers
-2. [ ] Create base KrakenD config so Config view works
-3. [ ] Fix toast API inconsistency
-4. [ ] Improve empty states with clear CTAs
+3. [ ] **Licensing System**
+   - License key validation
+   - Feature gates based on license tier
+   - Usage metering
 
-### Phase 2: Core Functionality (High Priority)
-1. [ ] Add Integrations settings page with enable/disable toggles
-2. [ ] Add Branding settings page
-3. [ ] Create CloudSQL DAG template
-4. [ ] Add "Deploy" button to dashboard
+4. [ ] **Audit Logging**
+   - All user actions logged
+   - API access logs
+   - Security event tracking
 
-### Phase 3: n8n Integration (Medium Priority)
-1. [ ] Add n8n docker-compose config
-2. [ ] Create n8n backend module
-3. [ ] Create n8n UI module
-4. [ ] Integration testing
-
-### Phase 4: Polish (Lower Priority)
-1. [ ] Improve DAG editor with syntax highlighting
-2. [ ] Add config diff visualization
-3. [ ] Add deployment preview
-4. [ ] Add audit logging
+5. [ ] **Multi-tenancy**
+   - Workspace isolation
+   - Resource quotas per tenant
+   - Tenant-specific configurations
 
 ---
 
-## Database Schema Updates Needed
+## Future Enhancements
 
-### branding_config table (already exists but needs fields)
-```sql
-- logo_url: TEXT
-- app_name: VARCHAR(100) DEFAULT 'ES1 Platform'
-- primary_color: VARCHAR(7) DEFAULT '#3B82F6'
-- company_name: VARCHAR(100)
-- favicon_url: TEXT
-```
+### Phase 6.9g: Security Alerts Dashboard
+- Real-time security event monitoring
+- Anomaly detection for API traffic
+- Alert rules and notifications
 
-### integration_settings table (new)
+### UI/UX Improvements
+- [ ] Add Settings > Integrations page with enable/disable toggles
+- [ ] Add Settings > Branding page for white-labeling
+- [ ] Improve DAG editor with syntax highlighting
+- [ ] Add deployment preview and diff visualization
+
+### Knowledge Platform Enhancements
+- [ ] Apache AGE integration for Cypher query support
+- [ ] Qdrant integration for high-volume vector workloads
+- [ ] Custom Airflow image with knowledge ingestion dependencies
+
+---
+
+## Database Schema Updates Needed (Future)
+
+### integration_settings table
 ```sql
 CREATE TABLE integration_settings (
   id UUID PRIMARY KEY,
@@ -125,25 +104,44 @@ CREATE TABLE integration_settings (
 );
 ```
 
----
-
-## API Endpoints Needed
-
-### Branding
-- GET /api/v1/settings/branding - Get branding config
-- PUT /api/v1/settings/branding - Update branding config
-- POST /api/v1/settings/branding/logo - Upload logo
-
-### Integrations
-- GET /api/v1/settings/integrations - List all integrations
-- PUT /api/v1/settings/integrations/{name} - Update integration settings
-- POST /api/v1/settings/integrations/{name}/test - Test connection
+### branding_config table
+```sql
+ALTER TABLE branding_config ADD COLUMN logo_url TEXT;
+ALTER TABLE branding_config ADD COLUMN app_name VARCHAR(100) DEFAULT 'ES1 Platform';
+ALTER TABLE branding_config ADD COLUMN primary_color VARCHAR(7) DEFAULT '#3B82F6';
+ALTER TABLE branding_config ADD COLUMN company_name VARCHAR(100);
+ALTER TABLE branding_config ADD COLUMN favicon_url TEXT;
+```
 
 ---
 
-## Questions to Decide
+## Quick Reference
 
-1. Should branding be stored in database or environment variables?
-2. Should n8n be required or optional?
-3. What CloudSQL connection method to use (Cloud SQL Auth Proxy vs direct)?
-4. Should we add RBAC for who can change branding/settings?
+### Service URLs (Local Development)
+| Service | URL |
+|---------|-----|
+| Platform Manager UI | http://localhost:3001 |
+| Platform Manager API | http://localhost:8000/docs |
+| KrakenD Gateway | http://localhost:8080 |
+| Airflow | http://localhost:8081 |
+| Langflow | http://localhost:7860 |
+| n8n | http://localhost:5678 |
+| Langfuse | http://localhost:3000 |
+| Ollama | http://localhost:11434 |
+| MLflow | http://localhost:5050 |
+| Grafana | http://localhost:3002 |
+
+### Useful Commands
+```bash
+# Start full stack
+make up-all
+
+# Check status
+docker ps --format "table {{.Names}}\t{{.Status}}"
+
+# View logs
+make logs-<service>
+
+# Restart a service
+docker compose restart <container-name>
+```
