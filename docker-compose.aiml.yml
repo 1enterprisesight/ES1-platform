@@ -91,14 +91,17 @@ services:
 
   # ==========================================================================
   # MLflow - ML Experiment Tracking & Model Registry
-  # Using SQLite for storage (simpler setup, can migrate to PostgreSQL later)
+  # Uses Platform PostgreSQL for backend store (experiment metadata)
+  # Artifacts stored in local filesystem (can be configured for S3/GCS)
   # ==========================================================================
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.10.2
+    build:
+      context: ./infrastructure/mlflow
+      dockerfile: Dockerfile
     container_name: es1-mlflow
     command: >
       mlflow server
-      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --backend-store-uri postgresql://es1_user:es1_dev_password@postgres:5432/mlflow
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
       --port 5000
@@ -106,6 +109,9 @@ services:
       - "5050:5000"
     volumes:
       - mlflow_data:/mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:5000/health\")'"]
       interval: 30s
