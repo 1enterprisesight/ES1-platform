@@ -131,7 +131,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="CrewAI Service",
-    description="ES1 Platform CrewAI Agent Teams API",
     version="1.0.0",
     lifespan=lifespan,
 )
