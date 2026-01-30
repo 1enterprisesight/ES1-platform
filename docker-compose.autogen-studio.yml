@@ -1,0 +1,49 @@
+# AutoGen Studio - Visual Multi-Agent Builder
+# Provides a web interface for building and testing AutoGen multi-agent conversations
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#     -f docker-compose.aiml.yml \
+#     -f docker-compose.agents.yml \
+#     -f docker-compose.autogen-studio.yml up -d
+#
+# Access: http://localhost:8502
+
+services:
+  autogen-studio:
+    build:
+      context: ./services/agents/autogen-studio
+      dockerfile: Dockerfile
+    container_name: es1-autogen-studio
+    ports:
+      - "${AUTOGEN_STUDIO_PORT:-8502}:8502"
+    environment:
+      # Ollama for local LLM inference
+      OLLAMA_BASE_URL: http://ollama:11434
+      # AutoGen API for execution
+      AUTOGEN_API_URL: http://autogen:8101
+      # Optional: External API keys (uncomment and set if using cloud models)
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - autogen_studio_data:/app/data
+    depends_on:
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8502/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    networks:
+      - es1-network
+    restart: unless-stopped
+    labels:
+      - "es1.service=autogen-studio"
+      - "es1.category=agents"
+      - "es1.ui.port=8502"
+
+volumes:
+  autogen_studio_data:
+    name: es1-autogen-studio-data

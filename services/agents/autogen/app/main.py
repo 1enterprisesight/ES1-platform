@@ -6,6 +6,7 @@ Provides API for creating and running AutoGen multi-agent conversations
 import os
 import json
 import logging
+import asyncio
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from contextlib import asynccontextmanager
@@ -25,12 +26,16 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 AGENT_ROUTER_URL = os.getenv("AGENT_ROUTER_URL", "http://agent-router:8102")
 
+# Registration retry settings
+REGISTRATION_MAX_RETRIES = 10
+REGISTRATION_RETRY_DELAY = 3  # seconds
+
 # Redis client
 redis_client: Optional[redis.Redis] = None
 
 
 async def register_template_agents():
-    """Register template agents with the Agent Router"""
+    """Register template agents with the Agent Router (with retry logic)"""
     templates = [
         {
             "name": "Code Assistant",
@@ -90,7 +95,27 @@ async def register_template_agents():
         },
     ]
 
+    # Wait for agent-router to be available with retries
+    router_available = False
+    for attempt in range(REGISTRATION_MAX_RETRIES):
+        try:
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"{AGENT_ROUTER_URL}/health", timeout=5.0)
+                if response.status_code == 200:
+                    router_available = True
+                    logger.info(f"Agent router available after {attempt + 1} attempt(s)")
+                    break
+        except Exception as e:
+            logger.info(f"Waiting for agent-router (attempt {attempt + 1}/{REGISTRATION_MAX_RETRIES}): {e}")
+            await asyncio.sleep(REGISTRATION_RETRY_DELAY)
+
+    if not router_available:
+        logger.error("Agent router not available after maximum retries, skipping agent registration")
+        return
+
+    # Register all agents
     async with httpx.AsyncClient() as client:
+        registered_count = 0
         for agent in templates:
             try:
                 response = await client.post(
@@ -100,10 +125,13 @@ async def register_template_agents():
                 )
                 if response.status_code == 200:
                     logger.info(f"Registered agent: {agent['name']}")
+                    registered_count += 1
                 else:
                     logger.warning(f"Failed to register agent {agent['name']}: {response.status_code}")
             except Exception as e:
                 logger.warning(f"Could not register agent {agent['name']} with router: {e}")
+
+        logger.info(f"AutoGen agent registration complete: {registered_count}/{len(templates)} agents registered")
 
 
 @asynccontextmanager
@@ -124,7 +152,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AutoGen Service",
-    description="ES1 Platform AutoGen Multi-Agent Conversations API",
     version="1.0.0",
     lifespan=lifespan,
 )

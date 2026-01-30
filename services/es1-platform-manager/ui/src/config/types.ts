@@ -29,6 +29,8 @@ export interface RuntimeConfig {
     crewaiStudio: string;
     /** AutoGen API documentation (Swagger) */
     autogen: string;
+    /** AutoGen Studio visual builder */
+    autogenStudio: string;
     /** Langfuse LLM observability UI */
     langfuse: string;
     /** Ollama Web UI (Open WebUI) */
@@ -56,6 +58,8 @@ export interface RuntimeConfig {
     enableLangflow: boolean;
     /** Enable CrewAI Studio link in Agents module */
     enableCrewaiStudio: boolean;
+    /** Enable AutoGen Studio link in Agents module */
+    enableAutogenStudio: boolean;
     /** Enable Langfuse integration in Observability module */
     enableLangfuse: boolean;
     /** Enable MLflow integration in Models module */

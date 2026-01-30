@@ -19,8 +19,8 @@ export const defaultConfig: RuntimeConfig = {
     // AI/ML Tools
     langflow: 'http://localhost:7860',
     mlflow: 'http://localhost:5050',
-    langfuse: 'http://localhost:3003',
-    openWebUI: 'http://localhost:3000',
+    langfuse: 'http://localhost:3000',
+    openWebUI: 'http://localhost:3010',
 
     // Workflow Automation
     n8n: 'http://localhost:5678',
@@ -30,6 +30,7 @@ export const defaultConfig: RuntimeConfig = {
     crewai: 'http://localhost:8100',
     crewaiStudio: 'http://localhost:8501',
     autogen: 'http://localhost:8101',
+    autogenStudio: 'http://localhost:8502',
   },
 
   api: {
@@ -42,6 +43,7 @@ export const defaultConfig: RuntimeConfig = {
     enableN8n: true,
     enableLangflow: true,
     enableCrewaiStudio: true,
+    enableAutogenStudio: true,
     enableLangfuse: true,
     enableMlflow: true,
   },

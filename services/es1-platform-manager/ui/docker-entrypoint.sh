@@ -23,8 +23,9 @@
 #   CREWAI_URL            - CrewAI API docs URL (default: http://localhost:8100)
 #   CREWAI_STUDIO_URL     - CrewAI Studio URL (default: http://localhost:8501)
 #   AUTOGEN_URL           - AutoGen API docs URL (default: http://localhost:8101)
-#   LANGFUSE_URL          - Langfuse UI URL (default: http://localhost:3003)
-#   OPEN_WEBUI_URL        - Open WebUI URL (default: http://localhost:3000)
+#   LANGFUSE_URL          - Langfuse UI URL (default: http://localhost:3000)
+#   OPEN_WEBUI_URL        - Open WebUI URL (default: http://localhost:3010)
+#   AUTOGEN_STUDIO_URL    - AutoGen Studio URL (default: http://localhost:8502)
 #
 # Feature flags:
 #   ENABLE_N8N            - Enable n8n integration (default: true)
@@ -55,8 +56,9 @@ AIRFLOW_URL="${AIRFLOW_URL:-http://localhost:8081}"
 CREWAI_URL="${CREWAI_URL:-http://localhost:8100}"
 CREWAI_STUDIO_URL="${CREWAI_STUDIO_URL:-http://localhost:8501}"
 AUTOGEN_URL="${AUTOGEN_URL:-http://localhost:8101}"
-LANGFUSE_URL="${LANGFUSE_URL:-http://localhost:3003}"
-OPEN_WEBUI_URL="${OPEN_WEBUI_URL:-http://localhost:3000}"
+LANGFUSE_URL="${LANGFUSE_URL:-http://localhost:3000}"
+OPEN_WEBUI_URL="${OPEN_WEBUI_URL:-http://localhost:3010}"
+AUTOGEN_STUDIO_URL="${AUTOGEN_STUDIO_URL:-http://localhost:8502}"
 
 # =============================================================================
 # Default values for feature flags
@@ -64,6 +66,7 @@ OPEN_WEBUI_URL="${OPEN_WEBUI_URL:-http://localhost:3000}"
 ENABLE_N8N="${ENABLE_N8N:-true}"
 ENABLE_LANGFLOW="${ENABLE_LANGFLOW:-true}"
 ENABLE_CREWAI_STUDIO="${ENABLE_CREWAI_STUDIO:-true}"
+ENABLE_AUTOGEN_STUDIO="${ENABLE_AUTOGEN_STUDIO:-true}"
 ENABLE_LANGFUSE="${ENABLE_LANGFUSE:-true}"
 ENABLE_MLFLOW="${ENABLE_MLFLOW:-true}"
 
@@ -107,6 +110,7 @@ window.__ES1_CONFIG__ = {
     crewai: '${CREWAI_URL}',
     crewaiStudio: '${CREWAI_STUDIO_URL}',
     autogen: '${AUTOGEN_URL}',
+    autogenStudio: '${AUTOGEN_STUDIO_URL}',
   },
 
   api: {
@@ -118,6 +122,7 @@ window.__ES1_CONFIG__ = {
     enableN8n: ${ENABLE_N8N},
     enableLangflow: ${ENABLE_LANGFLOW},
     enableCrewaiStudio: ${ENABLE_CREWAI_STUDIO},
+    enableAutogenStudio: ${ENABLE_AUTOGEN_STUDIO},
     enableLangfuse: ${ENABLE_LANGFUSE},
     enableMlflow: ${ENABLE_MLFLOW},
   },

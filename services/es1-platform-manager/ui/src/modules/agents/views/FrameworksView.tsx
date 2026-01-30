@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/design-system/components/Card'
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
-import { RefreshCw, ExternalLink, Users, MessageSquare, Workflow, Bot } from 'lucide-react'
+import { RefreshCw, ExternalLink, Users, MessageSquare, Workflow, Bot, KeyRound } from 'lucide-react'
 import { config, agentRouterUrl, serviceUrl, isFeatureEnabled } from '@/config'
 
 interface Framework {
@@ -23,6 +23,9 @@ const FRAMEWORK_INFO: Record<string, {
   color: string
   serviceKey?: keyof ReturnType<typeof config>['services']
   studioKey?: keyof ReturnType<typeof config>['services']
+  hasApiDocs?: boolean  // Whether to show API Docs button (for FastAPI services)
+  hasUI?: boolean       // Whether to show Open UI button (for services with web UI)
+  credentials?: { user: string; pass: string }  // Default credentials hint
 }> = {
   crewai: {
     icon: Users,
@@ -30,24 +33,32 @@ const FRAMEWORK_INFO: Record<string, {
     color: 'bg-blue-500',
     serviceKey: 'crewai',
     studioKey: 'crewaiStudio',
+    hasApiDocs: true,
   },
   autogen: {
     icon: MessageSquare,
     description: 'Multi-agent conversations and debates',
     color: 'bg-purple-500',
     serviceKey: 'autogen',
+    studioKey: 'autogenStudio',
+    hasApiDocs: true,
   },
   langflow: {
     icon: Workflow,
     description: 'Visual agent flow builder with LangChain',
     color: 'bg-green-500',
     serviceKey: 'langflow',
+    hasUI: true,
+    hasApiDocs: true,
   },
   n8n: {
     icon: Workflow,
     description: 'Workflow automation with 400+ integrations',
     color: 'bg-orange-500',
     serviceKey: 'n8n',
+    hasUI: true,
+    hasApiDocs: true,
+    credentials: { user: 'admin@es1.local', pass: 'Es1admin!' },
   },
 }
 
@@ -132,7 +143,9 @@ export function FrameworksView() {
             color: 'bg-gray-500',
           }
           const Icon = info.icon
-          const showStudio = info.studioKey && isFeatureEnabled('enableCrewaiStudio')
+          const showCrewaiStudio = info.studioKey === 'crewaiStudio' && isFeatureEnabled('enableCrewaiStudio')
+          const showAutogenStudio = info.studioKey === 'autogenStudio' && isFeatureEnabled('enableAutogenStudio')
+          const showStudio = showCrewaiStudio || showAutogenStudio
 
           return (
             <Card key={framework.name} className="relative overflow-hidden">
@@ -157,8 +170,8 @@ export function FrameworksView() {
                 <p className="text-sm text-muted-foreground mb-4">
                   {info.description}
                 </p>
-                <div className="flex gap-2">
-                  {info.serviceKey && (
+                <div className="flex gap-2 flex-wrap">
+                  {info.hasApiDocs && info.serviceKey && (
                     <Button
                       variant="outline"
                       size="sm"
@@ -166,6 +179,16 @@ export function FrameworksView() {
                     >
                       <ExternalLink className="h-3 w-3 mr-1" />
                       API Docs
+                    </Button>
+                  )}
+                  {info.hasUI && info.serviceKey && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => openExternalUrl(info.serviceKey!)}
+                    >
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Open UI
                     </Button>
                   )}
                   {showStudio && info.studioKey && (
@@ -187,6 +210,15 @@ export function FrameworksView() {
                     View Agents
                   </Button>
                 </div>
+                {info.credentials && (
+                  <div className="mt-3 p-2 bg-muted rounded text-xs flex items-center gap-2">
+                    <KeyRound className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-muted-foreground">Login:</span>
+                    <code className="bg-background px-1 rounded">{info.credentials.user}</code>
+                    <span className="text-muted-foreground">/</span>
+                    <code className="bg-background px-1 rounded">{info.credentials.pass}</code>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )

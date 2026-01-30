@@ -70,12 +70,13 @@ services:
 
       # ==========================================================================
       # Langfuse Integration (Observability)
+      # These keys must match LANGFUSE_INIT_PROJECT_* in docker-compose.langfuse.yml
       # ==========================================================================
       LANGFUSE_URL: http://langfuse:3000
       LANGFUSE_API_URL: http://langfuse:3000/api
       LANGFUSE_ENABLED: "true"
-      LANGFUSE_PUBLIC_KEY: "pk-lf-613401d7-ffd4-40e0-9386-644f24731ee9"
-      LANGFUSE_SECRET_KEY: "sk-lf-32cde39e-0b9e-4c74-8686-3e91d8b57e1e"
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-es1-dev-public-key}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-es1-dev-secret-key}
 
       # ==========================================================================
       # n8n Integration (Automation)
@@ -84,7 +85,7 @@ services:
       N8N_API_URL: http://n8n:5678/api/v1
       N8N_ENABLED: "true"
       # Generate API key in n8n: Settings > API > Create API Key
-      N8N_API_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI5YmIyODQxMS0xZGZjLTQ5NTktYjkwZS1hMmVkMzRmY2RjZTciLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5MzgzODEyfQ.PDHzYdnHDjORTLpfgB1VLC5IexNAReNY5cYVZSdRgzs"
+      N8N_API_KEY: ${N8N_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NjUxOWI5ZS02YjljLTRmNjAtOWRjMi02NGVmYWE3NDAxZTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5ODEzMjQ5LCJleHAiOjE3NzIzNTIwMDB9.PT00EO6EX79wwJ8_qjaAgMx9iFKOtJ8ZccAklYHJe94}
 
       # ==========================================================================
       # Database API Pattern (for connection exposure)
@@ -146,8 +147,9 @@ services:
       CREWAI_URL: http://localhost:8100
       CREWAI_STUDIO_URL: http://localhost:8501
       AUTOGEN_URL: http://localhost:8101
-      LANGFUSE_URL: http://localhost:3003
-      OPEN_WEBUI_URL: http://localhost:3000
+      LANGFUSE_URL: http://localhost:3000
+      OPEN_WEBUI_URL: http://localhost:3010
+      AUTOGEN_STUDIO_URL: http://localhost:8502
 
       # ==========================================================================
       # Feature flags
@@ -155,6 +157,7 @@ services:
       ENABLE_N8N: "true"
       ENABLE_LANGFLOW: "true"
       ENABLE_CREWAI_STUDIO: "true"
+      ENABLE_AUTOGEN_STUDIO: "true"
       ENABLE_LANGFUSE: "true"
       ENABLE_MLFLOW: "true"
 

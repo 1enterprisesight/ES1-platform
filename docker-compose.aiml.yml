@@ -13,9 +13,9 @@ services:
       dockerfile: Dockerfile
     container_name: es1-aiml-postgres
     environment:
-      POSTGRES_DB: aiml
-      POSTGRES_USER: aiml_user
-      POSTGRES_PASSWORD: aiml_dev_password
+      POSTGRES_DB: ${AIML_POSTGRES_DB:-aiml}
+      POSTGRES_USER: ${AIML_POSTGRES_USER:-aiml_user}
+      POSTGRES_PASSWORD: ${AIML_POSTGRES_PASSWORD:-aiml_dev_password}
       # Performance tuning for vector workloads
       POSTGRES_INITDB_ARGS: "--data-checksums"
     ports:

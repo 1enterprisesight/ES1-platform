@@ -32,7 +32,12 @@ services:
       DB_POSTGRESDB_USER: es1_user
       DB_POSTGRESDB_PASSWORD: es1_dev_password
 
-      # Security - for development, skip owner setup
+      # Default user credentials (set at install time)
+      # Note: Password must contain uppercase letter (n8n requirement)
+      N8N_DEFAULT_USER_EMAIL: ${N8N_DEFAULT_USER_EMAIL:-admin@es1.local}
+      N8N_DEFAULT_USER_PASSWORD: ${N8N_DEFAULT_USER_PASSWORD:-Es1admin!}
+      N8N_DEFAULT_USER_FIRST_NAME: ${N8N_DEFAULT_USER_FIRST_NAME:-ES1}
+      N8N_DEFAULT_USER_LAST_NAME: ${N8N_DEFAULT_USER_LAST_NAME:-Admin}
       N8N_SECURE_COOKIE: "false"
 
       # Execution Settings
