@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/des
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, ExternalLink, Users, MessageSquare, Workflow, Bot } from 'lucide-react'
+import { config, agentRouterUrl, serviceUrl, isFeatureEnabled } from '@/config'
 
 interface Framework {
   name: string
@@ -20,31 +21,33 @@ const FRAMEWORK_INFO: Record<string, {
   icon: typeof Bot
   description: string
   color: string
-  externalUrl?: string
+  serviceKey?: keyof ReturnType<typeof config>['services']
+  studioKey?: keyof ReturnType<typeof config>['services']
 }> = {
   crewai: {
     icon: Users,
     description: 'Role-based agent teams for complex tasks',
     color: 'bg-blue-500',
-    externalUrl: 'http://localhost:8100/docs',
+    serviceKey: 'crewai',
+    studioKey: 'crewaiStudio',
   },
   autogen: {
     icon: MessageSquare,
     description: 'Multi-agent conversations and debates',
     color: 'bg-purple-500',
-    externalUrl: 'http://localhost:8101/docs',
+    serviceKey: 'autogen',
   },
   langflow: {
     icon: Workflow,
     description: 'Visual agent flow builder with LangChain',
     color: 'bg-green-500',
-    externalUrl: 'http://localhost:7860',
+    serviceKey: 'langflow',
   },
   n8n: {
     icon: Workflow,
     description: 'Workflow automation with 400+ integrations',
     color: 'bg-orange-500',
-    externalUrl: 'http://localhost:5678',
+    serviceKey: 'n8n',
   },
 }
 
@@ -58,7 +61,7 @@ export function FrameworksView() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('http://localhost:8102/frameworks')
+      const response = await fetch(agentRouterUrl('frameworks'))
       if (!response.ok) throw new Error('Failed to fetch frameworks')
       const data: FrameworksResponse = await response.json()
       setFrameworks(data.frameworks)
@@ -86,6 +89,11 @@ export function FrameworksView() {
       default:
         return <Badge variant="secondary">Unknown</Badge>
     }
+  }
+
+  const openExternalUrl = (serviceKey: keyof ReturnType<typeof config>['services'], suffix?: string) => {
+    const url = serviceUrl(serviceKey)
+    window.open(suffix ? `${url}${suffix}` : url, '_blank')
   }
 
   if (error) {
@@ -124,6 +132,7 @@ export function FrameworksView() {
             color: 'bg-gray-500',
           }
           const Icon = info.icon
+          const showStudio = info.studioKey && isFeatureEnabled('enableCrewaiStudio')
 
           return (
             <Card key={framework.name} className="relative overflow-hidden">
@@ -149,14 +158,24 @@ export function FrameworksView() {
                   {info.description}
                 </p>
                 <div className="flex gap-2">
-                  {info.externalUrl && (
+                  {info.serviceKey && (
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(info.externalUrl, '_blank')}
+                      onClick={() => openExternalUrl(info.serviceKey!, '/docs')}
                     >
                       <ExternalLink className="h-3 w-3 mr-1" />
-                      Open UI
+                      API Docs
+                    </Button>
+                  )}
+                  {showStudio && info.studioKey && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => openExternalUrl(info.studioKey!)}
+                    >
+                      <Workflow className="h-3 w-3 mr-1" />
+                      Open Studio
                     </Button>
                   )}
                   <Button
@@ -189,11 +208,11 @@ export function FrameworksView() {
           <div className="grid gap-4 md:grid-cols-3">
             <div className="p-4 bg-muted rounded-lg">
               <p className="text-sm font-medium">API Endpoint</p>
-              <p className="text-xs text-muted-foreground mt-1">http://localhost:8102</p>
+              <p className="text-xs text-muted-foreground mt-1">{agentRouterUrl()}</p>
             </div>
             <div className="p-4 bg-muted rounded-lg">
               <p className="text-sm font-medium">WebSocket Events</p>
-              <p className="text-xs text-muted-foreground mt-1">ws://localhost:8102/ws/events</p>
+              <p className="text-xs text-muted-foreground mt-1">{agentRouterUrl('ws/events').replace('http', 'ws')}</p>
             </div>
             <div className="p-4 bg-muted rounded-lg">
               <p className="text-sm font-medium">Documentation</p>
@@ -201,7 +220,7 @@ export function FrameworksView() {
                 variant="link"
                 size="sm"
                 className="p-0 h-auto text-xs"
-                onClick={() => window.open('http://localhost:8102/docs', '_blank')}
+                onClick={() => window.open(`${agentRouterUrl()}/docs`, '_blank')}
               >
                 OpenAPI Docs
               </Button>

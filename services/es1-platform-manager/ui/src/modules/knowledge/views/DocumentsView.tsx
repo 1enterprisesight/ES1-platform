@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/design-system/components/Card'
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, FileText, ChevronDown, ChevronRight, Trash2 } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface KnowledgeBase {
   id: string
@@ -41,7 +42,7 @@ export function DocumentsView() {
   useEffect(() => {
     const fetchKBs = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/v1/knowledge/bases')
+        const response = await fetch(apiUrl('knowledge/bases'))
         if (!response.ok) throw new Error('Failed to fetch knowledge bases')
         const data = await response.json()
         setKnowledgeBases(data.knowledge_bases)
@@ -64,7 +65,7 @@ export function DocumentsView() {
     const fetchDocs = async () => {
       setLoading(true)
       try {
-        const response = await fetch(`http://localhost:8000/api/v1/knowledge/bases/${selectedKB}/documents`)
+        const response = await fetch(apiUrl(`knowledge/bases/${selectedKB}/documents`))
         if (!response.ok) throw new Error('Failed to fetch documents')
         const data = await response.json()
         setDocuments(data.documents)
@@ -87,7 +88,7 @@ export function DocumentsView() {
     setExpandedDoc(docId)
     setLoadingChunks(true)
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/knowledge/documents/${docId}?include_chunks=true`)
+      const response = await fetch(apiUrl(`knowledge/documents/${docId}?include_chunks=true`))
       if (!response.ok) throw new Error('Failed to fetch document')
       const data = await response.json()
       setChunks(data.chunks || [])
@@ -101,7 +102,7 @@ export function DocumentsView() {
   const deleteDocument = async (docId: string) => {
     if (!confirm('Are you sure you want to delete this document?')) return
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/knowledge/documents/${docId}`, {
+      const response = await fetch(apiUrl(`knowledge/documents/${docId}`), {
         method: 'DELETE',
       })
       if (!response.ok) throw new Error('Failed to delete document')

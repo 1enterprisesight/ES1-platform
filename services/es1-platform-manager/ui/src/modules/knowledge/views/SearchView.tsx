@@ -4,6 +4,7 @@ import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { Input } from '@/design-system/components/Input'
 import { Search, FileText, Loader2 } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface KnowledgeBase {
   id: string
@@ -34,7 +35,7 @@ export function SearchView() {
   useEffect(() => {
     const fetchKBs = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/v1/knowledge/bases')
+        const response = await fetch(apiUrl('knowledge/bases'))
         if (!response.ok) throw new Error('Failed to fetch knowledge bases')
         const data = await response.json()
         setKnowledgeBases(data.knowledge_bases)
@@ -53,7 +54,7 @@ export function SearchView() {
     setSearched(true)
     setError(null)
     try {
-      const response = await fetch('http://localhost:8000/api/v1/knowledge/search', {
+      const response = await fetch(apiUrl('knowledge/search'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

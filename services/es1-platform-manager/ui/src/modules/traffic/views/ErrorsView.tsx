@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/design-system/components/Card'
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface ErrorRequest {
   id: string
@@ -30,7 +31,7 @@ export function ErrorsView() {
     setError(null)
     try {
       const response = await fetch(
-        `http://localhost:8000/api/v1/traffic/errors?hours=${periodHours}&limit=100`
+        apiUrl(`traffic/errors?hours=${periodHours}&limit=100`)
       )
       if (!response.ok) throw new Error('Failed to fetch errors')
       const data = await response.json()

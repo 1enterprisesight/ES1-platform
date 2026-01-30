@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/compon
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, Network, Circle } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface KnowledgeBase {
   id: string
@@ -58,7 +59,7 @@ export function GraphExplorerView() {
   useEffect(() => {
     const fetchKBs = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/v1/knowledge/bases')
+        const response = await fetch(apiUrl('knowledge/bases'))
         if (!response.ok) throw new Error('Failed to fetch knowledge bases')
         const data = await response.json()
         setKnowledgeBases(data.knowledge_bases)
@@ -83,7 +84,7 @@ export function GraphExplorerView() {
       try {
         // Fetch entities
         const entitiesResponse = await fetch(
-          `http://localhost:8000/api/v1/knowledge/bases/${selectedKB}/entities?limit=100`
+          apiUrl(`knowledge/bases/${selectedKB}/entities?limit=100`)
         )
         if (!entitiesResponse.ok) throw new Error('Failed to fetch entities')
         const entitiesData = await entitiesResponse.json()
@@ -91,14 +92,14 @@ export function GraphExplorerView() {
 
         // Fetch relationships
         const relsResponse = await fetch(
-          `http://localhost:8000/api/v1/knowledge/bases/${selectedKB}/relationships?limit=100`
+          apiUrl(`knowledge/bases/${selectedKB}/relationships?limit=100`)
         )
         if (!relsResponse.ok) throw new Error('Failed to fetch relationships')
         const relsData = await relsResponse.json()
         setRelationships(relsData.relationships)
 
         // Fetch graph visualization data
-        const graphResponse = await fetch('http://localhost:8000/api/v1/knowledge/graph', {
+        const graphResponse = await fetch(apiUrl('knowledge/graph'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

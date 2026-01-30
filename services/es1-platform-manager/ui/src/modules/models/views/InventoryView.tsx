@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/compon
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, Box, Brain, Server, HardDrive } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface OllamaModel {
   name: string
@@ -50,7 +51,7 @@ export function InventoryView() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('http://localhost:8000/api/v1/models/inventory')
+      const response = await fetch(apiUrl('models/inventory'))
       if (!response.ok) throw new Error('Failed to fetch model inventory')
       const data = await response.json()
       setInventory(data)

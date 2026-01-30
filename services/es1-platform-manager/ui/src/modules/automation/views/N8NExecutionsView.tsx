@@ -9,6 +9,7 @@ import {
   Eye,
 } from 'lucide-react'
 import { useState } from 'react'
+import { serviceUrl } from '@/config'
 
 interface Execution {
   id: string
@@ -96,6 +97,7 @@ function formatDuration(start: string | null, end: string | null): string {
 export function N8NExecutionsView() {
   const [selectedExecution, setSelectedExecution] = useState<ExecutionDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState<string | null>(null)
+  const n8nUrl = serviceUrl('n8n')
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['n8n-executions'],
@@ -116,7 +118,7 @@ export function N8NExecutionsView() {
   }
 
   const openInN8N = (executionId: string) => {
-    window.open(`http://localhost:5678/execution/${executionId}`, '_blank')
+    window.open(`${n8nUrl}/execution/${executionId}`, '_blank')
   }
 
   if (isLoading) {

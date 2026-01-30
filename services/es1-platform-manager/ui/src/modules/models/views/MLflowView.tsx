@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/compon
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, Box, FlaskConical, ChevronDown, ChevronRight, ExternalLink } from 'lucide-react'
+import { apiUrl, serviceUrl } from '@/config'
 
 interface ModelVersion {
   version: string
@@ -45,8 +46,8 @@ export function MLflowView() {
     setError(null)
     try {
       const [modelsRes, expRes] = await Promise.all([
-        fetch('http://localhost:8000/api/v1/mlflow/models'),
-        fetch('http://localhost:8000/api/v1/mlflow/experiments'),
+        fetch(apiUrl('mlflow/models')),
+        fetch(apiUrl('mlflow/experiments')),
       ])
       if (!modelsRes.ok) throw new Error('Failed to fetch MLflow models')
       if (!expRes.ok) throw new Error('Failed to fetch MLflow experiments')
@@ -82,6 +83,8 @@ export function MLflowView() {
     if (!ts) return 'Unknown'
     return new Date(ts).toLocaleDateString()
   }
+
+  const mlflowUrl = serviceUrl('mlflow')
 
   if (error) {
     return (
@@ -125,7 +128,7 @@ export function MLflowView() {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href="http://localhost:5050"
+            href={mlflowUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"

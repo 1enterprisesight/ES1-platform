@@ -12,9 +12,16 @@ export default defineConfig({
   server: {
     port: 3001,
     proxy: {
+      // Platform Manager API proxy
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+      },
+      // Agent Router API proxy
+      '/agent-router': {
+        target: 'http://localhost:8102',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/agent-router/, ''),
       },
     },
   },

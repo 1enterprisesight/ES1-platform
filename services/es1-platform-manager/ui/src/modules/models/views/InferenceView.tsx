@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/compon
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, Activity, Zap, Clock, AlertTriangle } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface EndpointMetric {
   path: string
@@ -38,7 +39,7 @@ export function InferenceView() {
     setError(null)
     try {
       const response = await fetch(
-        `http://localhost:8000/api/v1/models/inference/metrics?hours=${periodHours}`
+        apiUrl(`models/inference/metrics?hours=${periodHours}`)
       )
       if (!response.ok) throw new Error('Failed to fetch inference metrics')
       const data = await response.json()

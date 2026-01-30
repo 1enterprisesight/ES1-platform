@@ -123,6 +123,41 @@ services:
     container_name: es1-platform-manager-ui
     ports:
       - "3001:80"
+    environment:
+      # ==========================================================================
+      # Internal service hosts (proxied through nginx)
+      # ==========================================================================
+      PLATFORM_API_HOST: es1-platform-manager-api
+      PLATFORM_API_PORT: "8000"
+      AGENT_ROUTER_HOST: agent-router
+      AGENT_ROUTER_PORT: "8102"
+
+      # ==========================================================================
+      # External service URLs (opened in browser)
+      # For Docker Compose, these use localhost with exposed ports
+      # For Kubernetes, override with Ingress/LoadBalancer URLs
+      # ==========================================================================
+      GRAFANA_URL: http://localhost:3002
+      PROMETHEUS_URL: http://localhost:9090
+      LANGFLOW_URL: http://localhost:7860
+      MLFLOW_URL: http://localhost:5050
+      N8N_URL: http://localhost:5678
+      AIRFLOW_URL: http://localhost:8081
+      CREWAI_URL: http://localhost:8100
+      CREWAI_STUDIO_URL: http://localhost:8501
+      AUTOGEN_URL: http://localhost:8101
+      LANGFUSE_URL: http://localhost:3003
+      OPEN_WEBUI_URL: http://localhost:3000
+
+      # ==========================================================================
+      # Feature flags
+      # ==========================================================================
+      ENABLE_N8N: "true"
+      ENABLE_LANGFLOW: "true"
+      ENABLE_CREWAI_STUDIO: "true"
+      ENABLE_LANGFUSE: "true"
+      ENABLE_MLFLOW: "true"
+
     depends_on:
       es1-platform-manager-api:
         condition: service_healthy

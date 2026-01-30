@@ -3,6 +3,7 @@ import { Card, CardContent } from '@/design-system/components/Card'
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, ChevronDown, ChevronRight } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface ApiRequest {
   id: string
@@ -29,7 +30,7 @@ export function RequestsView() {
     try {
       const statusFilter = filter !== 'all' ? `&status_filter=${filter}` : ''
       const response = await fetch(
-        `http://localhost:8000/api/v1/traffic/requests?limit=100${statusFilter}`
+        apiUrl(`traffic/requests?limit=100${statusFilter}`)
       )
       if (!response.ok) throw new Error('Failed to fetch requests')
       const data = await response.json()

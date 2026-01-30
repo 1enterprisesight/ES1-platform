@@ -35,8 +35,8 @@ x-airflow-common:
     AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
     AIRFLOW__METRICS__STATSD_PORT: 9125
     AIRFLOW__METRICS__STATSD_PREFIX: airflow
-    # Connection to Gateway Manager for notifications
-    AIRFLOW_CONN_GATEWAY_MANAGER: 'http://gateway-manager-api:8000'
+    # Connection to Platform Manager for notifications
+    AIRFLOW_CONN_PLATFORM_MANAGER: 'http://es1-platform-manager-api:8000'
     # Note: Additional packages installed via custom Dockerfile when needed
     # _PIP_ADDITIONAL_REQUIREMENTS: 'psycopg2-binary requests pdfplumber'
     _PIP_ADDITIONAL_REQUIREMENTS: ''

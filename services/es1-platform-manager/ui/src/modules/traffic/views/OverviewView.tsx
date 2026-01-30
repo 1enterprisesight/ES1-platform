@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/components/Card'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, Activity, Clock, AlertTriangle, CheckCircle } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface TrafficStats {
   period_hours: number
@@ -35,8 +36,8 @@ export function OverviewView() {
     setError(null)
     try {
       const [statsResponse, servicesResponse] = await Promise.all([
-        fetch(`http://localhost:8000/api/v1/traffic/stats?hours=${periodHours}`),
-        fetch(`http://localhost:8000/api/v1/traffic/services?hours=${periodHours}`),
+        fetch(apiUrl(`traffic/stats?hours=${periodHours}`)),
+        fetch(apiUrl(`traffic/services?hours=${periodHours}`)),
       ])
 
       if (!statsResponse.ok) throw new Error('Failed to fetch traffic stats')

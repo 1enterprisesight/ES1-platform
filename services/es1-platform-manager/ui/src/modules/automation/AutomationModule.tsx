@@ -4,6 +4,7 @@ import { CheckCircle, XCircle, AlertTriangle, ExternalLink } from 'lucide-react'
 import { N8NWorkflowsView } from './views/N8NWorkflowsView'
 import { N8NExecutionsView } from './views/N8NExecutionsView'
 import { N8NCredentialsView } from './views/N8NCredentialsView'
+import { serviceUrl } from '@/config'
 
 interface N8NHealth {
   status: string  // healthy, unhealthy, disabled, setup_required
@@ -70,6 +71,8 @@ function HealthIndicator() {
 }
 
 export function AutomationModule() {
+  const n8nUrl = serviceUrl('n8n')
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -82,7 +85,7 @@ export function AutomationModule() {
         <div className="flex items-center gap-4">
           <HealthIndicator />
           <a
-            href="http://localhost:5678"
+            href={n8nUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"

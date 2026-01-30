@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/compon
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface EndpointStats {
   method: string
@@ -24,7 +25,7 @@ export function EndpointsView() {
     setError(null)
     try {
       const response = await fetch(
-        `http://localhost:8000/api/v1/traffic/endpoints?hours=${periodHours}&limit=50`
+        apiUrl(`traffic/endpoints?hours=${periodHours}&limit=50`)
       )
       if (!response.ok) throw new Error('Failed to fetch endpoints')
       const data = await response.json()

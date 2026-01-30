@@ -4,6 +4,7 @@ import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { Input } from '@/design-system/components/Input'
 import { RefreshCw, Plus, Network, ArrowRight } from 'lucide-react'
+import { agentRouterUrl } from '@/config'
 
 interface AgentRef {
   name: string
@@ -41,7 +42,7 @@ export function NetworksView() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('http://localhost:8102/networks')
+      const response = await fetch(agentRouterUrl('networks'))
       if (!response.ok) throw new Error('Failed to fetch networks')
       const data: NetworksResponse = await response.json()
       setNetworks(data.networks)
@@ -59,7 +60,7 @@ export function NetworksView() {
   const createNetwork = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     try {
-      const response = await fetch('http://localhost:8102/networks', {
+      const response = await fetch(agentRouterUrl('networks'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

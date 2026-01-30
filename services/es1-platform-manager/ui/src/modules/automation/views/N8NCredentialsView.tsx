@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Plus,
 } from 'lucide-react'
+import { serviceUrl } from '@/config'
 
 interface Credential {
   id: string
@@ -40,6 +41,8 @@ function formatCredentialType(type: string): string {
 }
 
 export function N8NCredentialsView() {
+  const n8nUrl = serviceUrl('n8n')
+
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['n8n-credentials'],
     queryFn: fetchCredentials,
@@ -47,7 +50,7 @@ export function N8NCredentialsView() {
   })
 
   const openN8NCredentials = () => {
-    window.open('http://localhost:5678/credentials', '_blank')
+    window.open(`${n8nUrl}/credentials`, '_blank')
   }
 
   if (isLoading) {

@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
+import { serviceUrl } from '@/config'
 
 interface Run {
   run_id: string
@@ -34,9 +35,12 @@ export function TasksView() {
     setLoading(true)
     setError(null)
     try {
+      const crewaiUrl = serviceUrl('crewai')
+      const autogenUrl = serviceUrl('autogen')
+
       const [crewaiResponse, autogenResponse] = await Promise.allSettled([
-        fetch('http://localhost:8100/runs'),
-        fetch('http://localhost:8101/runs'),
+        fetch(`${crewaiUrl}/runs`),
+        fetch(`${autogenUrl}/runs`),
       ])
 
       if (crewaiResponse.status === 'fulfilled' && crewaiResponse.value.ok) {

@@ -5,6 +5,7 @@ import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { Input } from '@/design-system/components/Input'
 import { RefreshCw, Search, Trash2 } from 'lucide-react'
+import { agentRouterUrl } from '@/config'
 
 interface Agent {
   key: string
@@ -33,8 +34,8 @@ export function AgentsView() {
     setError(null)
     try {
       const url = filterFramework
-        ? `http://localhost:8102/agents?framework=${filterFramework}`
-        : 'http://localhost:8102/agents'
+        ? agentRouterUrl(`agents?framework=${filterFramework}`)
+        : agentRouterUrl('agents')
       const response = await fetch(url)
       if (!response.ok) throw new Error('Failed to fetch agents')
       const data: AgentsResponse = await response.json()
@@ -54,7 +55,7 @@ export function AgentsView() {
     if (!confirm('Are you sure you want to unregister this agent?')) return
 
     try {
-      const response = await fetch(`http://localhost:8102/agents/${agentKey}`, {
+      const response = await fetch(agentRouterUrl('agents', agentKey), {
         method: 'DELETE',
       })
       if (!response.ok) throw new Error('Failed to delete agent')

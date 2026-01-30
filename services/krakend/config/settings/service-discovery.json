@@ -2,13 +2,13 @@
   "$schema": "https://www.krakend.io/schema/krakend.json",
   "comment": "Service discovery configuration - customize backend hosts per environment",
   "services": {
-    "gateway-manager-api": {
-      "local": "http://gateway-manager-api:8000",
-      "kubernetes": "http://gateway-manager-api.es1-platform.svc.cluster.local:8000"
+    "platform-manager-api": {
+      "local": "http://es1-platform-manager-api:8000",
+      "kubernetes": "http://es1-platform-manager-api.es1-platform.svc.cluster.local:8000"
     },
-    "gateway-manager-ui": {
-      "local": "http://gateway-manager-ui:80",
-      "kubernetes": "http://gateway-manager-ui.es1-platform.svc.cluster.local:80"
+    "platform-manager-ui": {
+      "local": "http://es1-platform-manager-ui:80",
+      "kubernetes": "http://es1-platform-manager-ui.es1-platform.svc.cluster.local:80"
     },
     "airflow": {
       "local": "http://airflow-webserver:8080",
@@ -29,6 +29,22 @@
     "redis": {
       "local": "redis:6379",
       "kubernetes": "redis.es1-infrastructure.svc.cluster.local:6379"
+    },
+    "agent-router": {
+      "local": "http://agent-router:8102",
+      "kubernetes": "http://agent-router.es1-platform.svc.cluster.local:8102"
+    },
+    "crewai": {
+      "local": "http://crewai:8100",
+      "kubernetes": "http://crewai.es1-agents.svc.cluster.local:8100"
+    },
+    "autogen": {
+      "local": "http://autogen:8101",
+      "kubernetes": "http://autogen.es1-agents.svc.cluster.local:8101"
+    },
+    "crewai-studio": {
+      "local": "http://crewai-studio:8501",
+      "kubernetes": "http://crewai-studio.es1-agents.svc.cluster.local:8501"
     }
   }
 }

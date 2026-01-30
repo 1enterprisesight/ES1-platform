@@ -11,6 +11,7 @@ import {
   Clock,
 } from 'lucide-react'
 import { Skeleton, SkeletonTable } from '../../../design-system/components'
+import { serviceUrl } from '@/config'
 
 interface Workflow {
   id: string
@@ -61,6 +62,7 @@ async function executeWorkflow(id: string): Promise<void> {
 export function N8NWorkflowsView() {
   const queryClient = useQueryClient()
   const [executingId, setExecutingId] = useState<string | null>(null)
+  const n8nUrl = serviceUrl('n8n')
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['n8n-workflows'],
@@ -106,7 +108,7 @@ export function N8NWorkflowsView() {
   }
 
   const openInN8N = (workflowId: string) => {
-    window.open(`http://localhost:5678/workflow/${workflowId}`, '_blank')
+    window.open(`${n8nUrl}/workflow/${workflowId}`, '_blank')
   }
 
   if (isLoading) {
@@ -138,7 +140,7 @@ export function N8NWorkflowsView() {
             To manage workflows from this dashboard, you need to configure an n8n API key.
           </p>
           <ol className="text-sm text-amber-700 dark:text-amber-300 list-decimal list-inside space-y-2 mb-4">
-            <li>Open n8n at <a href="http://localhost:5678" target="_blank" rel="noopener noreferrer" className="underline">http://localhost:5678</a></li>
+            <li>Open n8n at <a href={n8nUrl} target="_blank" rel="noopener noreferrer" className="underline">{n8nUrl}</a></li>
             <li>Complete the initial setup (create owner account)</li>
             <li>Go to <strong>Settings &gt; API</strong></li>
             <li>Create a new API Key</li>
@@ -146,7 +148,7 @@ export function N8NWorkflowsView() {
             <li>Restart the Platform Manager API</li>
           </ol>
           <a
-            href="http://localhost:5678"
+            href={n8nUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-amber-600 text-white rounded-md hover:bg-amber-700"
@@ -191,7 +193,7 @@ export function N8NWorkflowsView() {
             Refresh
           </button>
           <a
-            href="http://localhost:5678"
+            href={n8nUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"
@@ -210,7 +212,7 @@ export function N8NWorkflowsView() {
             Create your first workflow in n8n to get started with automation.
           </p>
           <a
-            href="http://localhost:5678/workflow/new"
+            href={`${n8nUrl}/workflow/new`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-md hover:bg-primary/90"

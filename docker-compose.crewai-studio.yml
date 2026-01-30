@@ -1,0 +1,52 @@
+# CrewAI Studio - Visual Agent Builder
+# Provides a no-code interface for creating CrewAI agents and crews
+#
+# Usage:
+#   docker compose -f docker-compose.yml \
+#     -f docker-compose.agents.yml \
+#     -f docker-compose.crewai-studio.yml up -d
+#
+# Access: http://localhost:8501
+
+services:
+  crewai-studio:
+    build:
+      context: ./services/agents/crewai-studio
+      dockerfile: Dockerfile
+    container_name: es1-crewai-studio
+    ports:
+      - "${CREWAI_STUDIO_PORT:-8501}:8501"
+    environment:
+      # Redis for state management
+      REDIS_URL: redis://redis:6379/0
+      # Ollama for local LLM inference
+      OLLAMA_BASE_URL: http://ollama:11434
+      # CrewAI API for execution
+      CREWAI_API_URL: http://crewai:8100
+      # Optional: External API keys (uncomment and set if using cloud models)
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - crewai_studio_data:/app/data
+    depends_on:
+      redis:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - es1-network
+    restart: unless-stopped
+    labels:
+      - "es1.service=crewai-studio"
+      - "es1.category=agents"
+      - "es1.ui.port=8501"
+
+volumes:
+  crewai_studio_data:
+    name: es1-crewai-studio-data

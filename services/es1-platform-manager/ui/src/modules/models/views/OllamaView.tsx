@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/compon
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, Download, Trash2, Play, ChevronDown, ChevronRight, Server } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface OllamaModel {
   name: string
@@ -40,8 +41,8 @@ export function OllamaView() {
     setError(null)
     try {
       const [modelsRes, runningRes] = await Promise.all([
-        fetch('http://localhost:8000/api/v1/ollama/models'),
-        fetch('http://localhost:8000/api/v1/ollama/ps'),
+        fetch(apiUrl('ollama/models')),
+        fetch(apiUrl('ollama/ps')),
       ])
       if (!modelsRes.ok) throw new Error('Failed to fetch models')
       const modelsData = await modelsRes.json()
@@ -63,7 +64,7 @@ export function OllamaView() {
     if (!pullModel.trim()) return
     setPulling(true)
     try {
-      const response = await fetch('http://localhost:8000/api/v1/ollama/models/pull', {
+      const response = await fetch(apiUrl('ollama/models/pull'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: pullModel.trim() }),
@@ -81,7 +82,7 @@ export function OllamaView() {
   const handleDeleteModel = async (name: string) => {
     if (!confirm(`Delete model "${name}"?`)) return
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/ollama/models/${encodeURIComponent(name)}`, {
+      const response = await fetch(apiUrl(`ollama/models/${encodeURIComponent(name)}`), {
         method: 'DELETE',
       })
       if (!response.ok) throw new Error('Failed to delete model')

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Workflow } from 'lucide-react'
 import { Card, Button, Badge, StatusIndicator, Skeleton, SkeletonList, ErrorDisplay, EmptyState } from '../../../design-system/components'
 import { useToast } from '../../../shared/contexts/ToastContext'
+import { apiUrl, serviceUrl } from '@/config'
 
 interface Dag {
   dag_id: string
@@ -90,7 +91,7 @@ export function DagsView() {
         error={error as Error}
         onRetry={() => refetch()}
         suggestion="Check if Airflow is running and healthy. You can also try accessing Airflow directly."
-        helpLink={{ label: 'Open Airflow', url: 'http://localhost:8081' }}
+        helpLink={{ label: 'Open Airflow', url: serviceUrl('airflow') }}
       />
     )
   }
@@ -103,7 +104,7 @@ export function DagsView() {
         icon={Workflow}
         title="No DAGs found"
         description="DAGs will appear here once Airflow has workflows defined. Create a new DAG file or use the DAG Editor to get started."
-        action={{ label: 'Open Airflow', href: 'http://localhost:8081' }}
+        action={{ label: 'Open Airflow', href: serviceUrl('airflow') }}
       />
     )
   }

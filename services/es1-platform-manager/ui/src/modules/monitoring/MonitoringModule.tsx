@@ -12,9 +12,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/design-system/components/Button'
-
-// Grafana base URL - in production this would come from config
-const GRAFANA_URL = 'http://localhost:3002'
+import { serviceUrl } from '@/config'
 
 const dashboards = [
   {
@@ -62,6 +60,8 @@ const dashboards = [
 ]
 
 export function MonitoringModule() {
+  const grafanaUrl = serviceUrl('grafana')
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -74,7 +74,7 @@ export function MonitoringModule() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => window.open(GRAFANA_URL, '_blank')}
+          onClick={() => window.open(grafanaUrl, '_blank')}
         >
           <ExternalLink className="h-4 w-4 mr-2" />
           Open Grafana
@@ -146,10 +146,12 @@ interface GrafanaDashboardProps {
 function GrafanaDashboard({ dashboard }: GrafanaDashboardProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const grafanaUrl = serviceUrl('grafana')
+  const prometheusUrl = serviceUrl('prometheus')
 
   // Build the Grafana embed URL
   // Using solo mode (kiosk=1) for clean embedding
-  const embedUrl = `${GRAFANA_URL}/d/${dashboard.uid}?orgId=1&refresh=30s&kiosk=1&theme=dark`
+  const embedUrl = `${grafanaUrl}/d/${dashboard.uid}?orgId=1&refresh=30s&kiosk=1&theme=dark`
 
   return (
     <div className="space-y-4">
@@ -176,7 +178,7 @@ function GrafanaDashboard({ dashboard }: GrafanaDashboardProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open(`${GRAFANA_URL}/d/${dashboard.uid}`, '_blank')}
+            onClick={() => window.open(`${grafanaUrl}/d/${dashboard.uid}`, '_blank')}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
             Full Screen
@@ -206,7 +208,7 @@ function GrafanaDashboard({ dashboard }: GrafanaDashboardProps) {
       {/* Quick Links */}
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <a
-          href={`${GRAFANA_URL}/d/${dashboard.uid}`}
+          href={`${grafanaUrl}/d/${dashboard.uid}`}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-foreground flex items-center gap-1"
@@ -215,7 +217,7 @@ function GrafanaDashboard({ dashboard }: GrafanaDashboardProps) {
           Edit in Grafana
         </a>
         <a
-          href="http://localhost:9090"
+          href={prometheusUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-foreground flex items-center gap-1"

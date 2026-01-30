@@ -1,0 +1,48 @@
+import type { RuntimeConfig } from './types';
+
+/**
+ * Default configuration values for local development
+ *
+ * These values are used when:
+ * 1. Running locally with `npm run dev`
+ * 2. No runtime config is injected (fallback)
+ *
+ * In production/Kubernetes, these are overridden by window.__ES1_CONFIG__
+ * which is generated at container startup by docker-entrypoint.sh
+ */
+export const defaultConfig: RuntimeConfig = {
+  services: {
+    // Monitoring
+    grafana: 'http://localhost:3002',
+    prometheus: 'http://localhost:9090',
+
+    // AI/ML Tools
+    langflow: 'http://localhost:7860',
+    mlflow: 'http://localhost:5050',
+    langfuse: 'http://localhost:3003',
+    openWebUI: 'http://localhost:3000',
+
+    // Workflow Automation
+    n8n: 'http://localhost:5678',
+    airflow: 'http://localhost:8081',
+
+    // Agent Frameworks
+    crewai: 'http://localhost:8100',
+    crewaiStudio: 'http://localhost:8501',
+    autogen: 'http://localhost:8101',
+  },
+
+  api: {
+    // These paths are proxied by nginx (production) or vite (development)
+    platform: '/api/v1',
+    agentRouter: '/agent-router',
+  },
+
+  features: {
+    enableN8n: true,
+    enableLangflow: true,
+    enableCrewaiStudio: true,
+    enableLangfuse: true,
+    enableMlflow: true,
+  },
+};

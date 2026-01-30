@@ -4,6 +4,7 @@ import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { Input } from '@/design-system/components/Input'
 import { RefreshCw, Plus, Database, FileText, Trash2, Play } from 'lucide-react'
+import { apiUrl } from '@/config'
 
 interface KnowledgeBase {
   id: string
@@ -47,7 +48,7 @@ export function KnowledgeBasesView() {
     setLoading(true)
     setError(null)
     try {
-      const response = await fetch('http://localhost:8000/api/v1/knowledge/bases')
+      const response = await fetch(apiUrl('knowledge/bases'))
       if (!response.ok) throw new Error('Failed to fetch knowledge bases')
       const data: KnowledgeBasesResponse = await response.json()
       setKnowledgeBases(data.knowledge_bases)
@@ -65,7 +66,7 @@ export function KnowledgeBasesView() {
   const createKnowledgeBase = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     try {
-      const response = await fetch('http://localhost:8000/api/v1/knowledge/bases', {
+      const response = await fetch(apiUrl('knowledge/bases'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newKB),
@@ -89,7 +90,7 @@ export function KnowledgeBasesView() {
   const deleteKnowledgeBase = async (kbId: string) => {
     if (!confirm('Are you sure you want to delete this knowledge base? All documents and entities will be deleted.')) return
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/knowledge/bases/${kbId}`, {
+      const response = await fetch(apiUrl(`knowledge/bases/${kbId}`), {
         method: 'DELETE',
       })
       if (!response.ok) throw new Error('Failed to delete knowledge base')
@@ -101,7 +102,7 @@ export function KnowledgeBasesView() {
 
   const triggerIngestion = async (kbId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/knowledge/bases/${kbId}/ingest`, {
+      const response = await fetch(apiUrl(`knowledge/bases/${kbId}/ingest`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),

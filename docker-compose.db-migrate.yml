@@ -1,0 +1,42 @@
+# Database Migration Service
+# Runs versioned SQL migrations for ES1 Platform databases
+#
+# Usage:
+#   # Run all migrations with default (reference) seeds
+#   docker compose -f docker-compose.yml -f docker-compose.db-migrate.yml run --rm db-migrate
+#
+#   # Run with sample data (for development/demos)
+#   docker compose -f docker-compose.yml -f docker-compose.db-migrate.yml run --rm db-migrate --seed=sample
+#
+#   # Dry run (show what would be executed)
+#   docker compose -f docker-compose.yml -f docker-compose.db-migrate.yml run --rm db-migrate --dry-run
+#
+#   # Check migration status
+#   docker compose -f docker-compose.yml -f docker-compose.db-migrate.yml run --rm db-migrate --status
+
+services:
+  db-migrate:
+    build:
+      context: ./infrastructure/db-migrate
+      dockerfile: Dockerfile
+    container_name: es1-db-migrate
+    environment:
+      # Main PostgreSQL
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-es1_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-es1_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es1_password}
+      # AIML PostgreSQL
+      AIML_POSTGRES_HOST: ${AIML_POSTGRES_HOST:-aiml-postgres}
+      AIML_POSTGRES_PORT: ${AIML_POSTGRES_PORT:-5432}
+      AIML_POSTGRES_DB: ${AIML_POSTGRES_DB:-aiml}
+      AIML_POSTGRES_USER: ${AIML_POSTGRES_USER:-aiml_user}
+      AIML_POSTGRES_PASSWORD: ${AIML_POSTGRES_PASSWORD:-aiml_password}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      aiml-postgres:
+        condition: service_healthy
+    networks:
+      - es1-network
