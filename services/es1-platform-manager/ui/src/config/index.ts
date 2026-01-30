@@ -5,38 +5,27 @@ export type { RuntimeConfig } from './types';
 export { defaultConfig } from './defaults';
 
 /**
- * Deep merge helper for config objects
+ * Merge runtime config with defaults
+ * Only merges defined values from runtime config
  */
-function deepMerge<T extends Record<string, unknown>>(
-  target: T,
-  source: Partial<T>
-): T {
-  const result = { ...target };
-
-  for (const key in source) {
-    if (Object.prototype.hasOwnProperty.call(source, key)) {
-      const sourceValue = source[key];
-      const targetValue = target[key];
-
-      if (
-        sourceValue &&
-        typeof sourceValue === 'object' &&
-        !Array.isArray(sourceValue) &&
-        targetValue &&
-        typeof targetValue === 'object' &&
-        !Array.isArray(targetValue)
-      ) {
-        result[key] = deepMerge(
-          targetValue as Record<string, unknown>,
-          sourceValue as Record<string, unknown>
-        ) as T[Extract<keyof T, string>];
-      } else if (sourceValue !== undefined) {
-        result[key] = sourceValue as T[Extract<keyof T, string>];
-      }
-    }
-  }
-
-  return result;
+function mergeConfig(
+  defaults: RuntimeConfig,
+  runtime: Partial<RuntimeConfig>
+): RuntimeConfig {
+  return {
+    services: {
+      ...defaults.services,
+      ...(runtime.services || {}),
+    },
+    api: {
+      ...defaults.api,
+      ...(runtime.api || {}),
+    },
+    features: {
+      ...defaults.features,
+      ...(runtime.features || {}),
+    },
+  };
 }
 
 /**
@@ -54,7 +43,7 @@ function deepMerge<T extends Record<string, unknown>>(
  */
 export function getConfig(): RuntimeConfig {
   const runtimeConfig = window.__ES1_CONFIG__ || {};
-  return deepMerge(defaultConfig, runtimeConfig as Partial<RuntimeConfig>);
+  return mergeConfig(defaultConfig, runtimeConfig as Partial<RuntimeConfig>);
 }
 
 /**

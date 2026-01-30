@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Workflow } from 'lucide-react'
 import { Card, Button, Badge, StatusIndicator, Skeleton, SkeletonList, ErrorDisplay, EmptyState } from '../../../design-system/components'
 import { useToast } from '../../../shared/contexts/ToastContext'
-import { apiUrl, serviceUrl } from '@/config'
+import { serviceUrl } from '@/config'
 
 interface Dag {
   dag_id: string

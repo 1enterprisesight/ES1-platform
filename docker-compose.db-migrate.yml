@@ -26,13 +26,13 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-es1_platform}
       POSTGRES_USER: ${POSTGRES_USER:-es1_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es1_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
       # AIML PostgreSQL
       AIML_POSTGRES_HOST: ${AIML_POSTGRES_HOST:-aiml-postgres}
       AIML_POSTGRES_PORT: ${AIML_POSTGRES_PORT:-5432}
       AIML_POSTGRES_DB: ${AIML_POSTGRES_DB:-aiml}
       AIML_POSTGRES_USER: ${AIML_POSTGRES_USER:-aiml_user}
-      AIML_POSTGRES_PASSWORD: ${AIML_POSTGRES_PASSWORD:-aiml_password}
+      AIML_POSTGRES_PASSWORD: ${AIML_POSTGRES_PASSWORD:-aiml_dev_password}
     depends_on:
       postgres:
         condition: service_healthy
