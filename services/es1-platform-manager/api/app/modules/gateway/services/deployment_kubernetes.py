@@ -118,6 +118,50 @@ class KubernetesDeploymentEngine:
         except ApiException:
             return False
 
+    async def get_current_config(self) -> dict[str, Any] | None:
+        """
+        Get the currently deployed configuration from KrakenD ConfigMap.
+
+        Returns:
+            dict: Current config if ConfigMap exists, None otherwise
+        """
+        try:
+            # Get the deployment to find which ConfigMap is mounted
+            deployment = await asyncio.to_thread(
+                self.apps_api.read_namespaced_deployment,
+                name=self.deployment_name,
+                namespace=self.namespace,
+            )
+
+            # Find the ConfigMap name from volumes
+            configmap_name = None
+            for volume in deployment.spec.template.spec.volumes:
+                if volume.config_map and volume.config_map.name.startswith(self.configmap_name):
+                    configmap_name = volume.config_map.name
+                    break
+
+            if not configmap_name:
+                # Fall back to the base configmap name
+                configmap_name = f"{self.configmap_name}-config"
+
+            # Read the ConfigMap
+            configmap = await asyncio.to_thread(
+                self.core_api.read_namespaced_config_map,
+                name=configmap_name,
+                namespace=self.namespace,
+            )
+
+            # Parse the krakend.json content
+            config_data = configmap.data.get("krakend.json")
+            if config_data:
+                return json.loads(config_data)
+
+            return None
+
+        except ApiException as e:
+            print(f"Error reading current config: {e}")
+            return None
+
     async def update_config(self, config: dict[str, Any], version: int) -> str:
         """
         Deploy config as a versioned ConfigMap.
