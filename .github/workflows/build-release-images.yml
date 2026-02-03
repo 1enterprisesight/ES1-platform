@@ -1,0 +1,326 @@
+# ES1 Platform - Build Release Images
+#
+# Builds all 26 platform images on release tag and pushes to GitHub Container Registry.
+# Images are NOT customer-branded - branding happens when installer copies to customer registry.
+#
+# Trigger: Push of version tag (v*)
+#
+# Result:
+#   26 images pushed to ghcr.io/[org]/es1-platform/
+#   e.g., ghcr.io/[org]/es1-platform/postgres:v1.1.0-docker-compose
+#
+# Installer then:
+#   1. Pulls from ghcr.io
+#   2. Retags with customer name (beam-postgres, esight-postgres, etc.)
+#   3. Pushes to customer's cloud registry (GKE, EKS, AKS)
+
+name: Build Release Images
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+  # Allow manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to build (e.g., v1.1.0-docker-compose)'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/es1-platform
+
+jobs:
+  setup:
+    name: Setup Build
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      registry_prefix: ${{ steps.version.outputs.registry_prefix }}
+    steps:
+      - name: Determine version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "registry_prefix=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "## Build Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Registry | ${{ steps.version.outputs.registry_prefix }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | linux/amd64 |" >> $GITHUB_STEP_SUMMARY
+
+  build-custom-images:
+    name: Build ${{ matrix.service }}
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: postgres
+            context: services/postgres
+          - service: redis
+            context: services/redis
+          - service: krakend
+            context: services/krakend
+          - service: aiml-postgres
+            context: services/aiml-postgres
+          - service: mlflow
+            context: services/mlflow
+          - service: crewai
+            context: services/agents/crewai
+          - service: autogen
+            context: services/agents/autogen
+          - service: crewai-studio
+            context: services/agents/crewai-studio
+          - service: autogen-studio
+            context: services/agents/autogen-studio
+          - service: db-migrate
+            context: services/db-migrate
+          - service: agent-router
+            context: services/agents/agent-router
+          - service: platform-manager-api
+            context: services/es1-platform-manager/api
+          - service: platform-manager-ui
+            context: services/es1-platform-manager/ui
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ needs.setup.outputs.registry_prefix }}/${{ matrix.service }}:${{ needs.setup.outputs.version }}
+            ${{ needs.setup.outputs.registry_prefix }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.setup.outputs.version }}
+
+  mirror-prebuilt-images:
+    name: Mirror ${{ matrix.service }}
+    needs: setup
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: ollama
+            source: ollama/ollama:latest
+          - service: ollama-webui
+            source: ghcr.io/open-webui/open-webui:main
+          - service: airflow
+            source: apache/airflow:2.8.1-python3.11
+          - service: statsd-exporter
+            source: prom/statsd-exporter:v0.26.0
+          - service: langflow
+            source: langflowai/langflow:latest
+          - service: langfuse
+            source: langfuse/langfuse:2
+          - service: n8n
+            source: n8nio/n8n:latest
+          - service: prometheus
+            source: prom/prometheus:v2.51.0
+          - service: grafana
+            source: grafana/grafana:10.4.0
+          - service: cadvisor
+            source: gcr.io/cadvisor/cadvisor:v0.49.1
+          - service: node-exporter
+            source: prom/node-exporter:v1.7.0
+          - service: postgres-exporter
+            source: prometheuscommunity/postgres-exporter:v0.15.0
+          - service: redis-exporter
+            source: oliver006/redis_exporter:v1.58.0
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull, Tag, and Push
+        run: |
+          VERSION="${{ needs.setup.outputs.version }}"
+          REGISTRY_PREFIX="${{ needs.setup.outputs.registry_prefix }}"
+          SERVICE="${{ matrix.service }}"
+          SOURCE="${{ matrix.source }}"
+
+          TARGET="${REGISTRY_PREFIX}/${SERVICE}:${VERSION}"
+          TARGET_LATEST="${REGISTRY_PREFIX}/${SERVICE}:latest"
+
+          echo "Pulling ${SOURCE} (linux/amd64)..."
+          docker pull --platform linux/amd64 "${SOURCE}"
+
+          echo "Tagging as ${TARGET}..."
+          docker tag "${SOURCE}" "${TARGET}"
+          docker tag "${SOURCE}" "${TARGET_LATEST}"
+
+          echo "Pushing to GitHub Container Registry..."
+          docker push "${TARGET}"
+          docker push "${TARGET_LATEST}"
+
+  create-manifest:
+    name: Create Image Manifest
+    needs: [setup, build-custom-images, mirror-prebuilt-images]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate manifest
+        run: |
+          VERSION="${{ needs.setup.outputs.version }}"
+          REGISTRY_PREFIX="${{ needs.setup.outputs.registry_prefix }}"
+
+          mkdir -p .github/image-manifests
+
+          cat > ".github/image-manifests/${VERSION}.txt" << EOF
+          # ES1 Platform Image Manifest
+          # Version: ${VERSION}
+          # Generated: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          # Registry: ${REGISTRY_PREFIX}
+          #
+          # Custom-built images (13):
+          ${REGISTRY_PREFIX}/postgres:${VERSION}
+          ${REGISTRY_PREFIX}/redis:${VERSION}
+          ${REGISTRY_PREFIX}/krakend:${VERSION}
+          ${REGISTRY_PREFIX}/aiml-postgres:${VERSION}
+          ${REGISTRY_PREFIX}/mlflow:${VERSION}
+          ${REGISTRY_PREFIX}/crewai:${VERSION}
+          ${REGISTRY_PREFIX}/autogen:${VERSION}
+          ${REGISTRY_PREFIX}/crewai-studio:${VERSION}
+          ${REGISTRY_PREFIX}/autogen-studio:${VERSION}
+          ${REGISTRY_PREFIX}/db-migrate:${VERSION}
+          ${REGISTRY_PREFIX}/agent-router:${VERSION}
+          ${REGISTRY_PREFIX}/platform-manager-api:${VERSION}
+          ${REGISTRY_PREFIX}/platform-manager-ui:${VERSION}
+          #
+          # Pre-built images (13):
+          ${REGISTRY_PREFIX}/ollama:${VERSION}
+          ${REGISTRY_PREFIX}/ollama-webui:${VERSION}
+          ${REGISTRY_PREFIX}/airflow:${VERSION}
+          ${REGISTRY_PREFIX}/statsd-exporter:${VERSION}
+          ${REGISTRY_PREFIX}/langflow:${VERSION}
+          ${REGISTRY_PREFIX}/langfuse:${VERSION}
+          ${REGISTRY_PREFIX}/n8n:${VERSION}
+          ${REGISTRY_PREFIX}/prometheus:${VERSION}
+          ${REGISTRY_PREFIX}/grafana:${VERSION}
+          ${REGISTRY_PREFIX}/cadvisor:${VERSION}
+          ${REGISTRY_PREFIX}/node-exporter:${VERSION}
+          ${REGISTRY_PREFIX}/postgres-exporter:${VERSION}
+          ${REGISTRY_PREFIX}/redis-exporter:${VERSION}
+          EOF
+
+      - name: Commit manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/image-manifests/
+          git commit -m "chore: Add image manifest for ${{ needs.setup.outputs.version }}" || true
+          git push || true
+
+  summary:
+    name: Build Summary
+    needs: [setup, build-custom-images, mirror-prebuilt-images]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Generate Summary
+        run: |
+          VERSION="${{ needs.setup.outputs.version }}"
+          REGISTRY_PREFIX="${{ needs.setup.outputs.registry_prefix }}"
+
+          echo "## Release Build Complete: ${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Images Available" >> $GITHUB_STEP_SUMMARY
+          echo "All images pushed to: \`${REGISTRY_PREFIX}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Custom Images (13):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/postgres:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/redis:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/krakend:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/aiml-postgres:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/mlflow:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/crewai:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/autogen:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/crewai-studio:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/autogen-studio:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/db-migrate:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/agent-router:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/platform-manager-api:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/platform-manager-ui:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Pre-built Images (13):**" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/ollama:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/ollama-webui:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/airflow:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/statsd-exporter:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/langflow:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/langfuse:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/n8n:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/prometheus:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/grafana:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/cadvisor:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/node-exporter:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/postgres-exporter:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "${REGISTRY_PREFIX}/redis-exporter:${VERSION}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installer Usage" >> $GITHUB_STEP_SUMMARY
+          echo "The installer will pull these images and push to customer registry:" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "./scripts/install.sh <customer> ${VERSION} <target>" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# Example:" >> $GITHUB_STEP_SUMMARY
+          echo "./scripts/install.sh beam ${VERSION} gke" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check build status
+        if: needs.build-custom-images.result == 'failure' || needs.mirror-prebuilt-images.result == 'failure'
+        run: |
+          echo "::error::Some images failed to build"
+          exit 1
