@@ -67,6 +67,14 @@ export interface RuntimeConfig {
   };
 
   /**
+   * Authentication configuration
+   */
+  auth?: {
+    /** Auth mode: "none" (dev), "api-key" (production), "oidc" (enterprise) */
+    mode?: string;
+  };
+
+  /**
    * Branding configuration injected from environment variables
    * These serve as the env-layer defaults; database branding takes precedence
    */

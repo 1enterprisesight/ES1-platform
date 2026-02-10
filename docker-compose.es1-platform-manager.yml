@@ -29,6 +29,15 @@ services:
       RUNTIME_MODE: docker
 
       # ==========================================================================
+      # Authentication
+      # ==========================================================================
+      AUTH_MODE: ${AUTH_MODE:-none}
+      DEFAULT_API_KEY: ${DEFAULT_API_KEY:-es1-dev-key-change-in-production}
+      API_KEY_PREFIX: ${API_KEY_PREFIX:-pk}
+      JWT_SECRET: ${JWT_SECRET:-}
+      CORS_ORIGINS: '${CORS_ORIGINS:-["*"]}'
+
+      # ==========================================================================
       # Database
       # ==========================================================================
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
@@ -158,6 +167,11 @@ services:
       PLATFORM_NAME: "${PLATFORM_NAME:-ES1} Platform"
       META_DESCRIPTION: ${META_DESCRIPTION:-Enterprise AI Platform}
       FAVICON_URL: ${FAVICON_URL:-}
+
+      # ==========================================================================
+      # Authentication (tells UI whether to show login)
+      # ==========================================================================
+      AUTH_MODE: ${AUTH_MODE:-none}
 
       # ==========================================================================
       # Feature flags

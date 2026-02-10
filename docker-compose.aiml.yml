@@ -81,7 +81,8 @@ services:
       - ollama_webui_data:/app/backend/data
     environment:
       - OLLAMA_BASE_URL=http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
-      - WEBUI_AUTH=false
+      # Auth: false for local dev, true for production
+      - WEBUI_AUTH=${WEBUI_AUTH:-false}
       - WEBUI_NAME=${WEBUI_NAME:-${PLATFORM_NAME:-ES1} AI Chat}
     depends_on:
       ollama:

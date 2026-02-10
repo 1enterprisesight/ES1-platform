@@ -53,6 +53,10 @@ window.__PLATFORM_CONFIG__ = {
     enableMlflow: true,
   },
 
+  auth: {
+    mode: 'none',
+  },
+
   branding: {
     pageTitle: 'Platform',
     platformName: 'ES1 Platform',

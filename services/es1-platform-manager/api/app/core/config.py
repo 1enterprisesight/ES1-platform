@@ -14,9 +14,10 @@ class Settings(BaseSettings):
 
     # API
     API_V1_PREFIX: str = "/api/v1"
-    PROJECT_NAME: str = "ES1 Platform Manager API"
+    PROJECT_NAME: str = "Platform Manager API"
 
-    # CORS
+    # CORS - restrict in production; wildcard only safe for local dev
+    # Set to specific origins (e.g., ["http://localhost:3001"]) when AUTH_MODE != "none"
     CORS_ORIGINS: list[str] = ["*"]
 
     # Runtime Mode (auto, docker, kubernetes)
@@ -26,8 +27,20 @@ class Settings(BaseSettings):
     # Authentication
     # ==========================================================================
 
-    AUTH_REQUIRED: bool = False  # Set to True in production
+    # Auth mode: "none" (dev), "api-key" (production), "oidc" (enterprise SSO)
+    AUTH_MODE: str = "none"
+
+    # Legacy toggle - still respected if AUTH_MODE is "none"
+    AUTH_REQUIRED: bool = False
+
+    # Default admin API key for development (empty = require explicit config in production)
     DEFAULT_API_KEY: str = "es1-dev-key-change-in-production"
+
+    # Prefix for generated API keys (white-label)
+    API_KEY_PREFIX: str = "pk"
+
+    # JWT signing secret (for future OIDC/session tokens - must be unique, not reuse API key)
+    JWT_SECRET: str = ""
 
     # ==========================================================================
     # KrakenD Configuration
@@ -147,6 +160,20 @@ class Settings(BaseSettings):
     CREWAI_URL: str = "http://crewai:8100"
     AUTOGEN_URL: str = "http://autogen:8101"
     AGENT_ROUTER_URL: str = "http://agent-router:8102"
+
+    @property
+    def auth_enabled(self) -> bool:
+        """Whether authentication is required (derived from AUTH_MODE)."""
+        if self.AUTH_MODE in ("api-key", "oidc"):
+            return True
+        if self.AUTH_REQUIRED:
+            return True
+        return False
+
+    @property
+    def cors_allows_credentials(self) -> bool:
+        """Only allow credentials if CORS is not wildcard (security requirement)."""
+        return "*" not in self.CORS_ORIGINS
 
     @property
     def database_url(self) -> str:

@@ -44,10 +44,10 @@ services:
       GF_USERS_ALLOW_SIGN_UP: "false"
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:3002}
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-piechart-panel
-      # Enable embedding in iframes
-      GF_SECURITY_ALLOW_EMBEDDING: "true"
-      GF_AUTH_ANONYMOUS_ENABLED: "true"
-      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      # Embedding and anonymous access: enable for dev, disable for production
+      GF_SECURITY_ALLOW_EMBEDDING: "${GRAFANA_ALLOW_EMBEDDING:-true}"
+      GF_AUTH_ANONYMOUS_ENABLED: "${GRAFANA_ANONYMOUS_ENABLED:-true}"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: ${GRAFANA_ANONYMOUS_ROLE:-Viewer}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./services/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro

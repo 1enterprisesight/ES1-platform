@@ -31,14 +31,15 @@ services:
       LANGFLOW_WORKERS: 1
       # Cache
       LANGFLOW_CACHE_TYPE: memory
-      # Authentication - Disable auth for local development
-      LANGFLOW_AUTO_LOGIN: "true"
+      # Authentication: auto-login for local dev, disable in production (set to "false")
+      LANGFLOW_AUTO_LOGIN: "${LANGFLOW_AUTO_LOGIN:-true}"
       LANGFLOW_DO_NOT_TRACK: "true"
-      LANGFLOW_SKIP_AUTH_AUTO_LOGIN: "true"
-      # Superuser for API access (development only)
+      LANGFLOW_SKIP_AUTH_AUTO_LOGIN: "${LANGFLOW_AUTO_LOGIN:-true}"
+      # Superuser credentials
       LANGFLOW_SUPERUSER: ${LANGFLOW_SUPERUSER:-admin}
       LANGFLOW_SUPERUSER_PASSWORD: ${LANGFLOW_SUPERUSER_PASSWORD:-admin}
-      LANGFLOW_NEW_USER_IS_ACTIVE: "true"
+      # Auto-activate new users: true for dev, false for production
+      LANGFLOW_NEW_USER_IS_ACTIVE: "${LANGFLOW_NEW_USER_IS_ACTIVE:-true}"
       # Airflow connection for DAG triggering
       AIRFLOW_API_URL: http://${AIRFLOW_HOST:-airflow-webserver}:8080/api/v1
       AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
