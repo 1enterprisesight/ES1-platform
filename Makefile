@@ -167,6 +167,16 @@ generate-creds-k8s: ## Generate production credentials (K8s secrets YAML)
 	@./scripts/generate-credentials.sh --format=k8s-secrets
 
 # =============================================================================
+# Upgrade Commands
+# =============================================================================
+
+upgrade: ## Upgrade all services (pull images, migrate DB, restart)
+	./scripts/upgrade.sh
+
+upgrade-dry-run: ## Show what upgrade would do (no changes)
+	./scripts/upgrade.sh --dry-run
+
+# =============================================================================
 # Development Commands
 # =============================================================================
 

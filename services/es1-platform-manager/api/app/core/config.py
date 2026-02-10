@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "Platform Manager API"
+    PLATFORM_VERSION: str = "1.9.0"
 
     # CORS - restrict in production; wildcard only safe for local dev
     # Set to specific origins (e.g., ["http://localhost:3001"]) when AUTH_MODE != "none"
