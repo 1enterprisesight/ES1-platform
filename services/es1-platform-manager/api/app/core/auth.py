@@ -41,7 +41,8 @@ def generate_api_key() -> tuple[str, str]:
     Returns:
         Tuple of (raw_key, hashed_key)
     """
-    raw_key = f"es1_{secrets.token_urlsafe(32)}"
+    prefix = settings.API_KEY_PREFIX or "pk"
+    raw_key = f"{prefix}_{secrets.token_urlsafe(32)}"
     hashed = hash_api_key(raw_key)
     return raw_key, hashed
 
@@ -201,8 +202,8 @@ async def get_current_user(
 
     Raises HTTPException if not authenticated.
     """
-    if not settings.AUTH_REQUIRED:
-        # Return a default context if auth is disabled
+    if not settings.auth_enabled:
+        # Return a default context if auth is disabled (AUTH_MODE=none)
         return UserContext(
             user_id="anonymous",
             username="anonymous",

@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { MainLayout } from './design-system/layouts/MainLayout'
 import { Dashboard } from './modules/dashboard/Dashboard'
 import { GatewayModule } from './modules/gateway/GatewayModule'
@@ -12,11 +12,39 @@ import { ObservabilityModule } from './modules/observability/ObservabilityModule
 import { AutomationModule } from './modules/automation/AutomationModule'
 import { MonitoringModule } from './modules/monitoring/MonitoringModule'
 import { SettingsModule } from './modules/settings/SettingsModule'
+import { LoginPage } from './modules/auth/LoginPage'
+import { useAuth } from './shared/contexts/AuthContext'
+import { Loader2 } from 'lucide-react'
+
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
 
 function App() {
   return (
     <Routes>
-      <Route element={<MainLayout />}>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <AuthGuard>
+            <MainLayout />
+          </AuthGuard>
+        }
+      >
         <Route path="/" element={<Dashboard />} />
         <Route path="/gateway/*" element={<GatewayModule />} />
         <Route path="/workflows/*" element={<WorkflowsModule />} />

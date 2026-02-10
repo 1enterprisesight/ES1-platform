@@ -84,12 +84,14 @@ app = FastAPI(
 )
 
 # Add CORS middleware
+# Note: allow_credentials=True is incompatible with allow_origins=["*"]
+# When CORS_ORIGINS is ["*"], credentials are disabled for security
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
+    allow_credentials=settings.cors_allows_credentials,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "X-API-Key"],
 )
 
 # Add custom middleware (order matters - first added = last executed)

@@ -85,6 +85,11 @@ ENABLE_LANGFUSE="${ENABLE_LANGFUSE:-true}"
 ENABLE_MLFLOW="${ENABLE_MLFLOW:-true}"
 
 # =============================================================================
+# Default values for authentication
+# =============================================================================
+AUTH_MODE="${AUTH_MODE:-none}"
+
+# =============================================================================
 # Generate nginx configuration from template
 # =============================================================================
 echo "Generating nginx configuration..."
@@ -164,6 +169,10 @@ window.__PLATFORM_CONFIG__ = {
     platformName: '${PLATFORM_NAME}',
     metaDescription: '${META_DESCRIPTION}',
     faviconUrl: '${FAVICON_URL}',
+  },
+
+  auth: {
+    mode: '${AUTH_MODE}',
   },
 };
 EOF

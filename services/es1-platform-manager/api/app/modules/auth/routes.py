@@ -15,6 +15,31 @@ from app.core.config import settings
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+# ==========================================================================
+# Models
+# ==========================================================================
+
+
+class MeResponse(BaseModel):
+    """Current user information."""
+    api_key_id: str | None
+    user_id: str | None
+    username: str | None
+    permissions: list[str]
+    is_admin: bool
+
+
+class LoginRequest(BaseModel):
+    """Request to validate an API key."""
+    api_key: str
+
+
+class LoginResponse(BaseModel):
+    """Response with validation result."""
+    authenticated: bool
+    user: MeResponse | None = None
+
+
 class CreateApiKeyRequest(BaseModel):
     """Request to create a new API key."""
     name: str
@@ -47,13 +72,59 @@ class ApiKeyListResponse(BaseModel):
     keys: list[ApiKeyInfo]
 
 
-class MeResponse(BaseModel):
-    """Current user information."""
-    api_key_id: str | None
-    user_id: str | None
-    username: str | None
-    permissions: list[str]
-    is_admin: bool
+# ==========================================================================
+# Public endpoints (no auth required)
+# ==========================================================================
+
+
+@router.get("/status")
+async def auth_status():
+    """Get authentication status (public - no auth required)."""
+    return {
+        "auth_required": settings.auth_enabled,
+        "auth_mode": settings.AUTH_MODE,
+    }
+
+
+@router.post("/login", response_model=LoginResponse)
+async def login(request: LoginRequest):
+    """
+    Validate an API key and return user info.
+
+    Used by the UI login page to verify credentials before storing the key.
+    This endpoint does not require authentication itself.
+    """
+    if not settings.auth_enabled:
+        return LoginResponse(
+            authenticated=True,
+            user=MeResponse(
+                api_key_id=None,
+                user_id="anonymous",
+                username="anonymous",
+                permissions=["*"],
+                is_admin=True,
+            ),
+        )
+
+    user = AuthService.validate_key(request.api_key)
+    if not user:
+        return LoginResponse(authenticated=False)
+
+    return LoginResponse(
+        authenticated=True,
+        user=MeResponse(
+            api_key_id=user.api_key_id,
+            user_id=user.user_id,
+            username=user.username,
+            permissions=user.permissions,
+            is_admin=user.is_admin,
+        ),
+    )
+
+
+# ==========================================================================
+# Authenticated endpoints
+# ==========================================================================
 
 
 @router.get("/me", response_model=MeResponse)
@@ -129,12 +200,3 @@ async def revoke_api_key(
             status_code=404,
             detail="API key not found",
         )
-
-
-@router.get("/status")
-async def auth_status():
-    """Get authentication status."""
-    return {
-        "auth_required": settings.AUTH_REQUIRED,
-        "message": "Authentication is enabled" if settings.AUTH_REQUIRED else "Authentication is disabled (dev mode)",
-    }

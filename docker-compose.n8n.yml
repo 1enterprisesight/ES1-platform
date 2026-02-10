@@ -38,7 +38,9 @@ services:
       N8N_DEFAULT_USER_PASSWORD: ${N8N_DEFAULT_USER_PASSWORD:-Es1admin!}
       N8N_DEFAULT_USER_FIRST_NAME: ${N8N_DEFAULT_USER_FIRST_NAME:-ES1}
       N8N_DEFAULT_USER_LAST_NAME: ${N8N_DEFAULT_USER_LAST_NAME:-Admin}
-      N8N_SECURE_COOKIE: "false"
+      # Secure cookies: false for local HTTP dev, true for production HTTPS
+      N8N_SECURE_COOKIE: "${N8N_SECURE_COOKIE:-false}"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:-}
 
       # Execution Settings
       EXECUTIONS_DATA_SAVE_ON_ERROR: all

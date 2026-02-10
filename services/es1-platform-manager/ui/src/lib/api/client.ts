@@ -6,6 +6,7 @@
  */
 
 import { config, apiUrl, agentRouterUrl } from '@/config';
+import { getStoredApiKey } from '@/shared/contexts/AuthContext';
 
 // =============================================================================
 // Types
@@ -32,10 +33,15 @@ export interface FetchOptions extends RequestInit {
 async function baseFetch<T>(url: string, options: FetchOptions = {}): Promise<T> {
   const { raw, ...fetchOptions } = options;
 
+  // Inject API key header if available
+  const apiKey = getStoredApiKey();
+  const authHeaders: Record<string, string> = apiKey ? { 'X-API-Key': apiKey } : {};
+
   const response = await fetch(url, {
     ...fetchOptions,
     headers: {
       'Content-Type': 'application/json',
+      ...authHeaders,
       ...fetchOptions.headers,
     },
   });
