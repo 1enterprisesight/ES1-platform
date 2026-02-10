@@ -10,6 +10,7 @@
 
 services:
   crewai-studio:
+    profiles: ["agents", "full"]
     build:
       context: ./services/agents/crewai-studio
       dockerfile: Dockerfile

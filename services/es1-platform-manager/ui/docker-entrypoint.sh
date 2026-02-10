@@ -39,6 +39,10 @@
 #   ENABLE_CREWAI_STUDIO  - Enable CrewAI Studio link (default: true)
 #   ENABLE_LANGFUSE       - Enable Langfuse integration (default: true)
 #   ENABLE_MLFLOW         - Enable MLflow integration (default: true)
+#   ENABLE_OLLAMA         - Enable Ollama integration (default: true)
+#   ENABLE_OPEN_WEBUI     - Enable Open WebUI link (default: true)
+#   ENABLE_MONITORING     - Enable monitoring dashboards (default: true)
+#   ENABLE_AGENT_ROUTER   - Enable agent services (default: true)
 
 set -e
 
@@ -83,6 +87,10 @@ ENABLE_CREWAI_STUDIO="${ENABLE_CREWAI_STUDIO:-true}"
 ENABLE_AUTOGEN_STUDIO="${ENABLE_AUTOGEN_STUDIO:-true}"
 ENABLE_LANGFUSE="${ENABLE_LANGFUSE:-true}"
 ENABLE_MLFLOW="${ENABLE_MLFLOW:-true}"
+ENABLE_OLLAMA="${ENABLE_OLLAMA:-true}"
+ENABLE_OPEN_WEBUI="${ENABLE_OPEN_WEBUI:-true}"
+ENABLE_MONITORING="${ENABLE_MONITORING:-true}"
+ENABLE_AGENT_ROUTER="${ENABLE_AGENT_ROUTER:-true}"
 
 # =============================================================================
 # Default values for authentication
@@ -162,6 +170,10 @@ window.__PLATFORM_CONFIG__ = {
     enableAutogenStudio: ${ENABLE_AUTOGEN_STUDIO},
     enableLangfuse: ${ENABLE_LANGFUSE},
     enableMlflow: ${ENABLE_MLFLOW},
+    enableOllama: ${ENABLE_OLLAMA},
+    enableOpenWebUI: ${ENABLE_OPEN_WEBUI},
+    enableMonitoring: ${ENABLE_MONITORING},
+    enableAgentRouter: ${ENABLE_AGENT_ROUTER},
   },
 
   branding: {

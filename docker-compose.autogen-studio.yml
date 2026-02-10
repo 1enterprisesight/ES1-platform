@@ -11,6 +11,7 @@
 
 services:
   autogen-studio:
+    profiles: ["agents", "full"]
     build:
       context: ./services/agents/autogen-studio
       dockerfile: Dockerfile
