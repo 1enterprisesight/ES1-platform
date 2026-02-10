@@ -1,4 +1,5 @@
 """System and scheduler routes."""
+import os
 from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -38,6 +39,33 @@ class SystemStatusResponse(BaseModel):
     integrations: dict[str, bool]
 
 
+class VersionResponse(BaseModel):
+    """Version information response."""
+    platform_version: str
+    api_version: str
+    runtime_mode: str
+    auth_mode: str
+    services: dict[str, bool]
+
+
+@router.get("/version", response_model=VersionResponse)
+async def get_version():
+    """Get platform version and service configuration."""
+    return VersionResponse(
+        platform_version=settings.PLATFORM_VERSION,
+        api_version=settings.API_V1_PREFIX,
+        runtime_mode=settings.RUNTIME_MODE,
+        auth_mode=settings.AUTH_MODE,
+        services={
+            "airflow": settings.AIRFLOW_ENABLED,
+            "langflow": settings.LANGFLOW_ENABLED,
+            "langfuse": settings.LANGFUSE_ENABLED,
+            "n8n": settings.N8N_ENABLED,
+            "mlflow": settings.MLFLOW_ENABLED,
+        },
+    )
+
+
 @router.get("/status", response_model=SystemStatusResponse)
 async def get_system_status():
     """Get overall system status."""
@@ -47,7 +75,7 @@ async def get_system_status():
 
     return SystemStatusResponse(
         name=settings.PROJECT_NAME,
-        version="1.0.0",
+        version=settings.PLATFORM_VERSION,
         runtime_mode=settings.RUNTIME_MODE,
         scheduler=SchedulerStatusResponse(
             running=discovery_scheduler.is_running,

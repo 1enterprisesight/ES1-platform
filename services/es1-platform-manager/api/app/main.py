@@ -69,7 +69,7 @@ async def lifespan(app: FastAPI):
     # Emit startup event
     await event_bus.publish(
         EventType.SYSTEM_INFO,
-        {"message": "Platform Manager started", "version": "1.0.0"},
+        {"message": "Platform Manager started", "version": settings.PLATFORM_VERSION},
     )
 
     yield
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
 # Create FastAPI app
 app = FastAPI(
     title=settings.PROJECT_NAME,
-    version="1.0.0",
+    version=settings.PLATFORM_VERSION,
     description="Platform Manager - Unified management for API Gateway, Workflows, and AI services",
     lifespan=lifespan,
 )
