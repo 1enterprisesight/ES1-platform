@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getConfig } from '@/config'
 
 export interface BrandingConfig {
   name: string
@@ -17,20 +18,31 @@ export interface BrandingConfig {
   docs_url: string | null
 }
 
-const defaultBranding: BrandingConfig = {
-  name: 'ES1 Platform',
-  tagline: null,
-  logo_url: null,
-  logo_dark_url: null,
-  favicon_url: null,
-  primary_color: '#3B82F6',
-  secondary_color: '#10B981',
-  accent_color: '#8B5CF6',
-  custom_css: null,
-  footer_text: null,
-  support_email: null,
-  support_url: null,
-  docs_url: null,
+/**
+ * Build default branding from runtime config (env vars via config.js)
+ *
+ * Branding resolution order (highest priority last):
+ * 1. Hardcoded defaults below (fallback)
+ * 2. Runtime config from window.__PLATFORM_CONFIG__.branding (env vars)
+ * 3. Database branding from /api/v1/settings/branding/config (admin UI)
+ */
+function getDefaultBranding(): BrandingConfig {
+  const runtimeBranding = getConfig().branding || {}
+  return {
+    name: runtimeBranding.platformName || 'Platform',
+    tagline: null,
+    logo_url: null,
+    logo_dark_url: null,
+    favicon_url: runtimeBranding.faviconUrl || null,
+    primary_color: '#3B82F6',
+    secondary_color: '#10B981',
+    accent_color: '#8B5CF6',
+    custom_css: null,
+    footer_text: null,
+    support_email: null,
+    support_url: null,
+    docs_url: null,
+  }
 }
 
 interface BrandingContextType {
@@ -74,7 +86,8 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     },
   })
 
-  const currentBranding = branding || defaultBranding
+  const defaults = getDefaultBranding()
+  const currentBranding = branding || defaults
 
   // Apply CSS custom properties for branding colors
   useEffect(() => {
@@ -83,8 +96,9 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--brand-secondary', currentBranding.secondary_color)
     root.style.setProperty('--brand-accent', currentBranding.accent_color)
 
-    // Update page title
-    document.title = currentBranding.name
+    // Update page title: database branding name, or runtime config pageTitle, or generic fallback
+    const runtimeBranding = getConfig().branding || {}
+    document.title = currentBranding.name || runtimeBranding.pageTitle || 'Platform'
 
     // Update favicon if provided
     if (currentBranding.favicon_url) {

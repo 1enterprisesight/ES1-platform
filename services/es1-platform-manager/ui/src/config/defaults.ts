@@ -7,7 +7,7 @@ import type { RuntimeConfig } from './types';
  * 1. Running locally with `npm run dev`
  * 2. No runtime config is injected (fallback)
  *
- * In production/Kubernetes, these are overridden by window.__ES1_CONFIG__
+ * In production/Kubernetes, these are overridden by window.__PLATFORM_CONFIG__
  * which is generated at container startup by docker-entrypoint.sh
  */
 export const defaultConfig: RuntimeConfig = {
