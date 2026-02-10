@@ -152,6 +152,14 @@ services:
       AUTOGEN_STUDIO_URL: ${AUTOGEN_STUDIO_URL:-http://localhost:8502}
 
       # ==========================================================================
+      # Branding (configures page title, platform name, etc.)
+      # ==========================================================================
+      PAGE_TITLE: ${PAGE_TITLE:-Platform}
+      PLATFORM_NAME: "${PLATFORM_NAME:-ES1} Platform"
+      META_DESCRIPTION: ${META_DESCRIPTION:-Enterprise AI Platform}
+      FAVICON_URL: ${FAVICON_URL:-}
+
+      # ==========================================================================
       # Feature flags
       # ==========================================================================
       ENABLE_N8N: "${ENABLE_N8N:-true}"

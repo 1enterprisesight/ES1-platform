@@ -1,7 +1,7 @@
 /**
- * Runtime configuration types for ES1 Platform Manager UI
+ * Runtime configuration types for Platform Manager UI
  *
- * This configuration is injected at container startup via window.__ES1_CONFIG__
+ * This configuration is injected at container startup via window.__PLATFORM_CONFIG__
  * allowing the same Docker image to be deployed across different environments.
  */
 
@@ -65,6 +65,21 @@ export interface RuntimeConfig {
     /** Enable MLflow integration in Models module */
     enableMlflow: boolean;
   };
+
+  /**
+   * Branding configuration injected from environment variables
+   * These serve as the env-layer defaults; database branding takes precedence
+   */
+  branding?: {
+    /** Page title shown in browser tab */
+    pageTitle?: string;
+    /** Platform display name */
+    platformName?: string;
+    /** Meta description for SEO */
+    metaDescription?: string;
+    /** Favicon URL */
+    faviconUrl?: string;
+  };
 }
 
 /**
@@ -72,6 +87,8 @@ export interface RuntimeConfig {
  */
 declare global {
   interface Window {
+    __PLATFORM_CONFIG__?: Partial<RuntimeConfig>;
+    /** @deprecated Use __PLATFORM_CONFIG__ instead */
     __ES1_CONFIG__?: Partial<RuntimeConfig>;
   }
 }

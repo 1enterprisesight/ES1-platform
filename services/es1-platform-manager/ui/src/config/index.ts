@@ -25,13 +25,17 @@ function mergeConfig(
       ...defaults.features,
       ...(runtime.features || {}),
     },
+    branding: {
+      ...(runtime.branding || {}),
+    },
   };
 }
 
 /**
  * Get the runtime configuration
  *
- * Merges window.__ES1_CONFIG__ (injected at runtime) with defaults.
+ * Merges window.__PLATFORM_CONFIG__ (injected at runtime) with defaults.
+ * Falls back to window.__ES1_CONFIG__ for backwards compatibility.
  * This allows partial overrides - you don't need to specify all values.
  *
  * @example
@@ -42,7 +46,7 @@ function mergeConfig(
  * window.open(config.services.grafana, '_blank');
  */
 export function getConfig(): RuntimeConfig {
-  const runtimeConfig = window.__ES1_CONFIG__ || {};
+  const runtimeConfig = window.__PLATFORM_CONFIG__ || window.__ES1_CONFIG__ || {};
   return mergeConfig(defaultConfig, runtimeConfig as Partial<RuntimeConfig>);
 }
 

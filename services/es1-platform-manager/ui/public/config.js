@@ -1,7 +1,7 @@
 /**
- * Runtime Configuration for ES1 Platform Manager UI
+ * Runtime Configuration for Platform Manager UI
  *
- * This file is loaded BEFORE the React app and sets window.__ES1_CONFIG__
+ * This file is loaded BEFORE the React app and sets window.__PLATFORM_CONFIG__
  *
  * In development (npm run dev):
  *   - This file provides default localhost URLs
@@ -16,7 +16,7 @@
  *   GRAFANA_URL, PROMETHEUS_URL, LANGFLOW_URL, MLFLOW_URL,
  *   N8N_URL, AIRFLOW_URL, CREWAI_URL, CREWAI_STUDIO_URL, etc.
  */
-window.__ES1_CONFIG__ = {
+window.__PLATFORM_CONFIG__ = {
   services: {
     // Monitoring
     grafana: 'http://localhost:3002',
@@ -51,5 +51,12 @@ window.__ES1_CONFIG__ = {
     enableAutogenStudio: true,
     enableLangfuse: true,
     enableMlflow: true,
+  },
+
+  branding: {
+    pageTitle: 'Platform',
+    platformName: 'ES1 Platform',
+    metaDescription: 'Enterprise AI Platform',
+    faviconUrl: '',
   },
 };
