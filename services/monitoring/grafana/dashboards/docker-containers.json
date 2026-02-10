@@ -59,7 +59,7 @@
       "gridPos": { "h": 3, "w": 3, "x": 6, "y": 2 },
       "id": 4,
       "options": { "colorMode": "background", "graphMode": "none", "justifyMode": "center", "orientation": "auto", "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "textMode": "auto" },
-      "targets": [{ "expr": "up{job=\"es1-platform-manager\"}", "refId": "A" }],
+      "targets": [{ "expr": "up{job=\"platform-manager\"}", "refId": "A" }],
       "title": "Platform API",
       "type": "stat"
     },
@@ -299,13 +299,13 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["es1-platform", "docker", "containers"],
+  "tags": ["platform", "docker", "containers"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "ES1 Platform - Docker Containers",
-  "uid": "es1-docker-containers",
+  "title": "Platform - Docker Containers",
+  "uid": "platform-docker-containers",
   "version": 1,
   "weekStart": ""
 }

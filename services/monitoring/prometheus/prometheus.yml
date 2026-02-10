@@ -1,9 +1,9 @@
-# Prometheus configuration for ES1 Platform
+# Prometheus configuration for Platform monitoring
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    monitor: 'es1-platform'
+    monitor: 'platform'
 
 # Alertmanager configuration (optional - can be added later)
 # alerting:
@@ -29,7 +29,7 @@ scrape_configs:
     relabel_configs:
       - source_labels: [__address__]
         target_label: instance
-        replacement: 'es1-host'
+        replacement: 'platform-host'
 
   # cAdvisor - Container metrics
   - job_name: 'cadvisor'
@@ -52,8 +52,8 @@ scrape_configs:
       - targets: ['krakend:9091']
     metrics_path: '/metrics'
 
-  # ES1 Platform Manager API
-  - job_name: 'es1-platform-manager'
+  # Platform Manager API
+  - job_name: 'platform-manager'
     static_configs:
       - targets: ['es1-platform-manager-api:8000']
     metrics_path: '/metrics'

@@ -1,0 +1,565 @@
+{
+  "$schema": "https://www.krakend.io/schema/krakend.json",
+  "version": 3,
+  "name": "${KRAKEND_GATEWAY_NAME}",
+  "port": 8080,
+  "timeout": "30s",
+  "cache_ttl": "300s",
+  "output_encoding": "json",
+  "extra_config": {
+    "router": {
+      "return_error_msg": true
+    },
+    "telemetry/logging": {
+      "level": "INFO",
+      "prefix": "[KRAKEND]",
+      "syslog": false,
+      "stdout": true,
+      "format": "logstash"
+    },
+    "telemetry/metrics": {
+      "collection_time": "30s",
+      "listen_address": ":8090"
+    },
+    "telemetry/opencensus": {
+      "sample_rate": 100,
+      "reporting_period": 10,
+      "exporters": {
+        "prometheus": {
+          "port": 9091,
+          "namespace": "krakend",
+          "tag_host": false,
+          "tag_path": true,
+          "tag_method": true,
+          "tag_statuscode": true
+        }
+      }
+    },
+    "security/cors": {
+      "allow_origins": ["*"],
+      "allow_methods": ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+      "allow_headers": ["Origin", "Content-Type", "Accept", "Authorization", "X-API-Key", "X-Request-ID", "X-Source-Service"],
+      "expose_headers": ["X-Request-ID", "X-Krakend-Completed"],
+      "max_age": "12h"
+    }
+  },
+  "endpoints": [
+    {
+      "@comment": "Health check endpoint",
+      "endpoint": "/health",
+      "method": "GET",
+      "output_encoding": "json",
+      "backend": [
+        {
+          "host": ["http://localhost:8080"],
+          "url_pattern": "/__health",
+          "encoding": "json"
+        }
+      ],
+      "extra_config": {
+        "proxy": {
+          "static": {
+            "data": {
+              "status": "healthy",
+              "service": "krakend"
+            },
+            "strategy": "always"
+          }
+        }
+      }
+    },
+    {
+      "@comment": "API Gateway info endpoint",
+      "endpoint": "/api/v1/info",
+      "method": "GET",
+      "output_encoding": "json",
+      "backend": [
+        {
+          "host": ["http://localhost:8080"],
+          "url_pattern": "/__health",
+          "encoding": "json"
+        }
+      ],
+      "extra_config": {
+        "proxy": {
+          "static": {
+            "data": {
+              "name": "${KRAKEND_GATEWAY_NAME}",
+              "version": "1.0.0",
+              "gateway": "krakend",
+              "services": {
+                "platform-manager": "/api/v1/platform/*",
+                "airflow": "/api/v1/airflow/*",
+                "langflow": "/api/v1/langflow/*",
+                "langfuse": "/api/v1/langfuse/*",
+                "ollama": "/api/v1/ollama/*",
+                "mlflow": "/api/v1/mlflow/*",
+                "knowledge": "/api/v1/knowledge/*",
+                "agents": "/api/v1/agents/*",
+                "n8n-webhooks": "/webhook/*"
+              },
+              "admin_ui": "http://localhost:3001"
+            },
+            "strategy": "always"
+          }
+        }
+      }
+    },
+
+    {
+      "@comment": "=== PLATFORM MANAGER API ===",
+      "endpoint": "/api/v1/platform/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/platform/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/platform/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/platform/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== AIRFLOW API ===",
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_AIRFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_AIRFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "PATCH",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_AIRFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/airflow/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_AIRFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== LANGFLOW API ===",
+      "endpoint": "/api/v1/langflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_LANGFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/langflow/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_LANGFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/langflow/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_LANGFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/langflow/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_LANGFLOW}"],
+          "url_pattern": "/api/v1/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== LANGFUSE API ===",
+      "endpoint": "/api/v1/langfuse/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_LANGFUSE}"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/langfuse/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_LANGFUSE}"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== OLLAMA API (LLM Inference) ===",
+      "endpoint": "/api/v1/ollama/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_OLLAMA}"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/ollama/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "timeout": "300s",
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_OLLAMA}"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op",
+          "extra_config": {
+            "backend/http": {
+              "return_error_details": "backend"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/ollama/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_OLLAMA}"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== MLFLOW API ===",
+      "endpoint": "/api/v1/mlflow/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_MLFLOW}"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/mlflow/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_MLFLOW}"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== KNOWLEDGE GRAPH API (Platform Manager) ===",
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/knowledge/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/knowledge/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== AGENTS API (Platform Manager) ===",
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "timeout": "300s",
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "PUT",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/agents/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/agents/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== AUDIT API (Platform Manager) ===",
+      "endpoint": "/api/v1/audit/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/audit/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/audit/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_PLATFORM_API}"],
+          "url_pattern": "/api/v1/audit/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== N8N WEBHOOKS ===",
+      "endpoint": "/webhook/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_N8N}"],
+          "url_pattern": "/webhook/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/webhook/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_N8N}"],
+          "url_pattern": "/webhook/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/webhook-test/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_N8N}"],
+          "url_pattern": "/webhook-test/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/webhook-test/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://${KRAKEND_BACKEND_N8N}"],
+          "url_pattern": "/webhook-test/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    }
+  ]
+}

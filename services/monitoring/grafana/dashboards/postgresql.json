@@ -706,7 +706,7 @@
   "schemaVersion": 38,
   "style": "dark",
   "tags": [
-    "es1-platform",
+    "platform",
     "postgresql",
     "database"
   ],
@@ -719,8 +719,8 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "ES1 Platform - PostgreSQL",
-  "uid": "es1-postgresql",
+  "title": "Platform - PostgreSQL",
+  "uid": "platform-postgresql",
   "version": 1,
   "weekStart": ""
 }

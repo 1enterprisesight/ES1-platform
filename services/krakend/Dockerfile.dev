@@ -5,12 +5,18 @@
 FROM devopsfaith/krakend:2.6
 
 LABEL org.opencontainers.image.source="https://github.com/1enterprisesight/ES1-platform"
-LABEL org.opencontainers.image.description="ES1 Platform API Gateway (KrakenD Development)"
+LABEL org.opencontainers.image.description="Platform API Gateway (KrakenD Development)"
+
+# Install envsubst for config template processing
+USER root
+RUN apk add --no-cache gettext
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # Config will be mounted as volume
 USER krakend
 
 EXPOSE 8080 8090
 
-ENTRYPOINT ["/usr/bin/krakend"]
+ENTRYPOINT ["/docker-entrypoint.sh"]
 CMD ["run", "-d", "-c", "/etc/krakend/krakend.json"]

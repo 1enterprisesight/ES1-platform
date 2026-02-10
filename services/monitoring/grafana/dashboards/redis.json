@@ -187,13 +187,13 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["es1-platform", "redis", "cache"],
+  "tags": ["platform", "redis", "cache"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "ES1 Platform - Redis",
-  "uid": "es1-redis",
+  "title": "Platform - Redis",
+  "uid": "platform-redis",
   "version": 1,
   "weekStart": ""
 }
