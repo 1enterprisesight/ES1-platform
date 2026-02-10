@@ -1,7 +1,7 @@
 # ES1 Platform Makefile
 # Common commands for development and deployment
 
-.PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack up-aiml up-monitoring down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager logs-aiml logs-monitoring build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push
+.PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack up-aiml up-monitoring down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager logs-aiml logs-monitoring build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push generate-creds
 
 REGISTRY ?= ghcr.io/1enterprisesight/es1-platform
 TAG ?= local
@@ -155,6 +155,16 @@ status: ## Show Kubernetes status
 
 port-forward: ## Port forward KrakenD to localhost:8080
 	kubectl port-forward svc/krakend 8080:80 -n es1-platform
+
+# =============================================================================
+# Credential Generation
+# =============================================================================
+
+generate-creds: ## Generate production credentials (.env format)
+	@./scripts/generate-credentials.sh
+
+generate-creds-k8s: ## Generate production credentials (K8s secrets YAML)
+	@./scripts/generate-credentials.sh --format=k8s-secrets
 
 # =============================================================================
 # Development Commands

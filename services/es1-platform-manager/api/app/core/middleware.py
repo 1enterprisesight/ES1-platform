@@ -58,7 +58,7 @@ def get_correlation_id(request: Request) -> str:
 # =============================================================================
 
 SERVICE_JWT_HEADER = "X-Service-Token"
-SERVICE_JWT_SECRET = settings.DEFAULT_API_KEY  # Use API key as JWT secret for simplicity
+SERVICE_JWT_SECRET = settings.JWT_SECRET or settings.DEFAULT_API_KEY
 SERVICE_JWT_ALGORITHM = "HS256"
 SERVICE_JWT_EXPIRY_MINUTES = 5
 
