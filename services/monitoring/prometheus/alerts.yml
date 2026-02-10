@@ -1,6 +1,6 @@
-# Prometheus Alert Rules for ES1 Platform
+# Prometheus Alert Rules for Platform monitoring
 groups:
-  - name: es1-platform-alerts
+  - name: platform-alerts
     rules:
       # ============================================================================
       # Service Health Alerts
@@ -24,12 +24,12 @@ groups:
           description: "The API Gateway is not responding. All API traffic may be affected."
 
       - alert: PlatformManagerDown
-        expr: absent(up{job="es1-platform-manager"}) or up{job="es1-platform-manager"} == 0
+        expr: absent(up{job="platform-manager"}) or up{job="platform-manager"} == 0
         for: 1m
         labels:
           severity: warning
         annotations:
-          summary: "ES1 Platform Manager is down"
+          summary: "Platform Manager is down"
           description: "The Platform Manager API is not responding."
 
       # ============================================================================

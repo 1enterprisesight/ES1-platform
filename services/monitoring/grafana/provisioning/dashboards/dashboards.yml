@@ -2,10 +2,10 @@
 apiVersion: 1
 
 providers:
-  - name: 'ES1 Platform Dashboards'
+  - name: 'Platform Dashboards'
     orgId: 1
-    folder: 'ES1 Platform'
-    folderUid: 'es1-platform'
+    folder: 'Platform'
+    folderUid: 'platform'
     type: file
     disableDeletion: false
     editable: true

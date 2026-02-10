@@ -1,4 +1,4 @@
-# ES1 Platform Monitoring Stack
+# Platform Monitoring Stack
 # Usage: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 #
 # Provides:

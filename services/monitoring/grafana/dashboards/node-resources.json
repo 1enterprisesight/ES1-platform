@@ -198,13 +198,13 @@
   "refresh": "30s",
   "schemaVersion": 38,
   "style": "dark",
-  "tags": ["es1-platform", "node", "host"],
+  "tags": ["platform", "node", "host"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "ES1 Platform - Node Resources",
-  "uid": "es1-node-resources",
+  "title": "Platform - Node Resources",
+  "uid": "platform-node-resources",
   "version": 1,
   "weekStart": ""
 }

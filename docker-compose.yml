@@ -51,6 +51,15 @@ services:
       context: ./services/krakend
       dockerfile: Dockerfile.dev
     container_name: ${CONTAINER_PREFIX:-es1}-krakend
+    environment:
+      KRAKEND_GATEWAY_NAME: ${KRAKEND_GATEWAY_NAME:-Platform API Gateway}
+      KRAKEND_BACKEND_PLATFORM_API: ${KRAKEND_BACKEND_PLATFORM_API:-es1-platform-manager-api:8000}
+      KRAKEND_BACKEND_AIRFLOW: ${KRAKEND_BACKEND_AIRFLOW:-airflow-webserver:8080}
+      KRAKEND_BACKEND_LANGFLOW: ${KRAKEND_BACKEND_LANGFLOW:-langflow:7860}
+      KRAKEND_BACKEND_LANGFUSE: ${KRAKEND_BACKEND_LANGFUSE:-langfuse:3000}
+      KRAKEND_BACKEND_OLLAMA: ${KRAKEND_BACKEND_OLLAMA:-ollama:11434}
+      KRAKEND_BACKEND_MLFLOW: ${KRAKEND_BACKEND_MLFLOW:-mlflow:5000}
+      KRAKEND_BACKEND_N8N: ${KRAKEND_BACKEND_N8N:-n8n:5678}
     ports:
       - "8080:8080"   # API
       - "8090:8090"   # JSON Metrics
