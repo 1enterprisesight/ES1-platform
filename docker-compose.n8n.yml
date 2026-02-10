@@ -14,7 +14,7 @@
 services:
   n8n:
     image: n8nio/n8n:latest
-    container_name: es1-n8n
+    container_name: ${CONTAINER_PREFIX:-es1}-n8n
     ports:
       - "5678:5678"
     environment:
@@ -22,15 +22,15 @@ services:
       N8N_HOST: localhost
       N8N_PORT: 5678
       N8N_PROTOCOL: http
-      WEBHOOK_URL: http://localhost:5678/
+      WEBHOOK_URL: ${N8N_WEBHOOK_URL:-http://localhost:5678/}
 
       # Database (use PostgreSQL for persistence)
       DB_TYPE: postgresdb
-      DB_POSTGRESDB_HOST: postgres
-      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_HOST: ${POSTGRES_HOST:-postgres}
+      DB_POSTGRESDB_PORT: ${POSTGRES_PORT:-5432}
       DB_POSTGRESDB_DATABASE: n8n
-      DB_POSTGRESDB_USER: es1_user
-      DB_POSTGRESDB_PASSWORD: es1_dev_password
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-es1_user}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
 
       # Default user credentials (set at install time)
       # Note: Password must contain uppercase letter (n8n requirement)

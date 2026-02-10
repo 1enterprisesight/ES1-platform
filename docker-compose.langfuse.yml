@@ -15,12 +15,12 @@
 services:
   langfuse:
     image: langfuse/langfuse:2
-    container_name: es1-langfuse
+    container_name: ${CONTAINER_PREFIX:-es1}-langfuse
     ports:
       - "3000:3000"
     environment:
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@postgres:5432/langfuse
+      DATABASE_URL: postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/langfuse
       # Auth (generate with: openssl rand -base64 32)
       NEXTAUTH_URL: ${LANGFUSE_URL:-http://localhost:3000}
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-es1-langfuse-dev-secret-change-in-production}

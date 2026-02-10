@@ -14,14 +14,14 @@ services:
     build:
       context: ./services/agents/autogen-studio
       dockerfile: Dockerfile
-    container_name: es1-autogen-studio
+    container_name: ${CONTAINER_PREFIX:-es1}-autogen-studio
     ports:
       - "${AUTOGEN_STUDIO_PORT:-8502}:8502"
     environment:
       # Ollama for local LLM inference
-      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
       # AutoGen API for execution
-      AUTOGEN_API_URL: http://autogen:8101
+      AUTOGEN_API_URL: http://${AUTOGEN_HOST:-autogen}:8101
       # Optional: External API keys (uncomment and set if using cloud models)
       # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -46,4 +46,4 @@ services:
 
 volumes:
   autogen_studio_data:
-    name: es1-autogen-studio-data
+    name: ${CONTAINER_PREFIX:-es1}-autogen-studio-data

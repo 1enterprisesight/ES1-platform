@@ -19,7 +19,7 @@ services:
     build:
       context: ./infrastructure/db-migrate
       dockerfile: Dockerfile
-    container_name: es1-db-migrate
+    container_name: ${CONTAINER_PREFIX:-es1}-db-migrate
     environment:
       # Main PostgreSQL
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}

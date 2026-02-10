@@ -14,13 +14,13 @@
 services:
   langflow:
     image: langflowai/langflow:latest
-    container_name: es1-langflow
+    container_name: ${CONTAINER_PREFIX:-es1}-langflow
     user: root
     ports:
       - "7860:7860"
     environment:
       # Database
-      LANGFLOW_DATABASE_URL: postgresql://es1_user:es1_dev_password@postgres:5432/langflow
+      LANGFLOW_DATABASE_URL: postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/langflow
       # Configuration
       LANGFLOW_CONFIG_DIR: /tmp/langflow
       LANGFLOW_LOG_LEVEL: info
@@ -36,13 +36,13 @@ services:
       LANGFLOW_DO_NOT_TRACK: "true"
       LANGFLOW_SKIP_AUTH_AUTO_LOGIN: "true"
       # Superuser for API access (development only)
-      LANGFLOW_SUPERUSER: admin
-      LANGFLOW_SUPERUSER_PASSWORD: admin
+      LANGFLOW_SUPERUSER: ${LANGFLOW_SUPERUSER:-admin}
+      LANGFLOW_SUPERUSER_PASSWORD: ${LANGFLOW_SUPERUSER_PASSWORD:-admin}
       LANGFLOW_NEW_USER_IS_ACTIVE: "true"
       # Airflow connection for DAG triggering
-      AIRFLOW_API_URL: http://airflow-webserver:8080/api/v1
-      AIRFLOW_USERNAME: airflow
-      AIRFLOW_PASSWORD: airflow
+      AIRFLOW_API_URL: http://${AIRFLOW_HOST:-airflow-webserver}:8080/api/v1
+      AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
+      AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
     volumes:
       - langflow_data:/tmp/langflow
     depends_on:
