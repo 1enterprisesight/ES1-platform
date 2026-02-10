@@ -64,6 +64,14 @@ export interface RuntimeConfig {
     enableLangfuse: boolean;
     /** Enable MLflow integration in Models module */
     enableMlflow: boolean;
+    /** Enable Ollama/Open WebUI integration */
+    enableOllama: boolean;
+    /** Enable Open WebUI chat interface link */
+    enableOpenWebUI: boolean;
+    /** Enable monitoring dashboards (Grafana/Prometheus) */
+    enableMonitoring: boolean;
+    /** Enable Agent Router and agent services */
+    enableAgentRouter: boolean;
   };
 
   /**

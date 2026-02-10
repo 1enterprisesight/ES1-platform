@@ -147,6 +147,7 @@ class Settings(BaseSettings):
 
     OLLAMA_URL: str = "http://ollama:11434"
     OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"
+    OLLAMA_ENABLED: bool = True
 
     # ==========================================================================
     # MLflow (experiment tracking and model registry)
@@ -162,6 +163,13 @@ class Settings(BaseSettings):
     CREWAI_URL: str = "http://crewai:8100"
     AUTOGEN_URL: str = "http://autogen:8101"
     AGENT_ROUTER_URL: str = "http://agent-router:8102"
+    AGENT_ROUTER_ENABLED: bool = True
+
+    # ==========================================================================
+    # Monitoring
+    # ==========================================================================
+
+    MONITORING_ENABLED: bool = True
 
     @property
     def auth_enabled(self) -> bool:

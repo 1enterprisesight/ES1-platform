@@ -46,5 +46,9 @@ export const defaultConfig: RuntimeConfig = {
     enableAutogenStudio: true,
     enableLangfuse: true,
     enableMlflow: true,
+    enableOllama: true,
+    enableOpenWebUI: true,
+    enableMonitoring: true,
+    enableAgentRouter: true,
   },
 };
