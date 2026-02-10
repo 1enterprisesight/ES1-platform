@@ -34,8 +34,11 @@ This creates cryptographically secure values for all 16 automated secrets. For K
 ### Step 2: Run Database Migrations
 
 ```bash
-# Docker Compose
-docker compose -f docker-compose.yml -f docker-compose.db-migrate.yml run --rm db-migrate python migrate.py --database postgres
+# Docker Compose — run all pending migrations
+docker compose -f docker-compose.yml -f docker-compose.aiml.yml -f docker-compose.db-migrate.yml run --rm db-migrate
+
+# Or target only the Platform Manager database
+docker compose -f docker-compose.yml -f docker-compose.aiml.yml -f docker-compose.db-migrate.yml run --rm db-migrate --database postgres
 
 # Kubernetes (runs as pre-install Helm hook)
 ```

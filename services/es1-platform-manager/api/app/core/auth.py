@@ -117,8 +117,8 @@ class AuthService:
                         (name, key_hash, key_prefix, service_name, scopes,
                          is_active, created_by, metadata)
                     VALUES
-                        (:name, :hash, :prefix, :service, :scopes::jsonb,
-                         true, :created_by, :metadata::jsonb)
+                        (:name, :hash, :prefix, :service, CAST(:scopes AS jsonb),
+                         true, :created_by, CAST(:metadata AS jsonb))
                 """),
                 {
                     "name": "Default Admin Key",
@@ -247,8 +247,8 @@ class AuthService:
                     (name, key_hash, key_prefix, service_name, scopes,
                      is_active, created_by, metadata)
                 VALUES
-                    (:name, :hash, :prefix, :service, :scopes::jsonb,
-                     true, :created_by, :metadata::jsonb)
+                    (:name, :hash, :prefix, :service, CAST(:scopes AS jsonb),
+                     true, :created_by, CAST(:metadata AS jsonb))
                 RETURNING id
             """),
             {
