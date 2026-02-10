@@ -9,6 +9,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.config import settings
 from app.core.init_db import create_tables
+from app.core.database import AsyncSessionLocal
 from app.core.events import event_bus, EventType
 from app.core.logging import logger
 from app.core.scheduler import discovery_scheduler
@@ -17,7 +18,7 @@ from app.core.middleware import (
     RequestLoggingMiddleware,
     AuditMiddleware,
 )
-from app.core.auth import get_current_user
+from app.core.auth import AuthService, get_current_user
 
 # Import models to register them with SQLAlchemy
 from app.modules.gateway.models import (
@@ -51,9 +52,14 @@ from app.modules.models.routes import router as models_router
 async def lifespan(app: FastAPI):
     """Lifespan event handler for startup and shutdown."""
     # Startup
-    logger.info("Starting ES1 Platform Manager...")
+    logger.info("Starting Platform Manager...")
     await create_tables()
     logger.info("Database tables created/verified")
+
+    # Initialize AuthService (verifies audit.api_keys table, seeds default key)
+    async with AsyncSessionLocal() as db:
+        await AuthService.initialize(db)
+    logger.info("AuthService initialized")
 
     # Start discovery scheduler
     if settings.DISCOVERY_ENABLED:
@@ -63,13 +69,13 @@ async def lifespan(app: FastAPI):
     # Emit startup event
     await event_bus.publish(
         EventType.SYSTEM_INFO,
-        {"message": "ES1 Platform Manager started", "version": "1.0.0"},
+        {"message": "Platform Manager started", "version": "1.0.0"},
     )
 
     yield
 
     # Shutdown
-    logger.info("Shutting down ES1 Platform Manager...")
+    logger.info("Shutting down Platform Manager...")
 
     # Stop discovery scheduler
     if settings.DISCOVERY_ENABLED:
@@ -80,7 +86,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
-    description="ES1 Platform Manager - Unified management for API Gateway, Workflows, and AI services",
+    description="Platform Manager - Unified management for API Gateway, Workflows, and AI services",
     lifespan=lifespan,
 )
 

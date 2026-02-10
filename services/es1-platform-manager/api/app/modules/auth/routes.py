@@ -2,6 +2,7 @@
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import (
     AuthService,
@@ -10,6 +11,7 @@ from app.core.auth import (
     require_admin,
 )
 from app.core.config import settings
+from app.core.database import get_db
 
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -87,7 +89,10 @@ async def auth_status():
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
+async def login(
+    request: LoginRequest,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Validate an API key and return user info.
 
@@ -106,7 +111,7 @@ async def login(request: LoginRequest):
             ),
         )
 
-    user = AuthService.validate_key(request.api_key)
+    user = await AuthService.validate_key(request.api_key, db)
     if not user:
         return LoginResponse(authenticated=False)
 
@@ -140,9 +145,12 @@ async def get_me(user: UserContext = Depends(get_current_user)):
 
 
 @router.get("/keys", response_model=ApiKeyListResponse)
-async def list_api_keys(user: UserContext = Depends(require_admin)):
+async def list_api_keys(
+    user: UserContext = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+):
     """List all API keys (admin only)."""
-    keys = AuthService.list_keys()
+    keys = await AuthService.list_keys(db)
     return ApiKeyListResponse(
         keys=[
             ApiKeyInfo(
@@ -163,10 +171,12 @@ async def list_api_keys(user: UserContext = Depends(require_admin)):
 async def create_api_key(
     request: CreateApiKeyRequest,
     user: UserContext = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Create a new API key (admin only)."""
-    raw_key, key_id = AuthService.create_key(
+    raw_key, key_id = await AuthService.create_key(
         name=request.name,
+        db=db,
         user_id=request.user_id,
         username=request.username,
         permissions=request.permissions,
@@ -184,6 +194,7 @@ async def create_api_key(
 async def revoke_api_key(
     key_id: str,
     user: UserContext = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
 ):
     """Revoke an API key (admin only)."""
     # Prevent revoking your own key
@@ -193,7 +204,7 @@ async def revoke_api_key(
             detail="Cannot revoke your own API key",
         )
 
-    if AuthService.revoke_key(key_id):
+    if await AuthService.revoke_key(key_id, db):
         return {"message": "API key revoked successfully"}
     else:
         raise HTTPException(

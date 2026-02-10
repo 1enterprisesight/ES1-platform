@@ -32,7 +32,7 @@ services:
       # Authentication
       # ==========================================================================
       AUTH_MODE: ${AUTH_MODE:-none}
-      DEFAULT_API_KEY: ${DEFAULT_API_KEY:-es1-dev-key-change-in-production}
+      DEFAULT_API_KEY: ${DEFAULT_API_KEY:-}
       API_KEY_PREFIX: ${API_KEY_PREFIX:-pk}
       JWT_SECRET: ${JWT_SECRET:-}
       CORS_ORIGINS: '${CORS_ORIGINS:-["*"]}'

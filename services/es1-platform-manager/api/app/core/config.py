@@ -33,8 +33,9 @@ class Settings(BaseSettings):
     # Legacy toggle - still respected if AUTH_MODE is "none"
     AUTH_REQUIRED: bool = False
 
-    # Default admin API key for development (empty = require explicit config in production)
-    DEFAULT_API_KEY: str = "es1-dev-key-change-in-production"
+    # Default admin API key — empty by default. Set via env var or generate-credentials.sh.
+    # AUTH_MODE=none (dev default) never checks the key, so empty is safe for local dev.
+    DEFAULT_API_KEY: str = ""
 
     # Prefix for generated API keys (white-label)
     API_KEY_PREFIX: str = "pk"
