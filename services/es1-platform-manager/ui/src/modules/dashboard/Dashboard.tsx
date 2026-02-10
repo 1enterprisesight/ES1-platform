@@ -147,7 +147,6 @@ export function Dashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <p className="text-muted-foreground">Overview of your ES1 Platform services</p>
       </div>
 
       {/* Service Health Overview */}
