@@ -29,14 +29,18 @@ export KRAKEND_GATEWAY_NAME="${KRAKEND_GATEWAY_NAME:-Platform API Gateway}"
 # Generate krakend.json from template
 # =============================================================================
 TEMPLATE="/etc/krakend/krakend.json.tmpl"
-OUTPUT="/etc/krakend/krakend.json"
+# Write to /tmp to avoid overwriting source files via volume mounts
+OUTPUT="/tmp/krakend.json"
 
 if [ -f "$TEMPLATE" ]; then
     echo "Generating KrakenD config from template..."
-    envsubst < "$TEMPLATE" > "$OUTPUT"
+    # Only substitute known KRAKEND_* variables (preserves $schema and other $ literals)
+    envsubst '${KRAKEND_BACKEND_PLATFORM_API} ${KRAKEND_BACKEND_AIRFLOW} ${KRAKEND_BACKEND_LANGFLOW} ${KRAKEND_BACKEND_LANGFUSE} ${KRAKEND_BACKEND_OLLAMA} ${KRAKEND_BACKEND_MLFLOW} ${KRAKEND_BACKEND_N8N} ${KRAKEND_GATEWAY_NAME}' \
+        < "$TEMPLATE" > "$OUTPUT"
     echo "KrakenD config generated at $OUTPUT"
 else
-    echo "No template found at $TEMPLATE, using existing config"
+    echo "No template found at $TEMPLATE, copying static config"
+    cp /etc/krakend/krakend.json "$OUTPUT"
 fi
 
 # =============================================================================

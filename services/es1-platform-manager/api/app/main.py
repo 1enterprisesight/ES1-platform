@@ -1,7 +1,7 @@
 """FastAPI application for ES1 Platform Manager."""
 import asyncio
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sse_starlette.sse import EventSourceResponse
@@ -17,6 +17,7 @@ from app.core.middleware import (
     RequestLoggingMiddleware,
     AuditMiddleware,
 )
+from app.core.auth import get_current_user
 
 # Import models to register them with SQLAlchemy
 from app.modules.gateway.models import (
@@ -103,19 +104,23 @@ app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(CorrelationIdMiddleware)
 
 # Include routers
-app.include_router(gateway_router, prefix=settings.API_V1_PREFIX)
-app.include_router(airflow_router, prefix=settings.API_V1_PREFIX)
-app.include_router(langflow_router, prefix=settings.API_V1_PREFIX)
-app.include_router(observability_router, prefix=settings.API_V1_PREFIX)
-app.include_router(system_router, prefix=settings.API_V1_PREFIX)
+# Auth-protected routers: require valid API key when AUTH_MODE != "none"
+_auth_deps = [Depends(get_current_user)] if settings.auth_enabled else []
+
+app.include_router(gateway_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(airflow_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(langflow_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(observability_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(system_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(settings_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(n8n_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(knowledge_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(traffic_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(mlflow_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(ollama_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+app.include_router(models_router, prefix=settings.API_V1_PREFIX, dependencies=_auth_deps)
+# Auth router is always public (login/status endpoints must be accessible)
 app.include_router(auth_router, prefix=settings.API_V1_PREFIX)
-app.include_router(settings_router, prefix=settings.API_V1_PREFIX)
-app.include_router(n8n_router, prefix=settings.API_V1_PREFIX)
-app.include_router(knowledge_router, prefix=settings.API_V1_PREFIX)
-app.include_router(traffic_router, prefix=settings.API_V1_PREFIX)
-app.include_router(mlflow_router, prefix=settings.API_V1_PREFIX)
-app.include_router(ollama_router, prefix=settings.API_V1_PREFIX)
-app.include_router(models_router, prefix=settings.API_V1_PREFIX)
 
 # Prometheus metrics instrumentation
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")

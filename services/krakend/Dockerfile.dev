@@ -19,4 +19,4 @@ USER krakend
 EXPOSE 8080 8090
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["run", "-d", "-c", "/etc/krakend/krakend.json"]
+CMD ["run", "-d", "-c", "/tmp/krakend.json"]
