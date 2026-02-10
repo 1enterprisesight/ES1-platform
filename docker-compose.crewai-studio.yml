@@ -13,16 +13,16 @@ services:
     build:
       context: ./services/agents/crewai-studio
       dockerfile: Dockerfile
-    container_name: es1-crewai-studio
+    container_name: ${CONTAINER_PREFIX:-es1}-crewai-studio
     ports:
       - "${CREWAI_STUDIO_PORT:-8501}:8501"
     environment:
       # Redis for state management
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
       # Ollama for local LLM inference
-      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
       # CrewAI API for execution
-      CREWAI_API_URL: http://crewai:8100
+      CREWAI_API_URL: http://${CREWAI_HOST:-crewai}:8100
       # Optional: External API keys (uncomment and set if using cloud models)
       # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -49,4 +49,4 @@ services:
 
 volumes:
   crewai_studio_data:
-    name: es1-crewai-studio-data
+    name: ${CONTAINER_PREFIX:-es1}-crewai-studio-data

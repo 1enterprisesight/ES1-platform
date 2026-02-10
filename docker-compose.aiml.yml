@@ -11,7 +11,7 @@ services:
     build:
       context: ./infrastructure/aiml-postgres
       dockerfile: Dockerfile
-    container_name: es1-aiml-postgres
+    container_name: ${CONTAINER_PREFIX:-es1}-aiml-postgres
     environment:
       POSTGRES_DB: ${AIML_POSTGRES_DB:-aiml}
       POSTGRES_USER: ${AIML_POSTGRES_USER:-aiml_user}
@@ -23,7 +23,7 @@ services:
     volumes:
       - aiml_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U aiml_user -d aiml"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -43,7 +43,7 @@ services:
   # ==========================================================================
   ollama:
     image: ollama/ollama:latest
-    container_name: es1-ollama
+    container_name: ${CONTAINER_PREFIX:-es1}-ollama
     ports:
       - "11434:11434"
     volumes:
@@ -74,15 +74,15 @@ services:
   # ==========================================================================
   ollama-webui:
     image: ghcr.io/open-webui/open-webui:main
-    container_name: es1-ollama-webui
+    container_name: ${CONTAINER_PREFIX:-es1}-ollama-webui
     ports:
       - "3010:8080"
     volumes:
       - ollama_webui_data:/app/backend/data
     environment:
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
       - WEBUI_AUTH=false
-      - WEBUI_NAME=ES1 AI Chat
+      - WEBUI_NAME=${WEBUI_NAME:-${PLATFORM_NAME:-ES1} AI Chat}
     depends_on:
       ollama:
         condition: service_started
@@ -98,10 +98,10 @@ services:
     build:
       context: ./infrastructure/mlflow
       dockerfile: Dockerfile
-    container_name: es1-mlflow
+    container_name: ${CONTAINER_PREFIX:-es1}-mlflow
     command: >
       mlflow server
-      --backend-store-uri postgresql://es1_user:es1_dev_password@postgres:5432/mlflow
+      --backend-store-uri postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/mlflow
       --default-artifact-root /mlflow/artifacts
       --host 0.0.0.0
       --port 5000
@@ -123,10 +123,10 @@ services:
 
 volumes:
   aiml_postgres_data:
-    name: es1-aiml-postgres-data
+    name: ${CONTAINER_PREFIX:-es1}-aiml-postgres-data
   ollama_data:
-    name: es1-ollama-data
+    name: ${CONTAINER_PREFIX:-es1}-ollama-data
   ollama_webui_data:
-    name: es1-ollama-webui-data
+    name: ${CONTAINER_PREFIX:-es1}-ollama-webui-data
   mlflow_data:
-    name: es1-mlflow-data
+    name: ${CONTAINER_PREFIX:-es1}-mlflow-data

@@ -9,7 +9,7 @@ services:
     build:
       context: ./infrastructure/postgres
       dockerfile: Dockerfile
-    container_name: es1-postgres
+    container_name: ${CONTAINER_PREFIX:-es1}-postgres
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-es1_platform}
       POSTGRES_USER: ${POSTGRES_USER:-es1_user}
@@ -19,7 +19,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U es1_user -d es1_platform"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,7 +30,7 @@ services:
     build:
       context: ./infrastructure/redis
       dockerfile: Dockerfile
-    container_name: es1-redis
+    container_name: ${CONTAINER_PREFIX:-es1}-redis
     ports:
       - "6379:6379"
     volumes:
@@ -50,7 +50,7 @@ services:
     build:
       context: ./services/krakend
       dockerfile: Dockerfile.dev
-    container_name: es1-krakend
+    container_name: ${CONTAINER_PREFIX:-es1}-krakend
     ports:
       - "8080:8080"   # API
       - "8090:8090"   # JSON Metrics

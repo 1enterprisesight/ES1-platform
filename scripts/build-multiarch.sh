@@ -19,7 +19,7 @@ echo "Push: $PUSH"
 echo ""
 
 # Ensure buildx builder exists
-BUILDER_NAME="es1-multiarch"
+BUILDER_NAME="${BUILDER_NAME:-es1-multiarch}"
 if ! docker buildx inspect "$BUILDER_NAME" &> /dev/null; then
     echo "Creating buildx builder: $BUILDER_NAME"
     docker buildx create --name "$BUILDER_NAME" --use --bootstrap

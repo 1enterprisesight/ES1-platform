@@ -19,7 +19,7 @@ services:
     build:
       context: ./services/es1-platform-manager/api
       dockerfile: Dockerfile
-    container_name: es1-platform-manager-api
+    container_name: ${CONTAINER_PREFIX:-es1}-platform-manager-api
     ports:
       - "8000:8000"
     environment:
@@ -31,49 +31,49 @@ services:
       # ==========================================================================
       # Database
       # ==========================================================================
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
+      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: platform_manager
-      POSTGRES_USER: es1_user
-      POSTGRES_PASSWORD: es1_dev_password
+      POSTGRES_USER: ${POSTGRES_USER:-es1_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
 
       # ==========================================================================
       # KrakenD Configuration
       # ==========================================================================
-      KRAKEND_URL: http://krakend:8080
-      KRAKEND_HEALTH_URL: http://krakend:8080/__health
-      KRAKEND_METRICS_URL: http://krakend:9091/metrics
+      KRAKEND_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_PORT:-8080}
+      KRAKEND_HEALTH_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_PORT:-8080}/__health
+      KRAKEND_METRICS_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_METRICS_PORT:-9091}/metrics
       # In dev mode, read from the mounted host directory
       # In prod mode, this would be /shared/krakend/krakend.json (managed volume)
       KRAKEND_CONFIG_PATH: /etc/krakend/krakend.json
 
       # Kubernetes settings (used when RUNTIME_MODE=kubernetes)
-      K8S_NAMESPACE: es1-platform
-      KRAKEND_NAMESPACE: es1-infrastructure
-      KRAKEND_CONFIGMAP_NAME: krakend-config
-      KRAKEND_DEPLOYMENT_NAME: krakend
+      K8S_NAMESPACE: ${K8S_NAMESPACE:-es1-platform}
+      KRAKEND_NAMESPACE: ${KRAKEND_NAMESPACE:-es1-infrastructure}
+      KRAKEND_CONFIGMAP_NAME: ${KRAKEND_CONFIGMAP_NAME:-krakend-config}
+      KRAKEND_DEPLOYMENT_NAME: ${KRAKEND_DEPLOYMENT_NAME:-krakend}
 
       # ==========================================================================
       # Airflow Integration
       # ==========================================================================
-      AIRFLOW_API_URL: http://airflow-webserver:8080/api/v1
-      AIRFLOW_BACKEND_HOST: http://airflow-webserver:8080
-      AIRFLOW_USERNAME: airflow
-      AIRFLOW_PASSWORD: airflow
+      AIRFLOW_API_URL: http://${AIRFLOW_HOST:-airflow-webserver}:8080/api/v1
+      AIRFLOW_BACKEND_HOST: http://${AIRFLOW_HOST:-airflow-webserver}:8080
+      AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
+      AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
 
       # ==========================================================================
       # Langflow Integration
       # ==========================================================================
-      LANGFLOW_URL: http://langflow:7860
-      LANGFLOW_API_URL: http://langflow:7860/api/v1
+      LANGFLOW_URL: http://${LANGFLOW_HOST:-langflow}:7860
+      LANGFLOW_API_URL: http://${LANGFLOW_HOST:-langflow}:7860/api/v1
       LANGFLOW_ENABLED: "true"
 
       # ==========================================================================
       # Langfuse Integration (Observability)
       # These keys must match LANGFUSE_INIT_PROJECT_* in docker-compose.langfuse.yml
       # ==========================================================================
-      LANGFUSE_URL: http://langfuse:3000
-      LANGFUSE_API_URL: http://langfuse:3000/api
+      LANGFUSE_URL: http://${LANGFUSE_HOST:-langfuse}:3000
+      LANGFUSE_API_URL: http://${LANGFUSE_HOST:-langfuse}:3000/api
       LANGFUSE_ENABLED: "true"
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-es1-dev-public-key}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-es1-dev-secret-key}
@@ -81,11 +81,11 @@ services:
       # ==========================================================================
       # n8n Integration (Automation)
       # ==========================================================================
-      N8N_URL: http://n8n:5678
-      N8N_API_URL: http://n8n:5678/api/v1
+      N8N_URL: http://${N8N_HOST:-n8n}:5678
+      N8N_API_URL: http://${N8N_HOST:-n8n}:5678/api/v1
       N8N_ENABLED: "true"
       # Generate API key in n8n: Settings > API > Create API Key
-      N8N_API_KEY: ${N8N_API_KEY:-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI4NjUxOWI5ZS02YjljLTRmNjAtOWRjMi02NGVmYWE3NDAxZTMiLCJpc3MiOiJuOG4iLCJhdWQiOiJwdWJsaWMtYXBpIiwiaWF0IjoxNzY5ODEzMjQ5LCJleHAiOjE3NzIzNTIwMDB9.PT00EO6EX79wwJ8_qjaAgMx9iFKOtJ8ZccAklYHJe94}
+      N8N_API_KEY: ${N8N_API_KEY:-}
 
       # ==========================================================================
       # Database API Pattern (for connection exposure)
@@ -121,45 +121,45 @@ services:
     build:
       context: ./services/es1-platform-manager/ui
       dockerfile: Dockerfile
-    container_name: es1-platform-manager-ui
+    container_name: ${CONTAINER_PREFIX:-es1}-platform-manager-ui
     ports:
       - "3001:80"
     environment:
       # ==========================================================================
       # Internal service hosts (proxied through nginx)
       # ==========================================================================
-      PLATFORM_API_HOST: es1-platform-manager-api
-      PLATFORM_API_PORT: "8000"
-      AGENT_ROUTER_HOST: agent-router
-      AGENT_ROUTER_PORT: "8102"
+      PLATFORM_API_HOST: ${PLATFORM_API_HOST:-es1-platform-manager-api}
+      PLATFORM_API_PORT: ${PLATFORM_API_PORT:-8000}
+      AGENT_ROUTER_HOST: ${AGENT_ROUTER_HOST:-agent-router}
+      AGENT_ROUTER_PORT: ${AGENT_ROUTER_PORT:-8102}
 
       # ==========================================================================
       # External service URLs (opened in browser)
       # For Docker Compose, these use localhost with exposed ports
       # For Kubernetes, override with Ingress/LoadBalancer URLs
       # ==========================================================================
-      GRAFANA_URL: http://localhost:3002
-      PROMETHEUS_URL: http://localhost:9090
-      LANGFLOW_URL: http://localhost:7860
-      MLFLOW_URL: http://localhost:5050
-      N8N_URL: http://localhost:5678
-      AIRFLOW_URL: http://localhost:8081
-      CREWAI_URL: http://localhost:8100
-      CREWAI_STUDIO_URL: http://localhost:8501
-      AUTOGEN_URL: http://localhost:8101
-      LANGFUSE_URL: http://localhost:3000
-      OPEN_WEBUI_URL: http://localhost:3010
-      AUTOGEN_STUDIO_URL: http://localhost:8502
+      GRAFANA_URL: ${GRAFANA_URL:-http://localhost:3002}
+      PROMETHEUS_URL: ${PROMETHEUS_URL:-http://localhost:9090}
+      LANGFLOW_URL: ${LANGFLOW_URL:-http://localhost:7860}
+      MLFLOW_URL: ${MLFLOW_URL:-http://localhost:5050}
+      N8N_URL: ${N8N_URL:-http://localhost:5678}
+      AIRFLOW_URL: ${AIRFLOW_URL:-http://localhost:8081}
+      CREWAI_URL: ${CREWAI_URL:-http://localhost:8100}
+      CREWAI_STUDIO_URL: ${CREWAI_STUDIO_URL:-http://localhost:8501}
+      AUTOGEN_URL: ${AUTOGEN_URL:-http://localhost:8101}
+      LANGFUSE_URL: ${LANGFUSE_URL:-http://localhost:3000}
+      OPEN_WEBUI_URL: ${OPEN_WEBUI_URL:-http://localhost:3010}
+      AUTOGEN_STUDIO_URL: ${AUTOGEN_STUDIO_URL:-http://localhost:8502}
 
       # ==========================================================================
       # Feature flags
       # ==========================================================================
-      ENABLE_N8N: "true"
-      ENABLE_LANGFLOW: "true"
-      ENABLE_CREWAI_STUDIO: "true"
-      ENABLE_AUTOGEN_STUDIO: "true"
-      ENABLE_LANGFUSE: "true"
-      ENABLE_MLFLOW: "true"
+      ENABLE_N8N: "${ENABLE_N8N:-true}"
+      ENABLE_LANGFLOW: "${ENABLE_LANGFLOW:-true}"
+      ENABLE_CREWAI_STUDIO: "${ENABLE_CREWAI_STUDIO:-true}"
+      ENABLE_AUTOGEN_STUDIO: "${ENABLE_AUTOGEN_STUDIO:-true}"
+      ENABLE_LANGFUSE: "${ENABLE_LANGFUSE:-true}"
+      ENABLE_MLFLOW: "${ENABLE_MLFLOW:-true}"
 
     depends_on:
       es1-platform-manager-api:

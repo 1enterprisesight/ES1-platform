@@ -16,11 +16,11 @@ services:
     build:
       context: ./services/agents/crewai
       dockerfile: Dockerfile
-    container_name: es1-crewai
+    container_name: ${CONTAINER_PREFIX:-es1}-crewai
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - AGENT_ROUTER_URL=http://agent-router:8102
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      - OLLAMA_BASE_URL=http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
+      - AGENT_ROUTER_URL=http://${AGENT_ROUTER_HOST:-agent-router}:${AGENT_ROUTER_PORT:-8102}
     ports:
       - "8100:8100"
     depends_on:
@@ -45,11 +45,11 @@ services:
     build:
       context: ./services/agents/autogen
       dockerfile: Dockerfile
-    container_name: es1-autogen
+    container_name: ${CONTAINER_PREFIX:-es1}-autogen
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - OLLAMA_BASE_URL=http://ollama:11434
-      - AGENT_ROUTER_URL=http://agent-router:8102
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      - OLLAMA_BASE_URL=http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
+      - AGENT_ROUTER_URL=http://${AGENT_ROUTER_HOST:-agent-router}:${AGENT_ROUTER_PORT:-8102}
     ports:
       - "8101:8101"
     depends_on:
@@ -75,14 +75,14 @@ services:
     build:
       context: ./services/agents/router
       dockerfile: Dockerfile
-    container_name: es1-agent-router
+    container_name: ${CONTAINER_PREFIX:-es1}-agent-router
     environment:
-      - REDIS_URL=redis://redis:6379/0
-      - CREWAI_URL=http://crewai:8100
-      - AUTOGEN_URL=http://autogen:8101
-      - LANGFLOW_URL=http://langflow:7860
-      - N8N_URL=http://n8n:5678
-      - AIML_DB_URL=postgresql://aiml_user:aiml_dev_password@aiml-postgres:5432/aiml
+      - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+      - CREWAI_URL=http://${CREWAI_HOST:-crewai}:8100
+      - AUTOGEN_URL=http://${AUTOGEN_HOST:-autogen}:8101
+      - LANGFLOW_URL=http://${LANGFLOW_HOST:-langflow}:7860
+      - N8N_URL=http://${N8N_HOST:-n8n}:5678
+      - AIML_DB_URL=postgresql://${AIML_POSTGRES_USER:-aiml_user}:${AIML_POSTGRES_PASSWORD:-aiml_dev_password}@${AIML_POSTGRES_HOST:-aiml-postgres}:${AIML_POSTGRES_PORT:-5432}/${AIML_POSTGRES_DB:-aiml}
     ports:
       - "8102:8102"
     depends_on:

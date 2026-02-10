@@ -17,10 +17,10 @@ x-airflow-common:
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://es1_user:es1_dev_password@postgres:5432/airflow
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://es1_user:es1_dev_password@postgres:5432/airflow
-    AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/airflow
+    AIRFLOW__CELERY__BROKER_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
+    AIRFLOW__CORE__FERNET_KEY: '${AIRFLOW_FERNET_KEY:-}'
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
@@ -36,25 +36,25 @@ x-airflow-common:
     AIRFLOW__METRICS__STATSD_PORT: 9125
     AIRFLOW__METRICS__STATSD_PREFIX: airflow
     # Connection to Platform Manager for notifications
-    AIRFLOW_CONN_PLATFORM_MANAGER: 'http://es1-platform-manager-api:8000'
+    AIRFLOW_CONN_PLATFORM_MANAGER: 'http://${PLATFORM_API_HOST:-es1-platform-manager-api}:${PLATFORM_API_PORT:-8000}'
     # Note: Additional packages installed via custom Dockerfile when needed
     # _PIP_ADDITIONAL_REQUIREMENTS: 'psycopg2-binary requests pdfplumber'
     _PIP_ADDITIONAL_REQUIREMENTS: ''
     # AI/ML Database connection for knowledge ingestion
-    AIML_DB_HOST: aiml-postgres
-    AIML_DB_PORT: '5432'
-    AIML_DB_NAME: aiml
-    AIML_DB_USER: aiml_user
-    AIML_DB_PASSWORD: aiml_dev_password
+    AIML_DB_HOST: ${AIML_POSTGRES_HOST:-aiml-postgres}
+    AIML_DB_PORT: '${AIML_POSTGRES_PORT:-5432}'
+    AIML_DB_NAME: ${AIML_POSTGRES_DB:-aiml}
+    AIML_DB_USER: ${AIML_POSTGRES_USER:-aiml_user}
+    AIML_DB_PASSWORD: ${AIML_POSTGRES_PASSWORD:-aiml_dev_password}
     # Platform Database connection for audit logging
-    PLATFORM_DB_HOST: postgres
-    PLATFORM_DB_PORT: '5432'
-    PLATFORM_DB_NAME: es1_platform
-    PLATFORM_DB_USER: es1_user
-    PLATFORM_DB_PASSWORD: es1_dev_password
+    PLATFORM_DB_HOST: ${POSTGRES_HOST:-postgres}
+    PLATFORM_DB_PORT: '${POSTGRES_PORT:-5432}'
+    PLATFORM_DB_NAME: ${POSTGRES_DB:-es1_platform}
+    PLATFORM_DB_USER: ${POSTGRES_USER:-es1_user}
+    PLATFORM_DB_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
     # Ollama configuration
-    OLLAMA_BASE_URL: http://ollama:11434
-    OLLAMA_EMBEDDING_MODEL: nomic-embed-text
+    OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
+    OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
   volumes:
     - ./services/airflow/dags:/opt/airflow/dags
     - ./services/airflow/plugins:/opt/airflow/plugins
@@ -73,7 +73,7 @@ services:
   # Initialize Airflow database and create admin user
   airflow-init:
     <<: *airflow-common
-    container_name: es1-airflow-init
+    container_name: ${CONTAINER_PREFIX:-es1}-airflow-init
     entrypoint: /bin/bash
     command:
       - -c
@@ -86,15 +86,15 @@ services:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
-      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-airflow}
-      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-airflow}
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
     user: "0:0"
     volumes:
       - ./services/airflow:/sources
 
   airflow-webserver:
     <<: *airflow-common
-    container_name: es1-airflow-webserver
+    container_name: ${CONTAINER_PREFIX:-es1}-airflow-webserver
     command: webserver
     ports:
       - "8081:8080"
@@ -112,7 +112,7 @@ services:
 
   airflow-scheduler:
     <<: *airflow-common
-    container_name: es1-airflow-scheduler
+    container_name: ${CONTAINER_PREFIX:-es1}-airflow-scheduler
     command: scheduler
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
@@ -128,7 +128,7 @@ services:
 
   airflow-worker:
     <<: *airflow-common
-    container_name: es1-airflow-worker
+    container_name: ${CONTAINER_PREFIX:-es1}-airflow-worker
     command: celery worker
     healthcheck:
       test:
@@ -149,7 +149,7 @@ services:
 
   airflow-triggerer:
     <<: *airflow-common
-    container_name: es1-airflow-triggerer
+    container_name: ${CONTAINER_PREFIX:-es1}-airflow-triggerer
     command: triggerer
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
@@ -166,7 +166,7 @@ services:
   # StatsD Exporter for Airflow metrics
   statsd-exporter:
     image: prom/statsd-exporter:v0.26.0
-    container_name: statsd-exporter
+    container_name: ${CONTAINER_PREFIX:-es1}-statsd-exporter
     ports:
       - "9102:9102"   # Prometheus metrics
       - "9125:9125/udp"  # StatsD UDP

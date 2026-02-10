@@ -31,7 +31,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/es1-platform
+  IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || format('{0}/es1-platform', github.repository_owner) }}
 
 jobs:
   setup:
