@@ -73,15 +73,15 @@ jobs:
       matrix:
         include:
           - service: postgres
-            context: services/postgres
+            context: infrastructure/postgres
           - service: redis
-            context: services/redis
+            context: infrastructure/redis
           - service: krakend
             context: services/krakend
           - service: aiml-postgres
-            context: services/aiml-postgres
+            context: infrastructure/aiml-postgres
           - service: mlflow
-            context: services/mlflow
+            context: infrastructure/mlflow
           - service: crewai
             context: services/agents/crewai
           - service: autogen
@@ -91,9 +91,9 @@ jobs:
           - service: autogen-studio
             context: services/agents/autogen-studio
           - service: db-migrate
-            context: services/db-migrate
+            context: infrastructure/db-migrate
           - service: agent-router
-            context: services/agents/agent-router
+            context: services/agents/router
           - service: platform-manager-api
             context: services/es1-platform-manager/api
           - service: platform-manager-ui

@@ -6,12 +6,14 @@ on:
       - main
     paths:
       - 'services/**'
+      - 'infrastructure/**'
       - '.github/workflows/build-and-push.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'services/**'
+      - 'infrastructure/**'
   workflow_dispatch:
     inputs:
       service:
@@ -21,13 +23,13 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository_owner }}/es1-platform
+  IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || format('{0}/es1-platform', github.repository_owner) }}
 
 jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      services: ${{ steps.changes.outputs.services }}
+      matrix: ${{ steps.changes.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
 
@@ -35,22 +37,41 @@ jobs:
         id: changes
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && [[ -n "${{ github.event.inputs.service }}" ]]; then
-            echo "services=[\"${{ github.event.inputs.service }}\"]" >> $GITHUB_OUTPUT
+            INPUT="${{ github.event.inputs.service }}"
+            MATRIX="[{\"service\":\"${INPUT}\",\"context\":\"${INPUT}\"}]"
           else
-            # Find services with changes
-            SERVICES=$(find services -maxdepth 1 -type d -not -name 'service-template-*' -not -name 'services' | \
-              xargs -I {} basename {} | \
-              jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "services=$SERVICES" >> $GITHUB_OUTPUT
+            # Find all directories with Dockerfiles across services/ and infrastructure/
+            MATRIX="["
+            FIRST=true
+            for dockerfile in $(find services infrastructure -name "Dockerfile" -not -path "*/service-template-*" 2>/dev/null | sort); do
+              CONTEXT=$(dirname "$dockerfile")
+              SERVICE=$(basename "$CONTEXT")
+              # Special handling for nested services
+              if [[ "$CONTEXT" == "services/es1-platform-manager/api" ]]; then
+                SERVICE="platform-manager-api"
+              elif [[ "$CONTEXT" == "services/es1-platform-manager/ui" ]]; then
+                SERVICE="platform-manager-ui"
+              elif [[ "$CONTEXT" == "services/agents/router" ]]; then
+                SERVICE="agent-router"
+              fi
+              if [[ "$FIRST" == "true" ]]; then
+                FIRST=false
+              else
+                MATRIX+=","
+              fi
+              MATRIX+="{\"service\":\"${SERVICE}\",\"context\":\"${CONTEXT}\"}"
+            done
+            MATRIX+="]"
           fi
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   build:
     needs: detect-changes
     runs-on: ubuntu-latest
-    if: needs.detect-changes.outputs.services != '[]'
+    if: needs.detect-changes.outputs.matrix != '[]'
     strategy:
       matrix:
-        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+        include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
       fail-fast: false
 
     permissions:
@@ -60,25 +81,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check if Dockerfile exists
-        id: dockerfile
-        run: |
-          if [[ -f "services/${{ matrix.service }}/Dockerfile" ]]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Set up QEMU
-        if: steps.dockerfile.outputs.exists == 'true'
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        if: steps.dockerfile.outputs.exists == 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Login to GitHub Container Registry
-        if: steps.dockerfile.outputs.exists == 'true' && github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -86,7 +96,6 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
-        if: steps.dockerfile.outputs.exists == 'true'
         id: meta
         uses: docker/metadata-action@v5
         with:
@@ -98,40 +107,13 @@ jobs:
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
 
       - name: Build and push
-        if: steps.dockerfile.outputs.exists == 'true'
         uses: docker/build-push-action@v5
         with:
-          context: services/${{ matrix.service }}
-          file: services/${{ matrix.service }}/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # Case sensitivity check
-  case-check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for case-sensitivity issues
-        run: |
-          echo "Checking for potential case-sensitivity issues..."
-
-          # Find potential import issues in Python
-          find services -name "*.py" -exec grep -l "^from\|^import" {} \; | while read file; do
-            # Check if any imported module exists with different case
-            dir=$(dirname "$file")
-            grep -E "^(from|import)" "$file" | grep -oE "[a-zA-Z_][a-zA-Z0-9_]*" | head -20 | while read module; do
-              if [[ -d "$dir/$module" ]] || [[ -f "$dir/$module.py" ]]; then
-                actual=$(ls -1 "$dir" 2>/dev/null | grep -i "^${module}\$" | head -1)
-                if [[ -n "$actual" ]] && [[ "$actual" != "$module" ]]; then
-                  echo "WARNING: Case mismatch in $file: imported '$module' but found '$actual'"
-                fi
-              fi
-            done
-          done
-
-          echo "Case sensitivity check complete"
