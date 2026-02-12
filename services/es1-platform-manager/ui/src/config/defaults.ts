@@ -39,6 +39,10 @@ export const defaultConfig: RuntimeConfig = {
     agentRouter: '/agent-router',
   },
 
+  monitoring: {
+    grafanaDashboardPrefix: 'platform',
+  },
+
   features: {
     enableN8n: true,
     enableLangflow: true,

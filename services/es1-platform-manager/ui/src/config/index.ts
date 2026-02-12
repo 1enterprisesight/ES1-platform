@@ -25,6 +25,10 @@ function mergeConfig(
       ...defaults.features,
       ...(runtime.features || {}),
     },
+    monitoring: {
+      ...defaults.monitoring,
+      ...(runtime.monitoring || {}),
+    },
     branding: {
       ...(runtime.branding || {}),
     },

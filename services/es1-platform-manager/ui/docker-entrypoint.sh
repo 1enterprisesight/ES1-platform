@@ -33,6 +33,9 @@
 #   OPEN_WEBUI_URL        - Open WebUI URL (default: http://localhost:3010)
 #   AUTOGEN_STUDIO_URL    - AutoGen Studio URL (default: http://localhost:8502)
 #
+# Monitoring:
+#   GRAFANA_DASHBOARD_PREFIX - Prefix for Grafana dashboard UIDs (default: platform)
+#
 # Feature flags:
 #   ENABLE_N8N            - Enable n8n integration (default: true)
 #   ENABLE_LANGFLOW       - Enable Langflow integration (default: true)
@@ -91,6 +94,11 @@ ENABLE_OLLAMA="${ENABLE_OLLAMA:-true}"
 ENABLE_OPEN_WEBUI="${ENABLE_OPEN_WEBUI:-true}"
 ENABLE_MONITORING="${ENABLE_MONITORING:-true}"
 ENABLE_AGENT_ROUTER="${ENABLE_AGENT_ROUTER:-true}"
+
+# =============================================================================
+# Default values for monitoring
+# =============================================================================
+GRAFANA_DASHBOARD_PREFIX="${GRAFANA_DASHBOARD_PREFIX:-platform}"
 
 # =============================================================================
 # Default values for authentication
@@ -174,6 +182,10 @@ window.__PLATFORM_CONFIG__ = {
     enableOpenWebUI: ${ENABLE_OPEN_WEBUI},
     enableMonitoring: ${ENABLE_MONITORING},
     enableAgentRouter: ${ENABLE_AGENT_ROUTER},
+  },
+
+  monitoring: {
+    grafanaDashboardPrefix: '${GRAFANA_DASHBOARD_PREFIX}',
   },
 
   branding: {

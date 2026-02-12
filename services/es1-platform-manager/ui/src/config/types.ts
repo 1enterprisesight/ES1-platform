@@ -75,6 +75,14 @@ export interface RuntimeConfig {
   };
 
   /**
+   * Monitoring configuration
+   */
+  monitoring?: {
+    /** Prefix for Grafana dashboard UIDs (default: 'platform') */
+    grafanaDashboardPrefix?: string;
+  };
+
+  /**
    * Authentication configuration
    */
   auth?: {
