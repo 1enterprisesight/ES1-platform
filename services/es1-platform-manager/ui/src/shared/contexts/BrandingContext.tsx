@@ -18,15 +18,38 @@ export interface BrandingConfig {
   docs_url: string | null
 }
 
+const BRANDING_CACHE_KEY = '__platform_branding_cache__'
+
+function getCachedBranding(): BrandingConfig | null {
+  try {
+    const cached = localStorage.getItem(BRANDING_CACHE_KEY)
+    return cached ? JSON.parse(cached) : null
+  } catch {
+    return null
+  }
+}
+
+function setCachedBranding(branding: BrandingConfig): void {
+  try {
+    localStorage.setItem(BRANDING_CACHE_KEY, JSON.stringify(branding))
+  } catch {
+    // localStorage unavailable — ignore
+  }
+}
+
 /**
  * Build default branding from runtime config (env vars via config.js)
  *
  * Branding resolution order (highest priority last):
  * 1. Hardcoded defaults below (fallback)
  * 2. Runtime config from window.__PLATFORM_CONFIG__.branding (env vars)
- * 3. Database branding from /api/v1/settings/branding/config (admin UI)
+ * 3. localStorage cache from last successful API fetch (avoids flash on refresh)
+ * 4. Database branding from /api/v1/settings/branding/config (admin UI)
  */
 function getDefaultBranding(): BrandingConfig {
+  const cached = getCachedBranding()
+  if (cached) return cached
+
   const runtimeBranding = getConfig().branding || {}
   return {
     name: runtimeBranding.platformName || 'Platform',
@@ -79,10 +102,16 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 
+  // Cache branding to localStorage whenever API returns fresh data
+  useEffect(() => {
+    if (branding) setCachedBranding(branding)
+  }, [branding])
+
   const mutation = useMutation({
     mutationFn: updateBrandingApi,
     onSuccess: (data) => {
       queryClient.setQueryData(['branding'], data)
+      setCachedBranding(data)
     },
   })
 

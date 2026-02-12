@@ -568,6 +568,27 @@ class AirflowClient:
             logger.error(f"Error pausing/unpausing DAG {dag_id}: {e}")
             raise
 
+    async def delete_dag(self, dag_id: str) -> bool:
+        """
+        Delete a DAG from Airflow's metadata database.
+
+        Args:
+            dag_id: The DAG identifier
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            client = await self._get_client()
+            response = await client.delete(f"/dags/{dag_id}")
+            if response.status_code in (200, 204, 404):
+                return True
+            logger.warning(f"Unexpected status deleting DAG {dag_id}: {response.status_code}")
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting DAG {dag_id} from Airflow: {e}")
+            return False
+
     async def get_connections(self, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """
         List Airflow connections.
@@ -639,17 +660,31 @@ class AirflowClient:
             logger.warning(f"DAGs path does not exist: {dags_path}")
             return files
 
-        for file_path in dags_path.glob("*.py"):
+        for file_path in dags_path.rglob("*.py"):
+            # Skip __pycache__ and hidden directories
+            if "__pycache__" in file_path.parts or any(p.startswith('.') for p in file_path.parts):
+                continue
+            # Skip __init__.py files
+            if file_path.name == "__init__.py":
+                continue
+
             try:
                 stat = file_path.stat()
                 content = file_path.read_text()
 
                 # Try to extract dag_id from the file
+                # Match keyword: dag_id='...' or dag_id="..."
                 dag_id_match = re.search(r"dag_id=['\"]([^'\"]+)['\"]", content)
+                if not dag_id_match:
+                    # Match positional: DAG('...' or DAG("..."
+                    dag_id_match = re.search(r"DAG\(\s*['\"]([^'\"]+)['\"]", content)
                 dag_id = dag_id_match.group(1) if dag_id_match else file_path.stem
 
+                # Use relative path from dags_path for subdirectory files
+                rel_path = file_path.relative_to(dags_path)
+
                 files.append({
-                    "filename": file_path.name,
+                    "filename": str(rel_path),
                     "dag_id": dag_id,
                     "path": str(file_path),
                     "size": stat.st_size,
@@ -698,7 +733,7 @@ class AirflowClient:
         Write or update a DAG file.
 
         Args:
-            filename: Name of the DAG file
+            filename: Name or relative path of the DAG file (e.g., "my_dag.py" or "subdir/my_dag.py")
             content: Python code content
 
         Returns:
@@ -710,8 +745,10 @@ class AirflowClient:
         if not filename.endswith(".py"):
             filename = f"{filename}.py"
 
-        # Sanitize filename
-        filename = re.sub(r'[^a-zA-Z0-9_\-.]', '_', filename)
+        # Sanitize each path component (allow / for subdirectories)
+        parts = Path(filename).parts
+        sanitized_parts = [re.sub(r'[^a-zA-Z0-9_\-.]', '_', p) for p in parts]
+        filename = str(Path(*sanitized_parts))
 
         file_path = dags_path / filename
 
@@ -725,8 +762,8 @@ class AirflowClient:
             return False
 
         try:
-            # Ensure dags directory exists
-            dags_path.mkdir(parents=True, exist_ok=True)
+            # Ensure parent directories exist (handles subdirectory files)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Write the file
             file_path.write_text(content)

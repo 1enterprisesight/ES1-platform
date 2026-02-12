@@ -58,10 +58,13 @@ CREATE TABLE rag.knowledge_bases (
     name VARCHAR(255) NOT NULL UNIQUE,
     description TEXT,
     collection_id UUID, -- Reference to vectors.collections
+    embedding_model VARCHAR(255) DEFAULT 'nomic-embed-text',
+    embedding_dimension INTEGER DEFAULT 768,
     chunking_strategy VARCHAR(50) DEFAULT 'recursive', -- fixed, recursive, semantic
     chunk_size INTEGER DEFAULT 512,
     chunk_overlap INTEGER DEFAULT 50,
     metadata JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

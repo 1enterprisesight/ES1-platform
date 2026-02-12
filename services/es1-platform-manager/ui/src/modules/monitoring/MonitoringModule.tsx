@@ -12,52 +12,51 @@ import {
 } from 'lucide-react'
 import { cn } from '@/shared/utils/cn'
 import { Button } from '@/design-system/components/Button'
-import { serviceUrl } from '@/config'
+import { serviceUrl, config } from '@/config'
 
 const dashboards = [
   {
     id: 'system-overview',
-    uid: 'es1-system-overview',
     name: 'System Overview',
     icon: LayoutDashboard,
     description: 'All services health status at a glance',
   },
   {
-    id: 'containers',
-    uid: 'es1-docker-containers',
+    id: 'docker-containers',
     name: 'Containers',
     icon: Container,
     description: 'Docker container metrics via cAdvisor',
   },
   {
-    id: 'node',
-    uid: 'es1-node-resources',
+    id: 'node-resources',
     name: 'Host Resources',
     icon: Server,
     description: 'Host CPU, memory, disk, and network',
   },
   {
     id: 'postgresql',
-    uid: 'es1-postgresql',
     name: 'PostgreSQL',
     icon: Database,
     description: 'Database connections, queries, cache',
   },
   {
     id: 'redis',
-    uid: 'es1-redis',
     name: 'Redis',
     icon: HardDrive,
     description: 'Cache memory, commands, hit ratio',
   },
   {
     id: 'krakend',
-    uid: 'es1-krakend',
     name: 'API Gateway',
     icon: Network,
     description: 'KrakenD request rate, latency, errors',
   },
 ]
+
+function dashboardUid(id: string): string {
+  const prefix = config().monitoring?.grafanaDashboardPrefix || 'platform'
+  return `${prefix}-${id}`
+}
 
 export function MonitoringModule() {
   const grafanaUrl = serviceUrl('grafana')
@@ -151,7 +150,7 @@ function GrafanaDashboard({ dashboard }: GrafanaDashboardProps) {
 
   // Build the Grafana embed URL
   // Using solo mode (kiosk=1) for clean embedding
-  const embedUrl = `${grafanaUrl}/d/${dashboard.uid}?orgId=1&refresh=30s&kiosk=1&theme=dark`
+  const embedUrl = `${grafanaUrl}/d/${dashboardUid(dashboard.id)}?orgId=1&refresh=30s&kiosk=1&theme=dark`
 
   return (
     <div className="space-y-4">
@@ -178,7 +177,7 @@ function GrafanaDashboard({ dashboard }: GrafanaDashboardProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => window.open(`${grafanaUrl}/d/${dashboard.uid}`, '_blank')}
+            onClick={() => window.open(`${grafanaUrl}/d/${dashboardUid(dashboard.id)}`, '_blank')}
           >
             <ExternalLink className="h-4 w-4 mr-2" />
             Full Screen
@@ -208,7 +207,7 @@ function GrafanaDashboard({ dashboard }: GrafanaDashboardProps) {
       {/* Quick Links */}
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <a
-          href={`${grafanaUrl}/d/${dashboard.uid}`}
+          href={`${grafanaUrl}/d/${dashboardUid(dashboard.id)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="hover:text-foreground flex items-center gap-1"

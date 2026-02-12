@@ -18,6 +18,8 @@ import {
   Keyboard,
   Activity,
   Box,
+  PanelRightOpen,
+  PanelRightClose,
 } from 'lucide-react'
 import { useTheme } from '@/shared/contexts/ThemeContext'
 import { useEventBus } from '@/shared/contexts/EventBusContext'
@@ -27,6 +29,17 @@ import { cn } from '@/shared/utils/cn'
 import { Button } from '../components/Button'
 import { ActivityFeed } from '../components/ActivityFeed'
 import { KeyboardShortcutsHelp } from '../components/KeyboardShortcutsHelp'
+
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [query])
+  return matches
+}
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -48,6 +61,16 @@ export function MainLayout() {
   const { events, connected, clearEvents } = useEventBus()
   const { branding } = useBranding()
   const [showShortcuts, setShowShortcuts] = useState(false)
+  const [activityOverride, setActivityOverride] = useState<boolean | null>(null)
+  const hideActivity = useMediaQuery('(max-width: 1399px)')
+  const collapseNav = useMediaQuery('(max-width: 1079px)')
+
+  // Auto-show/hide activity when crossing breakpoint, unless user toggled manually
+  useEffect(() => {
+    setActivityOverride(null)
+  }, [hideActivity])
+
+  const showActivity = activityOverride ?? !hideActivity
 
   // Initialize keyboard shortcuts
   useKeyboardShortcuts(() => setShowShortcuts(true))
@@ -63,59 +86,67 @@ export function MainLayout() {
 
   return (
     <div className="flex h-screen bg-background">
-      {/* Sidebar */}
-      <aside className="w-64 border-r bg-card flex flex-col">
+      {/* Sidebar — icons-only when collapseNav */}
+      <aside className={cn(
+        'border-r bg-card flex flex-col shrink-0 transition-[width] duration-200',
+        collapseNav ? 'w-14' : 'w-48'
+      )}>
         {/* Logo */}
-        <div className="h-14 flex items-center px-4 border-b gap-3">
+        <div className="h-14 flex items-center px-3 border-b gap-3 overflow-hidden">
           {branding.logo_url && (
             <img
               src={resolvedTheme === 'dark' && branding.logo_dark_url ? branding.logo_dark_url : branding.logo_url}
               alt={branding.name}
-              className="h-8 w-auto"
+              className="h-8 w-auto shrink-0"
             />
           )}
-          <h1 className="text-lg font-semibold truncate">{branding.name}</h1>
+          {!collapseNav && (
+            <h1 className="text-lg font-semibold truncate">{branding.name}</h1>
+          )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className={cn('flex-1 space-y-1', collapseNav ? 'p-2' : 'p-3')}>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
+              title={collapseNav ? item.label : undefined}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors',
+                  'flex items-center rounded-md text-sm transition-colors',
+                  collapseNav ? 'justify-center p-2' : 'gap-3 px-3 py-2',
                   isActive
                     ? 'bg-primary text-primary-foreground'
                     : 'hover:bg-accent hover:text-accent-foreground'
                 )
               }
             >
-              <item.icon className="h-4 w-4" />
-              {item.label}
+              <item.icon className="h-4 w-4 shrink-0" />
+              {!collapseNav && item.label}
             </NavLink>
           ))}
         </nav>
 
         {/* Theme Toggle */}
-        <div className="p-4 border-t">
+        <div className={cn('border-t', collapseNav ? 'p-2' : 'p-3')}>
           <Button
             variant="ghost"
             size="sm"
-            className="w-full justify-start"
+            className={cn(collapseNav ? 'w-full justify-center' : 'w-full justify-start')}
+            title={collapseNav ? (resolvedTheme === 'dark' ? 'Light Mode' : 'Dark Mode') : undefined}
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
           >
             {resolvedTheme === 'dark' ? (
               <>
-                <Sun className="h-4 w-4 mr-2" />
-                Light Mode
+                <Sun className="h-4 w-4 shrink-0" />
+                {!collapseNav && <span className="ml-2">Light Mode</span>}
               </>
             ) : (
               <>
-                <Moon className="h-4 w-4 mr-2" />
-                Dark Mode
+                <Moon className="h-4 w-4 shrink-0" />
+                {!collapseNav && <span className="ml-2">Dark Mode</span>}
               </>
             )}
           </Button>
@@ -123,9 +154,9 @@ export function MainLayout() {
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         {/* Top Bar */}
-        <header className="h-14 border-b bg-card flex items-center justify-between px-6">
+        <header className="h-14 border-b bg-card flex items-center justify-between px-6 shrink-0">
           <div className="flex items-center gap-2">
             {connected ? (
               <Wifi className="h-4 w-4 text-green-500" />
@@ -136,28 +167,45 @@ export function MainLayout() {
               {connected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowShortcuts(true)}
-            className="text-muted-foreground"
-          >
-            <Keyboard className="h-4 w-4 mr-2" />
-            <span className="text-xs">Ctrl+/</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowShortcuts(true)}
+              className="text-muted-foreground"
+            >
+              <Keyboard className="h-4 w-4 mr-2" />
+              <span className="text-xs">Ctrl+/</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setActivityOverride(!showActivity)}
+              className="text-muted-foreground"
+              title={showActivity ? 'Hide activity' : 'Show activity'}
+            >
+              {showActivity ? (
+                <PanelRightClose className="h-4 w-4" />
+              ) : (
+                <PanelRightOpen className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
         </header>
 
         {/* Page Content with Activity Feed */}
         <div className="flex-1 flex overflow-hidden">
           {/* Main Content Area */}
-          <main className="flex-1 overflow-auto p-6">
+          <main className="flex-1 overflow-auto p-6 min-w-0">
             <Outlet />
           </main>
 
-          {/* Activity Feed Sidebar */}
-          <aside className="w-80 border-l bg-card overflow-hidden">
-            <ActivityFeed events={events} onClear={clearEvents} />
-          </aside>
+          {/* Activity Feed Sidebar — collapsible */}
+          {showActivity && (
+            <aside className="w-64 border-l bg-card overflow-hidden shrink-0">
+              <ActivityFeed events={events} onClear={clearEvents} />
+            </aside>
+          )}
         </div>
       </div>
 

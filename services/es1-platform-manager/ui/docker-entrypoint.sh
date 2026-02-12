@@ -33,6 +33,9 @@
 #   OPEN_WEBUI_URL        - Open WebUI URL (default: http://localhost:3010)
 #   AUTOGEN_STUDIO_URL    - AutoGen Studio URL (default: http://localhost:8502)
 #
+# Monitoring:
+#   GRAFANA_DASHBOARD_PREFIX - Prefix for Grafana dashboard UIDs (default: platform)
+#
 # Feature flags:
 #   ENABLE_N8N            - Enable n8n integration (default: true)
 #   ENABLE_LANGFLOW       - Enable Langflow integration (default: true)
@@ -93,6 +96,11 @@ ENABLE_MONITORING="${ENABLE_MONITORING:-true}"
 ENABLE_AGENT_ROUTER="${ENABLE_AGENT_ROUTER:-true}"
 
 # =============================================================================
+# Default values for monitoring
+# =============================================================================
+GRAFANA_DASHBOARD_PREFIX="${GRAFANA_DASHBOARD_PREFIX:-platform}"
+
+# =============================================================================
 # Default values for authentication
 # =============================================================================
 AUTH_MODE="${AUTH_MODE:-none}"
@@ -110,7 +118,7 @@ envsubst '${PLATFORM_API_HOST} ${PLATFORM_API_PORT} ${AGENT_ROUTER_HOST} ${AGENT
 # =============================================================================
 INDEX_FILE="/usr/share/nginx/html/index.html"
 if [ -f "$INDEX_FILE" ]; then
-    sed -i "s|<title>[^<]*</title>|<title>${PAGE_TITLE}</title>|g" "$INDEX_FILE"
+    sed -i "s|<title>[^<]*</title>|<title>${PLATFORM_NAME}</title>|g" "$INDEX_FILE"
     # Add or update meta description
     if grep -q 'name="description"' "$INDEX_FILE"; then
         sed -i "s|<meta name=\"description\" content=\"[^\"]*\"|<meta name=\"description\" content=\"${META_DESCRIPTION}\"|g" "$INDEX_FILE"
@@ -176,6 +184,10 @@ window.__PLATFORM_CONFIG__ = {
     enableAgentRouter: ${ENABLE_AGENT_ROUTER},
   },
 
+  monitoring: {
+    grafanaDashboardPrefix: '${GRAFANA_DASHBOARD_PREFIX}',
+  },
+
   branding: {
     pageTitle: '${PAGE_TITLE}',
     platformName: '${PLATFORM_NAME}',
@@ -187,6 +199,10 @@ window.__PLATFORM_CONFIG__ = {
     mode: '${AUTH_MODE}',
   },
 };
+
+// Set page title immediately to avoid flash before React/BrandingContext loads.
+// Uses platformName (not pageTitle) to match what BrandingContext sets as its default.
+document.title = window.__PLATFORM_CONFIG__.branding.platformName || window.__PLATFORM_CONFIG__.branding.pageTitle || 'Platform';
 EOF
 
 echo "Configuration generated successfully"

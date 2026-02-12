@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import {
   Plus,
   Save,
@@ -35,7 +36,8 @@ interface DAGTemplate {
 }
 
 export function DagEditorView() {
-  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [selectedFile, setSelectedFile] = useState<string | null>(searchParams.get('file'))
   const [editorContent, setEditorContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
   const [newDagDialogOpen, setNewDagDialogOpen] = useState(false)
@@ -47,6 +49,23 @@ export function DagEditorView() {
   const { addToast } = useToast()
 
   const hasUnsavedChanges = editorContent !== originalContent
+
+  // Pre-select file from URL query param
+  useEffect(() => {
+    const fileParam = searchParams.get('file')
+    if (fileParam && fileParam !== selectedFile) {
+      setSelectedFile(fileParam)
+    }
+  }, [searchParams])
+
+  // Update URL when file selection changes
+  useEffect(() => {
+    if (selectedFile) {
+      setSearchParams({ file: selectedFile }, { replace: true })
+    } else {
+      setSearchParams({}, { replace: true })
+    }
+  }, [selectedFile])
 
   const { data: filesData, isLoading: filesLoading, refetch: refetchFiles } = useQuery<DAGFileListResponse>({
     queryKey: ['dag-files'],
@@ -99,6 +118,7 @@ export function DagEditorView() {
     onSuccess: () => {
       setOriginalContent(editorContent)
       queryClient.invalidateQueries({ queryKey: ['dag-files'] })
+      queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
       addToast({ type: 'success', title: 'DAG saved', description: `${selectedFile} saved successfully` })
     },
     onError: (err: Error) => {
@@ -117,6 +137,7 @@ export function DagEditorView() {
       setEditorContent('')
       setOriginalContent('')
       queryClient.invalidateQueries({ queryKey: ['dag-files'] })
+      queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
       addToast({ type: 'success', title: 'DAG deleted' })
     },
     onError: (err: Error) => {
@@ -150,6 +171,7 @@ export function DagEditorView() {
       setNewDagSchedule('')
       setSelectedFile(data.filename)
       queryClient.invalidateQueries({ queryKey: ['dag-files'] })
+      queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
       addToast({ type: 'success', title: 'DAG created', description: `${data.filename} created` })
     },
     onError: (err: Error) => {
@@ -173,6 +195,7 @@ export function DagEditorView() {
       if (!res.ok) throw new Error('Failed to upload')
 
       queryClient.invalidateQueries({ queryKey: ['dag-files'] })
+      queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
       setSelectedFile(filename)
       addToast({ type: 'success', title: 'DAG uploaded', description: `${filename} uploaded` })
     } catch (err) {
@@ -188,7 +211,7 @@ export function DagEditorView() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = selectedFile
+    a.download = selectedFile.includes('/') ? selectedFile.split('/').pop()! : selectedFile
     a.click()
     URL.revokeObjectURL(url)
   }
