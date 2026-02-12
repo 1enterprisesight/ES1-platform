@@ -166,6 +166,12 @@ async def pause_dag(dag_id: str, is_paused: bool = True):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/dags/{dag_id}/unpause")
+async def unpause_dag(dag_id: str):
+    """Unpause a DAG. Convenience endpoint used by the UI."""
+    return await pause_dag(dag_id, is_paused=False)
+
+
 @router.get("/dag-runs", response_model=DAGRunListResponse)
 async def list_all_dag_runs(
     limit: int = Query(50, ge=1, le=100),
