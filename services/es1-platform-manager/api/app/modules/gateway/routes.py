@@ -44,6 +44,8 @@ from app.modules.gateway.schemas import (
     ConfigFileInfo,
     ConfigDiffRequest,
     ConfigDiffResponse,
+    ConfigStateResponse,
+    RouteInfo,
 )
 from app.core.config import settings
 from app.core.runtime import RUNTIME_MODE
@@ -624,6 +626,35 @@ async def get_gateway_status(db: AsyncSession = Depends(get_db)):
         "pending_approvals": pending_count or 0,
         "ready_to_deploy": approved_count or 0,
     }
+
+
+# =============================================================================
+# Config State Route (full visibility)
+# =============================================================================
+
+@router.get("/gateway/config/state", response_model=ConfigStateResponse)
+async def get_gateway_config_state(db: AsyncSession = Depends(get_db)):
+    """
+    Get the complete state of the gateway configuration.
+
+    Returns the full picture: active version, global config params,
+    all base platform routes, all dynamic exposure routes, and counts.
+    This is the primary endpoint for the Gateway Overview tab.
+    """
+    engine = DeploymentEngine()
+    state = await engine.get_config_state(db)
+
+    return ConfigStateResponse(
+        active_version=state["active_version"],
+        deployed_at=state["deployed_at"],
+        deployed_by=state["deployed_by"],
+        global_config=state["global_config"],
+        base_routes=[RouteInfo(**r) for r in state["base_routes"]],
+        dynamic_routes=[RouteInfo(**r) for r in state["dynamic_routes"]],
+        total_endpoints=state["total_endpoints"],
+        base_endpoint_count=state["base_endpoint_count"],
+        dynamic_endpoint_count=state["dynamic_endpoint_count"],
+    )
 
 
 # =============================================================================

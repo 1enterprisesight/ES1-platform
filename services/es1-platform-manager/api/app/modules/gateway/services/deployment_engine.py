@@ -8,7 +8,12 @@ The engine automatically detects the runtime environment and delegates to the
 appropriate implementation:
 - Docker mode: Uses HTTP-based health checks and file-based config deployment
 - Kubernetes mode: Uses K8s API for ConfigMap management and pod monitoring
+
+Config generation works by merging:
+1. Base config (from krakend.json / Helm ConfigMap) — always preserved
+2. Dynamic routes from approved exposures — appended alongside base routes
 """
+import copy
 from datetime import datetime
 from typing import Any, Protocol
 
@@ -37,6 +42,7 @@ class DeploymentBackend(Protocol):
     async def update_config(self, config: dict[str, Any], version: int) -> str: ...
     async def rolling_restart(self) -> bool: ...
     async def wait_for_rollout(self, timeout: int = 120) -> bool: ...
+    async def get_base_config(self) -> dict[str, Any] | None: ...
 
 
 class DeploymentEngine:
@@ -79,32 +85,48 @@ class DeploymentEngine:
         result = await db.execute(query)
         return list(result.scalars().all())
 
+    async def get_base_config(self) -> dict[str, Any]:
+        """
+        Get the base KrakenD configuration (platform service routes).
+
+        Reads from the deployment backend (file for Docker, ConfigMap for K8s).
+        Falls back to a minimal config if the base can't be read.
+        """
+        base = await self._backend.get_base_config()
+        if base:
+            return base
+
+        # Minimal fallback — should not normally be needed
+        return {
+            "version": 3,
+            "name": "ES1 Platform API Gateway",
+            "timeout": "30s",
+            "cache_ttl": "300s",
+            "output_encoding": "json",
+            "endpoints": [],
+            "extra_config": {},
+        }
+
     async def generate_complete_config(
         self, exposures: list[Exposure], db: AsyncSession
     ) -> dict[str, Any]:
-        """Generate complete KrakenD configuration from approved exposures."""
-        # Base KrakenD configuration
-        krakend_config = {
-            "version": 3,
-            "name": "ES1 Platform API Gateway",
-            "timeout": "3s",
-            "cache_ttl": "300s",
-            "endpoints": [],
-            "extra_config": {
-                "telemetry/opencensus": {
-                    "sample_rate": 100,
-                    "reporting_period": 0,
-                    "exporters": {
-                        "prometheus": {
-                            "port": 9091,
-                            "namespace": "krakend",
-                        }
-                    },
-                }
-            },
-        }
+        """
+        Generate complete KrakenD configuration by merging base routes with
+        exposure-generated dynamic routes.
 
-        # Generate endpoint configurations for each exposure
+        Base routes (from krakend.json / Helm ConfigMap) are always preserved.
+        Exposure routes are appended alongside them, never replacing them.
+        Each endpoint is tagged with @managed_by to indicate its origin.
+        """
+        # Start from the real base config
+        base_config = await self.get_base_config()
+        krakend_config = copy.deepcopy(base_config)
+
+        # Tag all base endpoints
+        for endpoint in krakend_config.get("endpoints", []):
+            endpoint["@managed_by"] = "base"
+
+        # Generate and append dynamic endpoint configurations for each exposure
         for exposure in exposures:
             try:
                 # Get the resource for this exposure
@@ -132,6 +154,12 @@ class DeploymentEngine:
                 if isinstance(endpoint_dict.get("method"), list):
                     endpoint_dict["method"] = ",".join(endpoint_dict["method"])
 
+                # Tag as platform-manager managed
+                endpoint_dict["@managed_by"] = "platform-manager"
+                endpoint_dict["@exposure_id"] = str(exposure.id)
+                endpoint_dict["@resource_type"] = resource.type
+                endpoint_dict["@resource_source"] = resource.source
+
                 krakend_config["endpoints"].append(endpoint_dict)
 
             except Exception as e:
@@ -139,6 +167,92 @@ class DeploymentEngine:
                 continue
 
         return krakend_config
+
+    async def get_config_state(self, db: AsyncSession) -> dict[str, Any]:
+        """
+        Get the complete state of the gateway configuration.
+
+        Returns the full picture: active version, global config, base routes,
+        dynamic routes, and counts — everything needed for the Overview tab.
+        """
+        # Get the active config version from DB
+        query = select(ConfigVersion).where(ConfigVersion.is_active == True)
+        result = await db.execute(query)
+        active_version = result.scalar_one_or_none()
+
+        # Get the base config
+        base_config = await self.get_base_config()
+        base_endpoints = base_config.get("endpoints", [])
+
+        # Get deployed exposures with their resources
+        deployed_query = (
+            select(Exposure, DiscoveredResource)
+            .join(DiscoveredResource, Exposure.resource_id == DiscoveredResource.id)
+            .where(Exposure.status == "deployed")
+        )
+        deployed_result = await db.execute(deployed_query)
+        deployed_pairs = deployed_result.all()
+
+        # Build base routes info
+        base_routes = []
+        for ep in base_endpoints:
+            route_info = {
+                "endpoint": ep.get("endpoint", ""),
+                "method": ep.get("method", ""),
+                "managed_by": "base",
+            }
+            # Extract backend host
+            backends = ep.get("backend", [])
+            if backends:
+                hosts = backends[0].get("host", [])
+                route_info["backend_host"] = hosts[0] if hosts else ""
+                route_info["url_pattern"] = backends[0].get("url_pattern", "")
+            # Extract comment as description
+            if "@comment" in ep:
+                route_info["description"] = ep["@comment"]
+            base_routes.append(route_info)
+
+        # Build dynamic routes info
+        dynamic_routes = []
+        for exposure, resource in deployed_pairs:
+            generated = exposure.generated_config or {}
+            dynamic_routes.append({
+                "endpoint": generated.get("endpoint", ""),
+                "method": generated.get("method", ""),
+                "resource_type": resource.type,
+                "resource_source": resource.source,
+                "resource_name": resource.resource_metadata.get("name", resource.source_id),
+                "exposure_id": str(exposure.id),
+                "managed_by": "platform-manager",
+                "settings": exposure.settings,
+            })
+
+        # Build global config (everything except endpoints)
+        global_config = {}
+        for key in ["timeout", "cache_ttl", "output_encoding", "port"]:
+            if key in base_config:
+                global_config[key] = base_config[key]
+        extra = base_config.get("extra_config", {})
+        if "security/cors" in extra:
+            global_config["cors"] = extra["security/cors"]
+        if "telemetry/opencensus" in extra:
+            global_config["telemetry"] = extra["telemetry/opencensus"]
+
+        return {
+            "active_version": active_version.version if active_version else None,
+            "deployed_at": (
+                active_version.deployed_to_gateway_at.isoformat()
+                if active_version and active_version.deployed_to_gateway_at
+                else None
+            ),
+            "deployed_by": active_version.created_by if active_version else None,
+            "global_config": global_config,
+            "base_routes": base_routes,
+            "dynamic_routes": dynamic_routes,
+            "total_endpoints": len(base_endpoints) + len(dynamic_routes),
+            "base_endpoint_count": len(base_endpoints),
+            "dynamic_endpoint_count": len(dynamic_routes),
+        }
 
     async def deploy(
         self, db: AsyncSession, deployed_by: str, commit_message: str | None = None
@@ -162,10 +276,7 @@ class DeploymentEngine:
             # 1. Aggregate approved exposures
             exposures = await self.aggregate_approved_exposures(db)
 
-            if not exposures:
-                return (False, "No approved exposures to deploy", None)
-
-            # 2. Generate complete configuration
+            # 2. Generate complete configuration (base + exposures)
             config = await self.generate_complete_config(exposures, db)
 
             # 3. Get next version number

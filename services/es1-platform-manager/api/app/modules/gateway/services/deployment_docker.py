@@ -23,6 +23,7 @@ class DockerDeploymentEngine:
         self.krakend_health_url = settings.KRAKEND_HEALTH_URL
         self.krakend_metrics_url = settings.KRAKEND_METRICS_URL
         self.config_path = Path(settings.KRAKEND_CONFIG_PATH)
+        self.base_config_path = Path(settings.KRAKEND_BASE_CONFIG_PATH)
 
     async def get_health_details(self) -> dict[str, Any]:
         """
@@ -94,6 +95,24 @@ class DockerDeploymentEngine:
         """
         health = await self.get_health_details()
         return health["status"] == "healthy"
+
+    async def get_base_config(self) -> dict[str, Any] | None:
+        """
+        Get the base KrakenD configuration (platform service routes).
+
+        Reads from KRAKEND_BASE_CONFIG_PATH — the original krakend.json
+        managed by Docker Compose / Helm, NOT the deployed config.
+
+        Returns:
+            dict: Base config if file exists, None otherwise
+        """
+        if self.base_config_path.exists():
+            try:
+                config_text = self.base_config_path.read_text()
+                return json.loads(config_text)
+            except (json.JSONDecodeError, IOError):
+                return None
+        return None
 
     async def update_config(self, config: dict[str, Any], version: int) -> str:
         """

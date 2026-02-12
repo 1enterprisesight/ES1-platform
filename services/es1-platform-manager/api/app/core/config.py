@@ -53,8 +53,11 @@ class Settings(BaseSettings):
     KRAKEND_HEALTH_URL: str = "http://krakend:8080/__health"
     KRAKEND_METRICS_URL: str = "http://krakend:9091/metrics"
 
-    # Config file path (Docker mode - shared volume)
+    # Config file path (Docker mode - shared volume for deployed config)
     KRAKEND_CONFIG_PATH: str = "/shared/krakend/krakend.json"
+
+    # Base config path (the original krakend.json with platform service routes)
+    KRAKEND_BASE_CONFIG_PATH: str = "/etc/krakend/krakend.json"
 
     # Kubernetes-specific settings
     K8S_NAMESPACE: str = "es1-platform"

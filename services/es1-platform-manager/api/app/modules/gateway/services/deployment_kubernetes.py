@@ -118,6 +118,30 @@ class KubernetesDeploymentEngine:
         except ApiException:
             return False
 
+    async def get_base_config(self) -> dict[str, Any] | None:
+        """
+        Get the base KrakenD configuration from the Helm-managed ConfigMap.
+
+        This is the base `krakend-config` ConfigMap (NOT a versioned one like
+        `krakend-config-v3`). It contains the platform service routes that
+        should always be present.
+
+        Returns:
+            dict: Base config if ConfigMap exists, None otherwise
+        """
+        try:
+            configmap = await asyncio.to_thread(
+                self.core_api.read_namespaced_config_map,
+                name=self.configmap_name,
+                namespace=self.namespace,
+            )
+            config_data = configmap.data.get("krakend.json")
+            if config_data:
+                return json.loads(config_data)
+            return None
+        except ApiException:
+            return None
+
     async def get_current_config(self) -> dict[str, Any] | None:
         """
         Get the currently deployed configuration from KrakenD ConfigMap.
