@@ -31,6 +31,9 @@ class AirflowDiscoveryService:
         """
         Discover DAGs from Airflow and sync to database.
 
+        Adds/updates resources for DAGs that exist in Airflow,
+        and marks resources as deleted when DAGs are removed.
+
         Args:
             db: Database session
 
@@ -40,16 +43,20 @@ class AirflowDiscoveryService:
         discovered = []
 
         try:
-            # Get all DAGs from Airflow
-            result = await self.client.list_dags(limit=1000, only_active=True)
+            # Get all DAGs from Airflow (including paused/inactive)
+            result = await self.client.list_dags(limit=1000, only_active=False)
             dags = result.get("dags", [])
 
             logger.info(f"Discovered {len(dags)} DAGs from Airflow")
+
+            seen_dag_ids = set()
 
             for dag in dags:
                 dag_id = dag.get("dag_id")
                 if not dag_id:
                     continue
+
+                seen_dag_ids.add(dag_id)
 
                 # Check if resource already exists
                 query = select(DiscoveredResource).where(
@@ -80,7 +87,7 @@ class AirflowDiscoveryService:
                     # Update existing resource
                     existing.resource_metadata = metadata
                     existing.last_updated = datetime.utcnow()
-                    existing.status = "active" if dag.get("is_active") else "inactive"
+                    existing.status = "active"
                     discovered.append(existing)
                 else:
                     # Create new resource
@@ -89,7 +96,7 @@ class AirflowDiscoveryService:
                         source="airflow",
                         source_id=dag_id,
                         resource_metadata=metadata,
-                        status="active" if dag.get("is_active") else "inactive",
+                        status="active",
                     )
                     db.add(resource)
                     discovered.append(resource)
@@ -105,8 +112,26 @@ class AirflowDiscoveryService:
                         },
                     )
 
+            # Mark stale resources as deleted (exist in DB but not in Airflow)
+            stale_query = select(DiscoveredResource).where(
+                DiscoveredResource.source == "airflow",
+                DiscoveredResource.type == "workflow",
+                DiscoveredResource.status != "deleted",
+            )
+            stale_result = await db.execute(stale_query)
+            stale_count = 0
+            for resource in stale_result.scalars().all():
+                if resource.source_id not in seen_dag_ids:
+                    resource.status = "deleted"
+                    resource.last_updated = datetime.utcnow()
+                    stale_count += 1
+                    await event_bus.publish(
+                        EventType.RESOURCE_DELETED,
+                        {"resource_id": str(resource.id), "source_id": resource.source_id},
+                    )
+
             await db.commit()
-            logger.info(f"Synced {len(discovered)} DAG resources")
+            logger.info(f"Synced {len(discovered)} DAG resources, marked {stale_count} as deleted")
 
         except Exception as e:
             logger.error(f"Failed to discover DAGs: {e}")
@@ -117,6 +142,9 @@ class AirflowDiscoveryService:
     async def discover_connections(self, db: AsyncSession) -> list[DiscoveredResource]:
         """
         Discover connections from Airflow and sync to database.
+
+        Adds/updates resources for connections that exist in Airflow,
+        and marks resources as deleted when connections are removed.
 
         Args:
             db: Database session
@@ -133,10 +161,14 @@ class AirflowDiscoveryService:
 
             logger.info(f"Discovered {len(connections)} connections from Airflow")
 
+            seen_conn_ids = set()
+
             for conn in connections:
                 conn_id = conn.get("connection_id")
                 if not conn_id:
                     continue
+
+                seen_conn_ids.add(conn_id)
 
                 # Check if resource already exists
                 query = select(DiscoveredResource).where(
@@ -162,6 +194,7 @@ class AirflowDiscoveryService:
                 if existing:
                     existing.resource_metadata = metadata
                     existing.last_updated = datetime.utcnow()
+                    existing.status = "active"
                     discovered.append(existing)
                 else:
                     resource = DiscoveredResource(
@@ -184,8 +217,22 @@ class AirflowDiscoveryService:
                         },
                     )
 
+            # Mark stale connection resources as deleted
+            stale_query = select(DiscoveredResource).where(
+                DiscoveredResource.source == "airflow",
+                DiscoveredResource.type == "connection",
+                DiscoveredResource.status != "deleted",
+            )
+            stale_result = await db.execute(stale_query)
+            stale_count = 0
+            for resource in stale_result.scalars().all():
+                if resource.source_id not in seen_conn_ids:
+                    resource.status = "deleted"
+                    resource.last_updated = datetime.utcnow()
+                    stale_count += 1
+
             await db.commit()
-            logger.info(f"Synced {len(discovered)} connection resources")
+            logger.info(f"Synced {len(discovered)} connection resources, marked {stale_count} as deleted")
 
         except Exception as e:
             logger.error(f"Failed to discover connections: {e}")

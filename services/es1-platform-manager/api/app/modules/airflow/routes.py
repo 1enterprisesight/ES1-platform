@@ -1,9 +1,11 @@
 """API routes for the Airflow module."""
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.events import event_bus, EventType
+from app.modules.gateway.models import DiscoveredResource
 from .client import airflow_client
 from .services import airflow_discovery
 from .schemas import (
@@ -414,8 +416,8 @@ async def write_dag_file(request: DAGFileWriteRequest):
 
 
 @router.delete("/dag-files/{filename:path}")
-async def delete_dag_file(filename: str):
-    """Delete a DAG file and deregister from Airflow."""
+async def delete_dag_file(filename: str, db: AsyncSession = Depends(get_db)):
+    """Delete a DAG file, deregister from Airflow, and mark gateway resource as deleted."""
     # Read dag_id from file before deleting
     import re
     content = airflow_client.read_dag_file(filename)
@@ -435,6 +437,19 @@ async def delete_dag_file(filename: str):
     if dag_id:
         await airflow_client.delete_dag(dag_id)
 
+        # Mark corresponding gateway resource as deleted
+        query = select(DiscoveredResource).where(
+            DiscoveredResource.source == "airflow",
+            DiscoveredResource.source_id == dag_id,
+            DiscoveredResource.type == "workflow",
+            DiscoveredResource.status != "deleted",
+        )
+        result = await db.execute(query)
+        resource = result.scalar_one_or_none()
+        if resource:
+            resource.status = "deleted"
+            await db.commit()
+
     await event_bus.publish(
         EventType.OPERATION_COMPLETED,
         {
@@ -449,8 +464,8 @@ async def delete_dag_file(filename: str):
 
 
 @router.post("/dags/cleanup")
-async def cleanup_stale_dags():
-    """Remove DAGs from Airflow that no longer have files on disk."""
+async def cleanup_stale_dags(db: AsyncSession = Depends(get_db)):
+    """Remove DAGs from Airflow that no longer have files on disk, and mark gateway resources as deleted."""
     try:
         # Get all Airflow DAGs
         result = await airflow_client.list_dags(limit=1000, only_active=False)
@@ -466,6 +481,19 @@ async def cleanup_stale_dags():
         for dag_id in stale:
             if await airflow_client.delete_dag(dag_id):
                 removed.append(dag_id)
+                # Mark gateway resource as deleted
+                query = select(DiscoveredResource).where(
+                    DiscoveredResource.source == "airflow",
+                    DiscoveredResource.source_id == dag_id,
+                    DiscoveredResource.type == "workflow",
+                    DiscoveredResource.status != "deleted",
+                )
+                res = await db.execute(query)
+                resource = res.scalar_one_or_none()
+                if resource:
+                    resource.status = "deleted"
+
+        await db.commit()
 
         await event_bus.publish(
             EventType.OPERATION_COMPLETED,
