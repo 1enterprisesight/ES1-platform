@@ -102,6 +102,75 @@ class ConnectionListResponse(BaseModel):
     total_entries: int
 
 
+class ConnectionDetailResponse(BaseModel):
+    """Schema for single connection detail response (never includes password)."""
+    connection_id: str
+    conn_type: str | None = None
+    description: str | None = None
+    host: str | None = None
+    port: int | None = None
+    schema_name: str | None = None
+    login: str | None = None
+    extra: str | None = None
+
+
+class ConnectionCreateRequest(BaseModel):
+    """Schema for creating a connection."""
+    connection_id: str
+    conn_type: str
+    description: str | None = None
+    host: str | None = None
+    port: int | None = None
+    schema_name: str | None = None
+    login: str | None = None
+    password: str | None = None
+    extra: str | None = None
+
+
+class ConnectionUpdateRequest(BaseModel):
+    """Schema for updating a connection (PATCH semantics — all fields optional)."""
+    conn_type: str | None = None
+    description: str | None = None
+    host: str | None = None
+    port: int | None = None
+    schema_name: str | None = None
+    login: str | None = None
+    password: str | None = None
+    extra: str | None = None
+
+
+class ConnectionDeleteResponse(BaseModel):
+    """Schema for connection delete response."""
+    success: bool
+    message: str
+
+
+class ConnectionTemplateField(BaseModel):
+    """Schema for a template field definition."""
+    name: str
+    label: str
+    type: str
+    required: bool = False
+    placeholder: str | None = None
+
+
+class ConnectionTemplateResponse(BaseModel):
+    """Schema for a single connection template."""
+    conn_type: str
+    display_name: str
+    description: str
+    category: str
+    default_port: int | None = None
+    fields: list[ConnectionTemplateField]
+    extra_schema: dict[str, Any] = {}
+
+
+class ConnectionTemplateListResponse(BaseModel):
+    """Schema for connection template list response."""
+    templates: list[ConnectionTemplateResponse]
+    categories: dict[str, str]
+
+
 class AirflowHealthResponse(BaseModel):
     """Schema for Airflow health response."""
     status: str

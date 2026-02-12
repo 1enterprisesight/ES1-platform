@@ -3,6 +3,7 @@ import { DagsView } from './views/DagsView'
 import { DagRunsView } from './views/DagRunsView'
 import { ConnectionsView } from './views/ConnectionsView'
 import { DagEditorView } from './views/DagEditorView'
+import { ConnectionEditorView } from './views/ConnectionEditorView'
 
 export function WorkflowsModule() {
   return (
@@ -61,6 +62,18 @@ export function WorkflowsModule() {
         >
           Connections
         </NavLink>
+        <NavLink
+          to="/workflows/connection-editor"
+          className={({ isActive }) =>
+            `pb-2 px-1 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              isActive
+                ? 'border-primary text-primary'
+                : 'border-transparent text-muted-foreground hover:text-foreground'
+            }`
+          }
+        >
+          Connection Editor
+        </NavLink>
       </nav>
 
       <Routes>
@@ -68,6 +81,7 @@ export function WorkflowsModule() {
         <Route path="/runs" element={<DagRunsView />} />
         <Route path="/editor" element={<DagEditorView />} />
         <Route path="/connections" element={<ConnectionsView />} />
+        <Route path="/connection-editor" element={<ConnectionEditorView />} />
       </Routes>
     </div>
   )

@@ -1,4 +1,5 @@
 """API routes for the Airflow module."""
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +9,7 @@ from app.core.events import event_bus, EventType
 from app.modules.gateway.models import DiscoveredResource
 from .client import airflow_client
 from .services import airflow_discovery
+from .connection_templates import get_connection_templates, get_template_categories
 from .schemas import (
     DAGResponse,
     DAGListResponse,
@@ -16,6 +18,13 @@ from .schemas import (
     TriggerDAGRequest,
     TaskInstanceListResponse,
     ConnectionListResponse,
+    ConnectionDetailResponse,
+    ConnectionCreateRequest,
+    ConnectionUpdateRequest,
+    ConnectionDeleteResponse,
+    ConnectionTemplateField,
+    ConnectionTemplateResponse,
+    ConnectionTemplateListResponse,
     AirflowHealthResponse,
     DiscoveryResultResponse,
     DAGFileInfo,
@@ -319,6 +328,175 @@ async def list_connections(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/connections/{connection_id}", response_model=ConnectionDetailResponse)
+async def get_connection(connection_id: str):
+    """Get details of a specific connection."""
+    try:
+        c = await airflow_client.get_connection(connection_id)
+        return ConnectionDetailResponse(
+            connection_id=c.get("connection_id", connection_id),
+            conn_type=c.get("conn_type"),
+            description=c.get("description"),
+            host=c.get("host"),
+            port=c.get("port"),
+            schema_name=c.get("schema"),
+            login=c.get("login"),
+            extra=c.get("extra"),
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/connections", response_model=ConnectionDetailResponse)
+async def create_connection(request: ConnectionCreateRequest, db: AsyncSession = Depends(get_db)):
+    """Create a new Airflow connection."""
+    try:
+        # Map schema_name -> schema for Airflow API
+        payload = {
+            "connection_id": request.connection_id,
+            "conn_type": request.conn_type,
+        }
+        if request.description is not None:
+            payload["description"] = request.description
+        if request.host is not None:
+            payload["host"] = request.host
+        if request.port is not None:
+            payload["port"] = request.port
+        if request.schema_name is not None:
+            payload["schema"] = request.schema_name
+        if request.login is not None:
+            payload["login"] = request.login
+        if request.password is not None:
+            payload["password"] = request.password
+        if request.extra is not None:
+            payload["extra"] = request.extra
+
+        c = await airflow_client.create_connection(payload)
+
+        # Trigger gateway sync for connections
+        await airflow_discovery.discover_connections(db)
+
+        return ConnectionDetailResponse(
+            connection_id=c.get("connection_id", request.connection_id),
+            conn_type=c.get("conn_type"),
+            description=c.get("description"),
+            host=c.get("host"),
+            port=c.get("port"),
+            schema_name=c.get("schema"),
+            login=c.get("login"),
+            extra=c.get("extra"),
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 409:
+            raise HTTPException(status_code=409, detail=f"Connection already exists: {request.connection_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/connections/{connection_id}", response_model=ConnectionDetailResponse)
+async def update_connection(connection_id: str, request: ConnectionUpdateRequest, db: AsyncSession = Depends(get_db)):
+    """Update an existing Airflow connection."""
+    try:
+        # Build payload with only provided fields, mapping schema_name -> schema
+        payload: dict = {}
+        if request.conn_type is not None:
+            payload["conn_type"] = request.conn_type
+        if request.description is not None:
+            payload["description"] = request.description
+        if request.host is not None:
+            payload["host"] = request.host
+        if request.port is not None:
+            payload["port"] = request.port
+        if request.schema_name is not None:
+            payload["schema"] = request.schema_name
+        if request.login is not None:
+            payload["login"] = request.login
+        if request.password is not None:
+            payload["password"] = request.password
+        if request.extra is not None:
+            payload["extra"] = request.extra
+
+        c = await airflow_client.update_connection(connection_id, payload)
+
+        # Trigger gateway sync
+        await airflow_discovery.discover_connections(db)
+
+        return ConnectionDetailResponse(
+            connection_id=c.get("connection_id", connection_id),
+            conn_type=c.get("conn_type"),
+            description=c.get("description"),
+            host=c.get("host"),
+            port=c.get("port"),
+            schema_name=c.get("schema"),
+            login=c.get("login"),
+            extra=c.get("extra"),
+        )
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 404:
+            raise HTTPException(status_code=404, detail=f"Connection not found: {connection_id}")
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/connections/{connection_id}", response_model=ConnectionDeleteResponse)
+async def delete_connection(connection_id: str, db: AsyncSession = Depends(get_db)):
+    """Delete an Airflow connection and mark gateway resource as deleted."""
+    try:
+        success = await airflow_client.delete_connection(connection_id)
+        if not success:
+            raise HTTPException(status_code=500, detail=f"Failed to delete connection: {connection_id}")
+
+        # Mark corresponding gateway resource as deleted
+        query = select(DiscoveredResource).where(
+            DiscoveredResource.source == "airflow",
+            DiscoveredResource.source_id == connection_id,
+            DiscoveredResource.type == "connection",
+            DiscoveredResource.status != "deleted",
+        )
+        result = await db.execute(query)
+        resource = result.scalar_one_or_none()
+        if resource:
+            resource.status = "deleted"
+            await db.commit()
+
+        return ConnectionDeleteResponse(
+            success=True,
+            message=f"Connection {connection_id} deleted successfully",
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/connection-templates", response_model=ConnectionTemplateListResponse)
+async def list_connection_templates():
+    """List available connection templates."""
+    templates = get_connection_templates()
+    categories = get_template_categories()
+    return ConnectionTemplateListResponse(
+        templates=[
+            ConnectionTemplateResponse(
+                conn_type=t["conn_type"],
+                display_name=t["display_name"],
+                description=t["description"],
+                category=t["category"],
+                default_port=t.get("default_port"),
+                fields=[ConnectionTemplateField(**f) for f in t["fields"]],
+                extra_schema=t.get("extra_schema", {}),
+            )
+            for t in templates
+        ],
+        categories=categories,
+    )
 
 
 @router.post("/discover", response_model=DiscoveryResultResponse)
