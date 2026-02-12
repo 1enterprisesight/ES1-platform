@@ -327,3 +327,94 @@ class ConfigStateResponse(BaseModel):
     total_endpoints: int
     base_endpoint_count: int
     dynamic_endpoint_count: int
+
+
+# =============================================================================
+# Change Set Schemas
+# =============================================================================
+
+class ChangeSetCreate(BaseModel):
+    """Schema for creating a change set."""
+    base: str = "current"  # "current" or a version number
+    description: str | None = None
+    created_by: str
+
+
+class ChangeSetAddResource(BaseModel):
+    """Schema for adding a resource to a change set."""
+    resource_id: UUID
+    settings: dict[str, Any] = Field(default_factory=dict)
+    user: str
+
+
+class ChangeSetRemoveExposure(BaseModel):
+    """Schema for removing an exposure from a change set."""
+    exposure_id: UUID
+    user: str
+
+
+class ChangeSetModifySettings(BaseModel):
+    """Schema for modifying exposure settings in a change set."""
+    exposure_id: UUID
+    settings: dict[str, Any]
+    user: str
+
+
+class ChangeSetSubmit(BaseModel):
+    """Schema for submitting a change set."""
+    user: str
+
+
+class ChangeSetCancel(BaseModel):
+    """Schema for cancelling a change set."""
+    user: str
+
+
+class ChangeSetResponse(BaseModel):
+    """Schema for change set response."""
+    id: UUID
+    base_version_id: UUID | None
+    status: str
+    created_by: str
+    created_at: datetime
+    submitted_at: datetime | None = None
+    description: str | None = None
+    config_version_id: UUID | None = None
+    changes: list[ExposureChangeResponse] = []
+
+    class Config:
+        from_attributes = True
+
+
+class ChangeSetListResponse(BaseModel):
+    """Schema for paginated change set list."""
+    items: list[ChangeSetResponse]
+    total: int
+    page: int
+    page_size: int
+
+
+class ChangeSetDiffResponse(BaseModel):
+    """Schema for change set diff."""
+    change_set_id: str
+    added: list[dict[str, Any]]
+    removed: list[dict[str, Any]]
+    modified: list[dict[str, Any]]
+    total_changes: int
+
+
+class ConfigVersionApproveRequest(BaseModel):
+    """Schema for approving a config version."""
+    approved_by: str
+    comments: str | None = None
+
+
+class ConfigVersionRejectRequest(BaseModel):
+    """Schema for rejecting a config version."""
+    rejected_by: str
+    reason: str
+
+
+class ConfigVersionDeployRequest(BaseModel):
+    """Schema for deploying an approved config version."""
+    deployed_by: str

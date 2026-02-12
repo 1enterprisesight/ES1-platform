@@ -13,6 +13,7 @@ from app.modules.gateway.models import (
     DiscoveredResource,
     Exposure,
     ExposureChange,
+    ChangeSet,
     ConfigVersion,
     Deployment,
     EventLog,
@@ -46,10 +47,23 @@ from app.modules.gateway.schemas import (
     ConfigDiffResponse,
     ConfigStateResponse,
     RouteInfo,
+    ChangeSetCreate,
+    ChangeSetAddResource,
+    ChangeSetRemoveExposure,
+    ChangeSetModifySettings,
+    ChangeSetSubmit,
+    ChangeSetCancel,
+    ChangeSetResponse,
+    ChangeSetListResponse,
+    ChangeSetDiffResponse,
+    ConfigVersionApproveRequest,
+    ConfigVersionRejectRequest,
+    ConfigVersionDeployRequest,
 )
 from app.core.config import settings
 from app.core.runtime import RUNTIME_MODE
 from app.modules.gateway.services import DeploymentEngine
+from app.modules.gateway.services.change_set_service import change_set_service
 from app.modules.gateway.generators import GeneratorRegistry
 
 router = APIRouter(tags=["Gateway"])
@@ -523,6 +537,264 @@ async def rollback_deployment(
         deployment.error_message = str(e)
         await db.commit()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Change Set Routes
+# =============================================================================
+
+@router.post("/gateway/change-sets", response_model=ChangeSetResponse, status_code=201)
+async def create_change_set(
+    data: ChangeSetCreate,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Create a new change set.
+
+    Set base="current" to start from the currently running config,
+    or base="{version_number}" to start from a historical config version.
+    """
+    if data.base == "current":
+        cs = await change_set_service.create_from_current(db, data.created_by, data.description)
+    else:
+        # Look up the version by number
+        try:
+            version_num = int(data.base)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="base must be 'current' or a version number")
+
+        query = select(ConfigVersion).where(ConfigVersion.version == version_num)
+        result = await db.execute(query)
+        config_version = result.scalar_one_or_none()
+        if not config_version:
+            raise HTTPException(status_code=404, detail=f"Config version {version_num} not found")
+
+        cs = await change_set_service.create_from_version(db, config_version.id, data.created_by, data.description)
+
+    # Load changes
+    changes_query = select(ExposureChange).where(ExposureChange.change_set_id == cs.id)
+    changes_result = await db.execute(changes_query)
+    changes = changes_result.scalars().all()
+
+    resp = ChangeSetResponse.model_validate(cs)
+    resp.changes = [ExposureChangeResponse.model_validate(c) for c in changes]
+    return resp
+
+
+@router.get("/gateway/change-sets", response_model=ChangeSetListResponse)
+async def list_change_sets(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    status: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """List change sets with optional status filter."""
+    query = select(ChangeSet)
+    if status:
+        query = query.where(ChangeSet.status == status)
+
+    count_query = select(func.count()).select_from(query.subquery())
+    total = await db.scalar(count_query)
+
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    query = query.order_by(ChangeSet.created_at.desc())
+    result = await db.execute(query)
+    items = result.scalars().all()
+
+    response_items = []
+    for cs in items:
+        resp = ChangeSetResponse.model_validate(cs)
+        # Load changes for each change set
+        changes_query = select(ExposureChange).where(ExposureChange.change_set_id == cs.id)
+        changes_result = await db.execute(changes_query)
+        resp.changes = [ExposureChangeResponse.model_validate(c) for c in changes_result.scalars().all()]
+        response_items.append(resp)
+
+    return ChangeSetListResponse(
+        items=response_items,
+        total=total or 0,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/gateway/change-sets/{change_set_id}", response_model=ChangeSetResponse)
+async def get_change_set(
+    change_set_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get a change set with its changes."""
+    cs = await db.get(ChangeSet, change_set_id)
+    if not cs:
+        raise HTTPException(status_code=404, detail="Change set not found")
+
+    resp = ChangeSetResponse.model_validate(cs)
+    changes_query = select(ExposureChange).where(ExposureChange.change_set_id == cs.id)
+    changes_result = await db.execute(changes_query)
+    resp.changes = [ExposureChangeResponse.model_validate(c) for c in changes_result.scalars().all()]
+    return resp
+
+
+@router.post("/gateway/change-sets/{change_set_id}/add", response_model=ExposureChangeResponse)
+async def add_to_change_set(
+    change_set_id: UUID,
+    data: ChangeSetAddResource,
+    db: AsyncSession = Depends(get_db),
+):
+    """Add a resource to expose in a change set."""
+    try:
+        change = await change_set_service.add_resource(
+            db, change_set_id, data.resource_id, data.settings, data.user
+        )
+        return ExposureChangeResponse.model_validate(change)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/gateway/change-sets/{change_set_id}/remove", response_model=ExposureChangeResponse)
+async def remove_from_change_set(
+    change_set_id: UUID,
+    data: ChangeSetRemoveExposure,
+    db: AsyncSession = Depends(get_db),
+):
+    """Mark an exposure for removal in a change set."""
+    try:
+        change = await change_set_service.remove_exposure(
+            db, change_set_id, data.exposure_id, data.user
+        )
+        return ExposureChangeResponse.model_validate(change)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/gateway/change-sets/{change_set_id}/modify", response_model=ExposureChangeResponse)
+async def modify_in_change_set(
+    change_set_id: UUID,
+    data: ChangeSetModifySettings,
+    db: AsyncSession = Depends(get_db),
+):
+    """Modify exposure settings in a change set."""
+    try:
+        change = await change_set_service.modify_settings(
+            db, change_set_id, data.exposure_id, data.settings, data.user
+        )
+        return ExposureChangeResponse.model_validate(change)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/gateway/change-sets/{change_set_id}/preview")
+async def preview_change_set(
+    change_set_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Preview the full resulting config if this change set were deployed."""
+    try:
+        config = await change_set_service.get_effective_config(db, change_set_id)
+        return {"config": config, "endpoint_count": len(config.get("endpoints", []))}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/gateway/change-sets/{change_set_id}/diff", response_model=ChangeSetDiffResponse)
+async def diff_change_set(
+    change_set_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Get the diff of what this change set will change vs the baseline."""
+    try:
+        diff = await change_set_service.get_diff(db, change_set_id)
+        return ChangeSetDiffResponse(**diff)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/gateway/change-sets/{change_set_id}/submit", response_model=ConfigVersionResponse)
+async def submit_change_set(
+    change_set_id: UUID,
+    data: ChangeSetSubmit,
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a change set for approval. Creates a ConfigVersion with pending_approval status."""
+    try:
+        config_version = await change_set_service.submit(db, change_set_id, data.user)
+        return ConfigVersionResponse.model_validate(config_version)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/gateway/change-sets/{change_set_id}/cancel", response_model=ChangeSetResponse)
+async def cancel_change_set(
+    change_set_id: UUID,
+    data: ChangeSetCancel,
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel a change set."""
+    try:
+        cs = await change_set_service.cancel(db, change_set_id, data.user)
+        resp = ChangeSetResponse.model_validate(cs)
+        changes_query = select(ExposureChange).where(ExposureChange.change_set_id == cs.id)
+        changes_result = await db.execute(changes_query)
+        resp.changes = [ExposureChangeResponse.model_validate(c) for c in changes_result.scalars().all()]
+        return resp
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# =============================================================================
+# Config Version Approval / Rejection / Deploy Routes
+# =============================================================================
+
+@router.post("/gateway/config-versions/{version_id}/approve", response_model=ConfigVersionResponse)
+async def approve_config_version(
+    version_id: UUID,
+    data: ConfigVersionApproveRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a submitted config version for deployment."""
+    try:
+        config_version = await change_set_service.approve_config_version(
+            db, version_id, data.approved_by, data.comments
+        )
+        return ConfigVersionResponse.model_validate(config_version)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/gateway/config-versions/{version_id}/reject", response_model=ConfigVersionResponse)
+async def reject_config_version(
+    version_id: UUID,
+    data: ConfigVersionRejectRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reject a submitted config version."""
+    try:
+        config_version = await change_set_service.reject_config_version(
+            db, version_id, data.rejected_by, data.reason
+        )
+        return ConfigVersionResponse.model_validate(config_version)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/gateway/config-versions/{version_id}/deploy", response_model=DeploymentResponse)
+async def deploy_config_version(
+    version_id: UUID,
+    data: ConfigVersionDeployRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Deploy an approved config version to the gateway."""
+    try:
+        success, message, deployment_id = await change_set_service.deploy_config_version(
+            db, version_id, data.deployed_by
+        )
+        if not success:
+            raise HTTPException(status_code=400, detail=message)
+
+        deployment = await db.get(Deployment, deployment_id)
+        return DeploymentResponse.model_validate(deployment)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # =============================================================================

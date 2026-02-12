@@ -88,6 +88,28 @@ class Exposure(Base):
     )
 
 
+class ChangeSet(Base):
+    """Change sets for batching gateway configuration changes."""
+
+    __tablename__ = "change_sets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("uuid_generate_v4()"))
+    base_version_id = Column(UUID(as_uuid=True), ForeignKey("config_versions.id", ondelete="SET NULL"), nullable=True)
+    status = Column(String(20), nullable=False, server_default="draft")
+    # draft, submitted, approved, rejected, deployed, cancelled
+    created_by = Column(String(255), nullable=False)
+    created_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
+    submitted_at = Column(TIMESTAMP, nullable=True)
+    description = Column(Text, nullable=True)
+    config_version_id = Column(UUID(as_uuid=True), ForeignKey("config_versions.id", ondelete="SET NULL"), nullable=True)
+
+    __table_args__ = (
+        Index("idx_change_sets_status", "status"),
+        Index("idx_change_sets_created_by", "created_by"),
+        Index("idx_change_sets_created_at", "created_at"),
+    )
+
+
 class ExposureChange(Base):
     """Exposure changes (change management workflow)."""
 
@@ -111,6 +133,9 @@ class ExposureChange(Base):
     # Batch grouping
     batch_id = Column(UUID(as_uuid=True), nullable=True)
 
+    # Change set link
+    change_set_id = Column(UUID(as_uuid=True), ForeignKey("change_sets.id", ondelete="SET NULL"), nullable=True)
+
     # People and timestamps
     requested_by = Column(String(255), nullable=False)
     requested_at = Column(TIMESTAMP, nullable=False, server_default=func.now())
@@ -129,6 +154,7 @@ class ExposureChange(Base):
         Index("idx_exposure_changes_status", "status"),
         Index("idx_exposure_changes_batch", "batch_id"),
         Index("idx_exposure_changes_resource", "resource_id"),
+        Index("idx_exposure_changes_change_set", "change_set_id"),
     )
 
 

@@ -30,6 +30,19 @@ class EventType(str, Enum):
     EXPOSURE_REJECTED = "exposure_rejected"
     EXPOSURE_DEPLOYED = "exposure_deployed"
 
+    # Change set events
+    CHANGE_SET_CREATED = "change_set_created"
+    CHANGE_SET_RESOURCE_ADDED = "change_set_resource_added"
+    CHANGE_SET_EXPOSURE_REMOVED = "change_set_exposure_removed"
+    CHANGE_SET_SETTINGS_MODIFIED = "change_set_settings_modified"
+    CHANGE_SET_SUBMITTED = "change_set_submitted"
+    CHANGE_SET_CANCELLED = "change_set_cancelled"
+
+    # Config version approval events
+    CONFIG_VERSION_APPROVED = "config_version_approved"
+    CONFIG_VERSION_REJECTED = "config_version_rejected"
+    CONFIG_VERSION_DEPLOYED = "config_version_deployed"
+
     # Deployment events
     DEPLOYMENT_STARTED = "deployment_started"
     DEPLOYMENT_PROGRESS = "deployment_progress"
