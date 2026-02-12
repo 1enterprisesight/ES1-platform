@@ -44,7 +44,7 @@ async def get_airflow_health():
 async def list_dags(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
-    only_active: bool = True,
+    only_active: bool = False,
 ):
     """List all DAGs from Airflow."""
     try:
@@ -376,7 +376,7 @@ async def list_dag_files():
     )
 
 
-@router.get("/dag-files/{filename}", response_model=DAGFileContentResponse)
+@router.get("/dag-files/{filename:path}", response_model=DAGFileContentResponse)
 async def get_dag_file(filename: str):
     """Get the content of a DAG file."""
     content = airflow_client.read_dag_file(filename)
@@ -413,23 +413,76 @@ async def write_dag_file(request: DAGFileWriteRequest):
         raise HTTPException(status_code=500, detail="Failed to write DAG file")
 
 
-@router.delete("/dag-files/{filename}")
+@router.delete("/dag-files/{filename:path}")
 async def delete_dag_file(filename: str):
-    """Delete a DAG file."""
+    """Delete a DAG file and deregister from Airflow."""
+    # Read dag_id from file before deleting
+    import re
+    content = airflow_client.read_dag_file(filename)
+    dag_id = None
+    if content:
+        match = re.search(r"dag_id=['\"]([^'\"]+)['\"]", content)
+        if not match:
+            match = re.search(r"DAG\(\s*['\"]([^'\"]+)['\"]", content)
+        if match:
+            dag_id = match.group(1)
+
     success = airflow_client.delete_dag_file(filename)
     if not success:
         raise HTTPException(status_code=404, detail=f"DAG file not found: {filename}")
+
+    # Also delete from Airflow's metadata to keep things in sync
+    if dag_id:
+        await airflow_client.delete_dag(dag_id)
 
     await event_bus.publish(
         EventType.OPERATION_COMPLETED,
         {
             "operation": "dag_file_deleted",
             "filename": filename,
+            "dag_id": dag_id,
             "message": f"DAG file {filename} deleted",
         },
     )
 
     return {"success": True, "message": f"DAG file {filename} deleted"}
+
+
+@router.post("/dags/cleanup")
+async def cleanup_stale_dags():
+    """Remove DAGs from Airflow that no longer have files on disk."""
+    try:
+        # Get all Airflow DAGs
+        result = await airflow_client.list_dags(limit=1000, only_active=False)
+        airflow_dags = {d["dag_id"] for d in result.get("dags", [])}
+
+        # Get all DAG file dag_ids
+        files = airflow_client.list_dag_files()
+        file_dag_ids = {f["dag_id"] for f in files}
+
+        # Find stale DAGs (in Airflow but no file)
+        stale = airflow_dags - file_dag_ids
+        removed = []
+        for dag_id in stale:
+            if await airflow_client.delete_dag(dag_id):
+                removed.append(dag_id)
+
+        await event_bus.publish(
+            EventType.OPERATION_COMPLETED,
+            {
+                "operation": "dag_cleanup",
+                "removed": removed,
+                "message": f"Removed {len(removed)} stale DAGs",
+            },
+        )
+
+        return {
+            "success": True,
+            "removed": removed,
+            "message": f"Removed {len(removed)} stale DAGs: {', '.join(removed) if removed else 'none'}",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/dag-templates", response_model=DAGTemplateListResponse)
