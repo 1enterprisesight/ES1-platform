@@ -613,6 +613,94 @@ class AirflowClient:
             logger.error(f"Error listing connections: {e}")
             raise
 
+    async def get_connection(self, connection_id: str) -> dict[str, Any]:
+        """
+        Get details of a specific connection.
+
+        Args:
+            connection_id: The connection identifier
+
+        Returns:
+            Connection details dict
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(f"/connections/{connection_id}")
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to get connection {connection_id}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting connection {connection_id}: {e}")
+            raise
+
+    async def create_connection(self, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Create a new Airflow connection.
+
+        Args:
+            data: Connection data (connection_id, conn_type, host, etc.)
+
+        Returns:
+            Created connection details
+        """
+        try:
+            client = await self._get_client()
+            response = await client.post("/connections", json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to create connection: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error creating connection: {e}")
+            raise
+
+    async def update_connection(self, connection_id: str, data: dict[str, Any]) -> dict[str, Any]:
+        """
+        Update an existing Airflow connection.
+
+        Args:
+            connection_id: The connection identifier
+            data: Fields to update
+
+        Returns:
+            Updated connection details
+        """
+        try:
+            client = await self._get_client()
+            response = await client.patch(f"/connections/{connection_id}", json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"Failed to update connection {connection_id}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"Error updating connection {connection_id}: {e}")
+            raise
+
+    async def delete_connection(self, connection_id: str) -> bool:
+        """
+        Delete an Airflow connection.
+
+        Args:
+            connection_id: The connection identifier
+
+        Returns:
+            True if successful
+        """
+        try:
+            client = await self._get_client()
+            response = await client.delete(f"/connections/{connection_id}")
+            if response.status_code in (200, 204, 404):
+                return True
+            logger.warning(f"Unexpected status deleting connection {connection_id}: {response.status_code}")
+            return False
+        except Exception as e:
+            logger.error(f"Error deleting connection {connection_id}: {e}")
+            return False
+
     async def get_variables(self, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         """
         List Airflow variables.
