@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw, Globe, Shield, Zap, Filter, Edit } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@/design-system/components'
 import { StatusIndicator } from '@/design-system/components/StatusIndicator'
 
@@ -44,7 +45,7 @@ export function CurrentStateView() {
   const [methodFilter, setMethodFilter] = useState<string>('')
 
   const { data: state, isLoading, refetch } = useQuery<ConfigState>({
-    queryKey: ['gateway-config-state'],
+    queryKey: gatewayKeys.config.state,
     queryFn: async () => {
       const res = await fetch('/api/v1/gateway/config/state')
       if (!res.ok) throw new Error('Failed to fetch config state')
@@ -53,7 +54,7 @@ export function CurrentStateView() {
   })
 
   const { data: health } = useQuery<GatewayHealth>({
-    queryKey: ['gateway-health'],
+    queryKey: gatewayKeys.health,
     queryFn: async () => {
       const res = await fetch('/api/v1/gateway/health')
       if (!res.ok) throw new Error('Failed to fetch health')

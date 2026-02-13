@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw, FileJson, Copy, Check, ChevronDown, ChevronRight, GitCompare } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 
@@ -53,7 +54,7 @@ export function ConfigView() {
   const { addToast } = useToast()
 
   const { data: currentConfig, isLoading, refetch } = useQuery<CurrentConfig>({
-    queryKey: ['gateway-config-current'],
+    queryKey: gatewayKeys.config.current,
     queryFn: async () => {
       const res = await fetch('/api/v1/gateway/config/current')
       if (!res.ok) throw new Error('Failed to fetch current config')
@@ -62,7 +63,7 @@ export function ConfigView() {
   })
 
   const { data: versions } = useQuery<ConfigVersionListResponse>({
-    queryKey: ['config-versions'],
+    queryKey: gatewayKeys.versions.list,
     queryFn: async () => {
       const res = await fetch('/api/v1/config-versions?page_size=50')
       if (!res.ok) throw new Error('Failed to fetch config versions')
@@ -71,7 +72,7 @@ export function ConfigView() {
   })
 
   const { data: diffResult, isLoading: diffLoading } = useQuery<ConfigDiff>({
-    queryKey: ['config-diff', compareVersionA, compareVersionB],
+    queryKey: gatewayKeys.config.diff(compareVersionA, compareVersionB),
     queryFn: async () => {
       const res = await fetch('/api/v1/gateway/config/diff', {
         method: 'POST',

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw, CheckCircle, XCircle, Rocket, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 
@@ -62,7 +63,7 @@ export function ReviewView() {
 
   // Fetch pending config versions
   const { data: versions, isLoading, refetch } = useQuery<ConfigVersionListResponse>({
-    queryKey: ['config-versions-pending'],
+    queryKey: gatewayKeys.versions.pending,
     queryFn: async () => {
       const res = await fetch('/api/v1/config-versions?page_size=50')
       if (!res.ok) throw new Error('Failed to fetch config versions')
@@ -72,7 +73,7 @@ export function ReviewView() {
 
   // Fetch change sets to get extra context
   const { data: changeSets } = useQuery<ChangeSetListResponse>({
-    queryKey: ['change-sets-submitted'],
+    queryKey: gatewayKeys.changeSets.submitted,
     queryFn: async () => {
       const res = await fetch('/api/v1/gateway/change-sets?status=submitted&page_size=50')
       if (!res.ok) throw new Error('Failed to fetch change sets')
@@ -110,8 +111,8 @@ export function ReviewView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config-versions-pending'] })
-      queryClient.invalidateQueries({ queryKey: ['change-sets-submitted'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.versions.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.changeSets.all })
       addToast({ type: 'success', title: 'Config version approved' })
     },
     onError: (err: Error) => {
@@ -141,8 +142,8 @@ export function ReviewView() {
       setRejectDialogOpen(false)
       setRejectVersionId(null)
       setRejectReason('')
-      queryClient.invalidateQueries({ queryKey: ['config-versions-pending'] })
-      queryClient.invalidateQueries({ queryKey: ['change-sets-submitted'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.versions.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.changeSets.all })
       addToast({ type: 'success', title: 'Config version rejected' })
     },
     onError: (err: Error) => {
@@ -165,10 +166,10 @@ export function ReviewView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config-versions-pending'] })
-      queryClient.invalidateQueries({ queryKey: ['config-versions'] })
-      queryClient.invalidateQueries({ queryKey: ['deployments'] })
-      queryClient.invalidateQueries({ queryKey: ['gateway-config-state'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.versions.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.deployments.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.config.state })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.exposures.all })
       addToast({ type: 'success', title: 'Deployment started' })
       navigate('/gateway/history')
     },

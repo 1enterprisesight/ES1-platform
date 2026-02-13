@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Plus, Minus, Eye, GitCompare, Send, ArrowLeft } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 
@@ -85,7 +86,7 @@ export function EditConfigView() {
 
   // Fetch current config state (source of truth for what's deployed)
   const { data: configState } = useQuery<ConfigState>({
-    queryKey: ['gateway-config-state'],
+    queryKey: gatewayKeys.config.state,
     queryFn: async () => {
       const res = await fetch('/api/v1/gateway/config/state')
       if (!res.ok) throw new Error('Failed to fetch config state')
@@ -95,7 +96,7 @@ export function EditConfigView() {
 
   // Fetch available resources (not yet exposed)
   const { data: resources } = useQuery<ResourceListResponse>({
-    queryKey: ['resources-available'],
+    queryKey: gatewayKeys.resources.available,
     queryFn: async () => {
       const res = await fetch('/api/v1/resources?page_size=100')
       if (!res.ok) throw new Error('Failed to fetch resources')
@@ -105,7 +106,7 @@ export function EditConfigView() {
 
   // Fetch change set details if we have one
   const { data: changeSet, refetch: refetchChangeSet } = useQuery<ChangeSet>({
-    queryKey: ['change-set', changeSetId],
+    queryKey: gatewayKeys.changeSets.detail(changeSetId),
     queryFn: async () => {
       const res = await fetch(`/api/v1/gateway/change-sets/${changeSetId}`)
       if (!res.ok) throw new Error('Failed to fetch change set')
@@ -167,6 +168,7 @@ export function EditConfigView() {
     },
     onSuccess: () => {
       refetchChangeSet()
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.resources.available })
       addToast({ type: 'success', title: 'Resource added to change set' })
     },
     onError: (err: Error) => {
@@ -193,6 +195,7 @@ export function EditConfigView() {
     },
     onSuccess: () => {
       refetchChangeSet()
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.resources.available })
       addToast({ type: 'success', title: 'Route marked for removal' })
     },
     onError: (err: Error) => {
@@ -215,7 +218,8 @@ export function EditConfigView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['config-versions'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.versions.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.changeSets.all })
       addToast({ type: 'success', title: 'Change set submitted for approval' })
       navigate('/gateway/review')
     },

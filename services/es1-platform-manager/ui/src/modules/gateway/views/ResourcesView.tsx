@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, RefreshCw } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 
@@ -27,7 +28,7 @@ export function ResourcesView() {
   const { addToast } = useToast()
 
   const { data, isLoading, refetch } = useQuery<ResourceListResponse>({
-    queryKey: ['resources', page],
+    queryKey: gatewayKeys.resources.list(page),
     queryFn: async () => {
       const res = await fetch(`/api/v1/resources?page=${page}&page_size=20`)
       if (!res.ok) throw new Error('Failed to fetch resources')
@@ -53,7 +54,7 @@ export function ResourcesView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exposures'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.exposures.all })
       addToast({ type: 'success', title: 'Exposure created', description: 'Resource is now pending approval' })
     },
     onError: (err: Error) => {

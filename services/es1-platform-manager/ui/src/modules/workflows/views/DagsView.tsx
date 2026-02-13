@@ -149,7 +149,8 @@ export function DagsView() {
     mutationFn: triggerDag,
     onSuccess: (_, dagId) => {
       addToast({ type: 'success', message: `DAG ${dagId} triggered successfully` })
-      queryClient.invalidateQueries({ queryKey: ['airflow'] })
+      queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
+      queryClient.invalidateQueries({ queryKey: ['airflow', 'dag-runs'] })
     },
     onError: (error: Error) => {
       addToast({ type: 'error', message: error.message })

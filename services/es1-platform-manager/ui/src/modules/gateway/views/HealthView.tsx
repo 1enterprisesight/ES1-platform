@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { RefreshCw, Server, Activity, Cpu, HardDrive } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, CardHeader, CardTitle, CardContent } from '@/design-system/components'
 import { StatusIndicator } from '@/design-system/components/StatusIndicator'
 
@@ -14,7 +15,7 @@ interface GatewayHealth {
 
 export function HealthView() {
   const { data, isLoading, refetch, dataUpdatedAt } = useQuery<GatewayHealth>({
-    queryKey: ['gateway-health'],
+    queryKey: gatewayKeys.health,
     queryFn: async () => {
       const res = await fetch('/api/v1/gateway/health')
       if (!res.ok) throw new Error('Failed to fetch gateway health')
