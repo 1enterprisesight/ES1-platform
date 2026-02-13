@@ -52,9 +52,10 @@ services:
       KRAKEND_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_PORT:-8080}
       KRAKEND_HEALTH_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_PORT:-8080}/__health
       KRAKEND_METRICS_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_METRICS_PORT:-9091}/metrics
-      # In dev mode, read from the mounted host directory
-      # In prod mode, this would be /shared/krakend/krakend.json (managed volume)
-      KRAKEND_CONFIG_PATH: /etc/krakend/krakend.json
+      # Where Platform Manager deploys managed configs (shared volume with KrakenD)
+      KRAKEND_CONFIG_PATH: ${KRAKEND_CONFIG_PATH:-/shared/krakend/krakend.json}
+      # The original base config (platform service routes, read-only reference)
+      KRAKEND_BASE_CONFIG_PATH: ${KRAKEND_BASE_CONFIG_PATH:-/etc/krakend/krakend.json}
 
       # Kubernetes settings (used when RUNTIME_MODE=kubernetes)
       K8S_NAMESPACE: ${K8S_NAMESPACE:-es1-platform}
