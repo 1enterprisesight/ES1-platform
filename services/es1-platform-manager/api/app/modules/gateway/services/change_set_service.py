@@ -344,6 +344,9 @@ class ChangeSetService:
                 for ep in result_config.get("endpoints", []):
                     ep["@managed_by"] = "base"
 
+        # Enrich endpoints missing @resource_id (from pre-tagging deployments)
+        await self._enrich_resource_ids(db, result_config)
+
         # Apply changes from this change set
         changes = await self._get_changes(db, change_set_id)
 
@@ -877,6 +880,26 @@ class ChangeSetService:
             query = query.where(ExposureChange.resource_id == resource_id)
         result = await db.execute(query)
         return result.scalar_one_or_none()
+
+    async def _enrich_resource_ids(self, db: AsyncSession, config: dict[str, Any]) -> None:
+        """Fill in missing @resource_id tags on platform-manager endpoints.
+
+        Older snapshots don't have @resource_id. Look up the resource via
+        the @exposure_id → Exposure → resource_id chain.
+        """
+        for ep in config.get("endpoints", []):
+            if ep.get("@managed_by") != "platform-manager":
+                continue
+            if ep.get("@resource_id"):
+                continue  # Already has it
+            exposure_id = ep.get("@exposure_id")
+            if exposure_id:
+                try:
+                    exposure = await db.get(Exposure, UUID(exposure_id))
+                    if exposure:
+                        ep["@resource_id"] = str(exposure.resource_id)
+                except (ValueError, Exception):
+                    pass
 
 
 # Singleton

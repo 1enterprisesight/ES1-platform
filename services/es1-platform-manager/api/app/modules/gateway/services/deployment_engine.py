@@ -211,12 +211,22 @@ class DeploymentEngine:
             snapshot_endpoints = active_version.config_snapshot.get("endpoints", [])
             for ep in snapshot_endpoints:
                 if ep.get("@managed_by") == "platform-manager":
+                    # Enrich missing @resource_id from exposure record
+                    resource_id = ep.get("@resource_id")
+                    if not resource_id and ep.get("@exposure_id"):
+                        try:
+                            exposure = await db.get(Exposure, ep["@exposure_id"])
+                            if exposure:
+                                resource_id = str(exposure.resource_id)
+                        except Exception:
+                            pass
+
                     route_info = {
                         "endpoint": ep.get("endpoint", ""),
                         "method": ep.get("method", ""),
                         "resource_type": ep.get("@resource_type"),
                         "resource_source": ep.get("@resource_source"),
-                        "resource_id": ep.get("@resource_id"),
+                        "resource_id": resource_id,
                         "exposure_id": ep.get("@exposure_id"),
                         "managed_by": "platform-manager",
                     }
