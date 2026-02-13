@@ -99,7 +99,7 @@ class DeploymentEngine:
         # Minimal fallback — should not normally be needed
         return {
             "version": 3,
-            "name": "ES1 Platform API Gateway",
+            "name": settings.KRAKEND_GATEWAY_NAME,
             "timeout": "30s",
             "cache_ttl": "300s",
             "output_encoding": "json",

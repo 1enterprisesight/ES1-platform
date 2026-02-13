@@ -38,6 +38,10 @@ class KubernetesDeploymentEngine:
         self.deployment_name = settings.KRAKEND_DEPLOYMENT_NAME
         self.label_selector = settings.KRAKEND_LABEL_SELECTOR
         self.retention_count = settings.CONFIGMAP_RETENTION_COUNT
+        self.managed_by_label = settings.KRAKEND_MANAGED_BY_LABEL
+        self.annotation_domain = settings.ANNOTATION_DOMAIN
+        # Compose ConfigMap selector from settings (for managed config versions)
+        self.configmap_selector = f"managed-by={self.managed_by_label},app=krakend"
 
     async def get_health_details(self) -> dict[str, Any]:
         """
@@ -212,10 +216,10 @@ class KubernetesDeploymentEngine:
                 labels={
                     "app": "krakend",
                     "config-version": str(version),
-                    "managed-by": "es1-platform-manager",
+                    "managed-by": self.managed_by_label,
                 },
                 annotations={
-                    "es1.io/created-at": datetime.utcnow().isoformat(),
+                    f"{self.annotation_domain}/created-at": datetime.utcnow().isoformat(),
                 },
             ),
             data={"krakend.json": config_json},
@@ -300,7 +304,7 @@ class KubernetesDeploymentEngine:
             configmaps = await asyncio.to_thread(
                 self.core_api.list_namespaced_config_map,
                 namespace=self.namespace,
-                label_selector="managed-by=es1-platform-manager,app=krakend",
+                label_selector=self.configmap_selector,
             )
 
             # Sort by version number (descending)
@@ -426,14 +430,14 @@ class KubernetesDeploymentEngine:
             configmaps = await asyncio.to_thread(
                 self.core_api.list_namespaced_config_map,
                 namespace=self.namespace,
-                label_selector="managed-by=es1-platform-manager,app=krakend",
+                label_selector=self.configmap_selector,
             )
 
             versions = []
             for cm in configmaps.items:
                 version_num = int(cm.metadata.labels.get("config-version", 0))
                 created_at = cm.metadata.annotations.get(
-                    "es1.io/created-at",
+                    f"{self.annotation_domain}/created-at",
                     cm.metadata.creation_timestamp.isoformat() if cm.metadata.creation_timestamp else ""
                 )
 

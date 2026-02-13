@@ -49,6 +49,7 @@ services:
       # ==========================================================================
       # KrakenD Configuration
       # ==========================================================================
+      KRAKEND_GATEWAY_NAME: ${KRAKEND_GATEWAY_NAME:-Platform API Gateway}
       KRAKEND_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_PORT:-8080}
       KRAKEND_HEALTH_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_PORT:-8080}/__health
       KRAKEND_METRICS_URL: http://${KRAKEND_HOST:-krakend}:${KRAKEND_METRICS_PORT:-9091}/metrics
@@ -62,6 +63,9 @@ services:
       KRAKEND_NAMESPACE: ${KRAKEND_NAMESPACE:-es1-infrastructure}
       KRAKEND_CONFIGMAP_NAME: ${KRAKEND_CONFIGMAP_NAME:-krakend-config}
       KRAKEND_DEPLOYMENT_NAME: ${KRAKEND_DEPLOYMENT_NAME:-krakend}
+      # White-label: K8s resource labels and annotation domain
+      KRAKEND_MANAGED_BY_LABEL: ${KRAKEND_MANAGED_BY_LABEL:-platform-manager}
+      ANNOTATION_DOMAIN: ${ANNOTATION_DOMAIN:-es1.io}
 
       # ==========================================================================
       # Airflow Integration
