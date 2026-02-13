@@ -71,3 +71,4 @@ coverage/
 # Kubernetes local
 kubeconfig
 *.kubeconfig
+.mcp.json
