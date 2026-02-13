@@ -53,8 +53,14 @@ class Settings(BaseSettings):
     KRAKEND_HEALTH_URL: str = "http://krakend:8080/__health"
     KRAKEND_METRICS_URL: str = "http://krakend:9091/metrics"
 
-    # Config file path (Docker mode - shared volume)
+    # Gateway display name (white-label: customers see their own name)
+    KRAKEND_GATEWAY_NAME: str = "Platform API Gateway"
+
+    # Config file path (Docker mode - shared volume for deployed config)
     KRAKEND_CONFIG_PATH: str = "/shared/krakend/krakend.json"
+
+    # Base config path (the original krakend.json with platform service routes)
+    KRAKEND_BASE_CONFIG_PATH: str = "/etc/krakend/krakend.json"
 
     # Kubernetes-specific settings
     K8S_NAMESPACE: str = "es1-platform"
@@ -62,6 +68,10 @@ class Settings(BaseSettings):
     KRAKEND_CONFIGMAP_NAME: str = "krakend-config"
     KRAKEND_DEPLOYMENT_NAME: str = "krakend"
     KRAKEND_LABEL_SELECTOR: str = "app=krakend"
+
+    # Labels and annotations for K8s resources (white-label: no hardcoded product names)
+    KRAKEND_MANAGED_BY_LABEL: str = "platform-manager"
+    ANNOTATION_DOMAIN: str = "es1.io"
 
     # ConfigMap version retention (number of old versions to keep)
     CONFIGMAP_RETENTION_COUNT: int = 10
@@ -91,6 +101,7 @@ class Settings(BaseSettings):
 
     # Kubernetes secret for Airflow credentials (K8s mode)
     AIRFLOW_CREDENTIALS_SECRET: str = "airflow-credentials"
+    # Uses KRAKEND_NAMESPACE since Airflow lives in the infrastructure namespace
     AIRFLOW_CREDENTIALS_NAMESPACE: str = "es1-infrastructure"
 
     # DAG file management (path to Airflow dags folder)

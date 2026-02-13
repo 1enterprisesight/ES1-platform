@@ -294,3 +294,36 @@ class ConfigDiffResponse(BaseModel):
     added_endpoints: list[str]
     removed_endpoints: list[str]
     modified_endpoints: list[str]
+
+
+# =============================================================================
+# Config State Schemas (full visibility)
+# =============================================================================
+
+class RouteInfo(BaseModel):
+    """Schema for a single gateway route."""
+    endpoint: str
+    method: str = ""
+    managed_by: str  # "base" or "platform-manager"
+    backend_host: str = ""
+    url_pattern: str = ""
+    description: str | None = None
+    # Dynamic route fields
+    resource_type: str | None = None
+    resource_source: str | None = None
+    resource_name: str | None = None
+    exposure_id: str | None = None
+    settings: dict[str, Any] | None = None
+
+
+class ConfigStateResponse(BaseModel):
+    """Schema for the complete gateway config state."""
+    active_version: int | None
+    deployed_at: str | None
+    deployed_by: str | None
+    global_config: dict[str, Any]
+    base_routes: list[RouteInfo]
+    dynamic_routes: list[RouteInfo]
+    total_endpoints: int
+    base_endpoint_count: int
+    dynamic_endpoint_count: int

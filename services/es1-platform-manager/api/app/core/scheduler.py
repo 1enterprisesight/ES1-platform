@@ -207,47 +207,57 @@ class DiscoveryScheduler:
             raise ValueError(f"Unknown service: {service}")
 
     async def _discover_airflow(self) -> dict[str, Any]:
-        """Discover resources from Airflow."""
-        from app.modules.airflow.client import airflow_client
+        """Discover resources from Airflow and persist to DB."""
+        from app.modules.airflow.services import airflow_discovery
+        from app.core.database import async_session_factory
 
         if not settings.AIRFLOW_ENABLED:
             return {"count": 0, "message": "Airflow integration disabled"}
 
         try:
+            from app.modules.airflow.client import airflow_client
             health = await airflow_client.health_check()
             if health.get("status") != "healthy":
                 return {"count": 0, "message": "Airflow not healthy"}
 
-            dags = await airflow_client.list_dags()
-            dag_list = dags.get("dags", [])
+            # Use discover_all to persist resources to DB
+            async with async_session_factory() as db:
+                result = await airflow_discovery.discover_all(db)
 
+            total = sum(len(v) for v in result.values())
             return {
-                "count": len(dag_list),
-                "dags": [d.get("dag_id") for d in dag_list[:10]],  # First 10
-                "message": f"Discovered {len(dag_list)} DAGs",
+                "count": total,
+                "dags": len(result.get("workflows", [])),
+                "connections": len(result.get("connections", [])),
+                "message": f"Discovered and persisted {total} Airflow resources",
             }
         except Exception as e:
             logger.error(f"Airflow discovery error: {e}")
             raise
 
     async def _discover_langflow(self) -> dict[str, Any]:
-        """Discover resources from Langflow."""
-        from app.modules.langflow.client import langflow_client
+        """Discover resources from Langflow and persist to DB."""
+        from app.modules.langflow.services import langflow_discovery
+        from app.core.database import async_session_factory
 
         if not settings.LANGFLOW_ENABLED:
             return {"count": 0, "message": "Langflow integration disabled"}
 
         try:
+            from app.modules.langflow.client import langflow_client
             health = await langflow_client.health_check()
             if health.get("status") != "healthy":
                 return {"count": 0, "message": "Langflow not healthy"}
 
-            flows = await langflow_client.list_flows()
+            # Use discover_all to persist resources to DB
+            async with async_session_factory() as db:
+                result = await langflow_discovery.discover_all(db)
 
+            total = sum(len(v) for v in result.values())
             return {
-                "count": len(flows),
-                "flows": [f.get("name") for f in flows[:10]],  # First 10
-                "message": f"Discovered {len(flows)} flows",
+                "count": total,
+                "flows": len(result.get("flows", [])),
+                "message": f"Discovered and persisted {total} Langflow resources",
             }
         except Exception as e:
             logger.error(f"Langflow discovery error: {e}")

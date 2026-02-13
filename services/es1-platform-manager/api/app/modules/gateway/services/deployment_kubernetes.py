@@ -38,6 +38,10 @@ class KubernetesDeploymentEngine:
         self.deployment_name = settings.KRAKEND_DEPLOYMENT_NAME
         self.label_selector = settings.KRAKEND_LABEL_SELECTOR
         self.retention_count = settings.CONFIGMAP_RETENTION_COUNT
+        self.managed_by_label = settings.KRAKEND_MANAGED_BY_LABEL
+        self.annotation_domain = settings.ANNOTATION_DOMAIN
+        # Compose ConfigMap selector from settings (for managed config versions)
+        self.configmap_selector = f"managed-by={self.managed_by_label},app=krakend"
 
     async def get_health_details(self) -> dict[str, Any]:
         """
@@ -118,6 +122,30 @@ class KubernetesDeploymentEngine:
         except ApiException:
             return False
 
+    async def get_base_config(self) -> dict[str, Any] | None:
+        """
+        Get the base KrakenD configuration from the Helm-managed ConfigMap.
+
+        This is the base `krakend-config` ConfigMap (NOT a versioned one like
+        `krakend-config-v3`). It contains the platform service routes that
+        should always be present.
+
+        Returns:
+            dict: Base config if ConfigMap exists, None otherwise
+        """
+        try:
+            configmap = await asyncio.to_thread(
+                self.core_api.read_namespaced_config_map,
+                name=self.configmap_name,
+                namespace=self.namespace,
+            )
+            config_data = configmap.data.get("krakend.json")
+            if config_data:
+                return json.loads(config_data)
+            return None
+        except ApiException:
+            return None
+
     async def get_current_config(self) -> dict[str, Any] | None:
         """
         Get the currently deployed configuration from KrakenD ConfigMap.
@@ -188,10 +216,10 @@ class KubernetesDeploymentEngine:
                 labels={
                     "app": "krakend",
                     "config-version": str(version),
-                    "managed-by": "es1-platform-manager",
+                    "managed-by": self.managed_by_label,
                 },
                 annotations={
-                    "es1.io/created-at": datetime.utcnow().isoformat(),
+                    f"{self.annotation_domain}/created-at": datetime.utcnow().isoformat(),
                 },
             ),
             data={"krakend.json": config_json},
@@ -276,7 +304,7 @@ class KubernetesDeploymentEngine:
             configmaps = await asyncio.to_thread(
                 self.core_api.list_namespaced_config_map,
                 namespace=self.namespace,
-                label_selector="managed-by=es1-platform-manager,app=krakend",
+                label_selector=self.configmap_selector,
             )
 
             # Sort by version number (descending)
@@ -402,14 +430,14 @@ class KubernetesDeploymentEngine:
             configmaps = await asyncio.to_thread(
                 self.core_api.list_namespaced_config_map,
                 namespace=self.namespace,
-                label_selector="managed-by=es1-platform-manager,app=krakend",
+                label_selector=self.configmap_selector,
             )
 
             versions = []
             for cm in configmaps.items:
                 version_num = int(cm.metadata.labels.get("config-version", 0))
                 created_at = cm.metadata.annotations.get(
-                    "es1.io/created-at",
+                    f"{self.annotation_domain}/created-at",
                     cm.metadata.creation_timestamp.isoformat() if cm.metadata.creation_timestamp else ""
                 )
 
