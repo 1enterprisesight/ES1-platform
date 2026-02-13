@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, Minus, Settings, Eye, GitCompare, Send, ArrowLeft } from 'lucide-react'
+import { Plus, Minus, Eye, GitCompare, Send, ArrowLeft } from 'lucide-react'
 import { Button, Card, CardHeader, CardTitle, CardContent, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 

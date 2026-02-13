@@ -175,25 +175,25 @@ export function CurrentStateView() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                  {state.global_config.timeout && (
+                  {!!state.global_config.timeout && (
                     <div>
                       <span className="text-muted-foreground">Timeout:</span>{' '}
                       <span className="font-medium">{String(state.global_config.timeout)}</span>
                     </div>
                   )}
-                  {state.global_config.cache_ttl && (
+                  {!!state.global_config.cache_ttl && (
                     <div>
                       <span className="text-muted-foreground">Cache TTL:</span>{' '}
                       <span className="font-medium">{String(state.global_config.cache_ttl)}</span>
                     </div>
                   )}
-                  {state.global_config.output_encoding && (
+                  {!!state.global_config.output_encoding && (
                     <div>
                       <span className="text-muted-foreground">Encoding:</span>{' '}
                       <span className="font-medium">{String(state.global_config.output_encoding)}</span>
                     </div>
                   )}
-                  {state.global_config.port && (
+                  {!!state.global_config.port && (
                     <div>
                       <span className="text-muted-foreground">Port:</span>{' '}
                       <span className="font-medium">{String(state.global_config.port)}</span>
