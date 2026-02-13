@@ -635,33 +635,47 @@ async def get_change_set(
     return resp
 
 
-@router.post("/gateway/change-sets/{change_set_id}/add", response_model=ExposureChangeResponse)
+@router.post("/gateway/change-sets/{change_set_id}/add")
 async def add_to_change_set(
     change_set_id: UUID,
     data: ChangeSetAddResource,
     db: AsyncSession = Depends(get_db),
 ):
-    """Add a resource to expose in a change set."""
+    """Add a resource to expose in a change set.
+
+    If this resource was previously marked for removal in the same change set,
+    the removal is cancelled instead (net zero).
+    """
     try:
         change = await change_set_service.add_resource(
             db, change_set_id, data.resource_id, data.settings, data.user
         )
+        if change is None:
+            return {"status": "cancelled", "message": "Opposing remove change was cancelled (net zero)"}
         return ExposureChangeResponse.model_validate(change)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/gateway/change-sets/{change_set_id}/remove", response_model=ExposureChangeResponse)
+@router.post("/gateway/change-sets/{change_set_id}/remove")
 async def remove_from_change_set(
     change_set_id: UUID,
     data: ChangeSetRemoveExposure,
     db: AsyncSession = Depends(get_db),
 ):
-    """Mark an exposure for removal in a change set."""
+    """Mark a dynamic route for removal in a change set.
+
+    Accepts resource_id (preferred) or exposure_id. If this cancels
+    an opposing "add" change, returns a cancellation message instead.
+    """
+    if not data.resource_id and not data.exposure_id:
+        raise HTTPException(status_code=400, detail="Either resource_id or exposure_id is required")
     try:
-        change = await change_set_service.remove_exposure(
-            db, change_set_id, data.exposure_id, data.user
+        change = await change_set_service.remove_resource(
+            db, change_set_id, data.resource_id, data.exposure_id, data.user
         )
+        if change is None:
+            return {"status": "cancelled", "message": "Opposing add change was cancelled (net zero)"}
         return ExposureChangeResponse.model_validate(change)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

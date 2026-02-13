@@ -117,14 +117,37 @@ class ChangeSetService:
 
     async def add_resource(
         self, db: AsyncSession, change_set_id: UUID, resource_id: UUID, settings: dict[str, Any], user: str
-    ) -> ExposureChange:
-        """Add a resource to expose in this change set."""
+    ) -> ExposureChange | None:
+        """Add a resource to expose in this change set.
+
+        If there's already a "remove" change for this resource in the same
+        change set, cancels the remove instead (net zero = no change record).
+        Returns None when a remove was cancelled.
+        """
         change_set = await self._get_draft_change_set(db, change_set_id)
 
         # Verify resource exists
         resource = await db.get(DiscoveredResource, resource_id)
         if not resource:
             raise ValueError(f"Resource {resource_id} not found")
+
+        # Check for opposing "remove" change for this resource — cancel it instead
+        existing_remove = await self._find_change(db, change_set_id, "remove", resource_id=resource_id)
+        if existing_remove:
+            await db.delete(existing_remove)
+            db.add(EventLog(
+                event_type="change_set_change_cancelled",
+                entity_type="change_set",
+                entity_id=change_set_id,
+                user_id=user,
+                event_metadata={
+                    "cancelled_change_id": str(existing_remove.id),
+                    "reason": "add_cancels_remove",
+                    "resource_id": str(resource_id),
+                },
+            ))
+            await db.commit()
+            return None
 
         change = ExposureChange(
             resource_id=resource_id,
@@ -162,22 +185,52 @@ class ChangeSetService:
 
         return change
 
-    async def remove_exposure(
-        self, db: AsyncSession, change_set_id: UUID, exposure_id: UUID, user: str
-    ) -> ExposureChange:
-        """Mark an existing exposure for removal in this change set."""
+    async def remove_resource(
+        self, db: AsyncSession, change_set_id: UUID,
+        resource_id: UUID | None, exposure_id: UUID | None, user: str
+    ) -> ExposureChange | None:
+        """Mark a dynamic route for removal in this change set.
+
+        Accepts resource_id (preferred) or exposure_id. If there's already
+        an "add" change for this resource in the same change set, cancels
+        the add instead (net zero). Returns None when an add was cancelled.
+        """
         change_set = await self._get_draft_change_set(db, change_set_id)
 
-        # Verify exposure exists
-        exposure = await db.get(Exposure, exposure_id)
-        if not exposure:
-            raise ValueError(f"Exposure {exposure_id} not found")
+        if not resource_id and not exposure_id:
+            raise ValueError("Either resource_id or exposure_id is required")
+
+        # Resolve resource_id from exposure_id if needed
+        if not resource_id and exposure_id:
+            exposure = await db.get(Exposure, exposure_id)
+            if exposure:
+                resource_id = exposure.resource_id
+
+        if not resource_id:
+            raise ValueError("Could not resolve resource_id")
+
+        # Check for opposing "add" change for this resource — cancel it instead
+        existing_add = await self._find_change(db, change_set_id, "add", resource_id=resource_id)
+        if existing_add:
+            await db.delete(existing_add)
+            db.add(EventLog(
+                event_type="change_set_change_cancelled",
+                entity_type="change_set",
+                entity_id=change_set_id,
+                user_id=user,
+                event_metadata={
+                    "cancelled_change_id": str(existing_add.id),
+                    "reason": "remove_cancels_add",
+                    "resource_id": str(resource_id),
+                },
+            ))
+            await db.commit()
+            return None
 
         change = ExposureChange(
             exposure_id=exposure_id,
-            resource_id=exposure.resource_id,
+            resource_id=resource_id,
             change_type="remove",
-            settings_before=exposure.settings,
             status="draft",
             change_set_id=change_set_id,
             requested_by=user,
@@ -194,7 +247,8 @@ class ChangeSetService:
             user_id=user,
             event_metadata={
                 "change_id": str(change.id),
-                "exposure_id": str(exposure_id),
+                "resource_id": str(resource_id),
+                "exposure_id": str(exposure_id) if exposure_id else None,
             },
         ))
         await db.commit()
@@ -202,7 +256,7 @@ class ChangeSetService:
         await event_bus.publish(EventType.CHANGE_SET_EXPOSURE_REMOVED, {
             "change_set_id": str(change_set_id),
             "change_id": str(change.id),
-            "exposure_id": str(exposure_id),
+            "resource_id": str(resource_id),
         })
 
         return change
@@ -260,34 +314,41 @@ class ChangeSetService:
         """
         Compute what the config WOULD look like if this change set were deployed.
 
-        Returns: base routes + baseline exposures + applied changes.
+        Starts from the config SNAPSHOT (the actual deployed JSON), then applies
+        add/remove/modify changes on top. The snapshot is the source of truth —
+        not the exposures table.
         """
         change_set = await db.get(ChangeSet, change_set_id)
         if not change_set:
             raise ValueError(f"Change set {change_set_id} not found")
 
-        engine = DeploymentEngine()
+        # Get the baseline config snapshot
+        if change_set.base_version_id:
+            # Starting from a historical version
+            base_version = await db.get(ConfigVersion, change_set.base_version_id)
+            if not base_version or not base_version.config_snapshot:
+                raise ValueError(f"Config version {change_set.base_version_id} has no snapshot")
+            result_config = copy.deepcopy(base_version.config_snapshot)
+        else:
+            # Starting from current running config = active version's snapshot
+            query = select(ConfigVersion).where(ConfigVersion.is_active == True)
+            result = await db.execute(query)
+            active = result.scalar_one_or_none()
+            if active and active.config_snapshot:
+                result_config = copy.deepcopy(active.config_snapshot)
+            else:
+                # No active version — fall back to base config only
+                engine = DeploymentEngine()
+                base_config = await engine.get_base_config()
+                result_config = copy.deepcopy(base_config)
+                for ep in result_config.get("endpoints", []):
+                    ep["@managed_by"] = "base"
 
-        # Get base config
-        base_config = await engine.get_base_config()
-        result_config = copy.deepcopy(base_config)
-
-        # Tag base endpoints
-        for ep in result_config.get("endpoints", []):
-            ep["@managed_by"] = "base"
-
-        # Get baseline exposures
-        baseline_exposures = await self._get_baseline_exposures(db, change_set)
-
-        # Get changes in this change set
+        # Apply changes from this change set
         changes = await self._get_changes(db, change_set_id)
-
-        # Apply changes to baseline
-        effective_exposures = dict(baseline_exposures)  # exposure_id -> (exposure, resource)
 
         for change in changes:
             if change.change_type == "add":
-                # Generate a temporary exposure-like config
                 resource = await db.get(DiscoveredResource, change.resource_id)
                 if resource:
                     try:
@@ -301,22 +362,26 @@ class ChangeSetService:
                         if isinstance(endpoint_dict.get("method"), list):
                             endpoint_dict["method"] = ",".join(endpoint_dict["method"])
                         endpoint_dict["@managed_by"] = "platform-manager"
-                        endpoint_dict["@change_id"] = str(change.id)
+                        endpoint_dict["@resource_id"] = str(resource.id)
                         endpoint_dict["@resource_type"] = resource.type
                         endpoint_dict["@resource_source"] = resource.source
                         result_config["endpoints"].append(endpoint_dict)
                     except Exception:
                         pass
 
-            elif change.change_type == "remove" and change.exposure_id:
-                # Remove this exposure from the effective set
-                effective_exposures.pop(str(change.exposure_id), None)
+            elif change.change_type == "remove":
+                # Remove from snapshot by resource_id match
+                resource_id_str = str(change.resource_id) if change.resource_id else None
+                exposure_id_str = str(change.exposure_id) if change.exposure_id else None
+                result_config["endpoints"] = [
+                    ep for ep in result_config.get("endpoints", [])
+                    if not self._endpoint_matches_removal(ep, exposure_id_str, resource_id_str)
+                ]
 
-            elif change.change_type == "modify" and change.exposure_id:
-                # Re-generate with new settings
-                pair = effective_exposures.get(str(change.exposure_id))
-                if pair:
-                    exposure, resource = pair
+            elif change.change_type == "modify" and change.resource_id:
+                # Re-generate and replace the matching endpoint
+                resource = await db.get(DiscoveredResource, change.resource_id)
+                if resource:
                     try:
                         endpoint_config = self.generator_registry.generate_config(
                             resource_id=str(resource.id),
@@ -324,42 +389,37 @@ class ChangeSetService:
                             resource_metadata=resource.resource_metadata,
                             settings=change.settings_after or {},
                         )
-                        endpoint_dict = endpoint_config.model_dump(exclude_none=True)
-                        if isinstance(endpoint_dict.get("method"), list):
-                            endpoint_dict["method"] = ",".join(endpoint_dict["method"])
-                        endpoint_dict["@managed_by"] = "platform-manager"
-                        endpoint_dict["@exposure_id"] = str(change.exposure_id)
-                        endpoint_dict["@modified"] = True
-                        # Replace in effective_exposures with modified version
-                        effective_exposures[str(change.exposure_id)] = (exposure, resource, endpoint_dict)
+                        new_ep = endpoint_config.model_dump(exclude_none=True)
+                        if isinstance(new_ep.get("method"), list):
+                            new_ep["method"] = ",".join(new_ep["method"])
+                        new_ep["@managed_by"] = "platform-manager"
+                        new_ep["@resource_id"] = str(resource.id)
+                        new_ep["@resource_type"] = resource.type
+                        new_ep["@resource_source"] = resource.source
+                        new_ep["@modified"] = True
+
+                        resource_id_str = str(resource.id)
+                        result_config["endpoints"] = [
+                            new_ep if ep.get("@resource_id") == resource_id_str else ep
+                            for ep in result_config.get("endpoints", [])
+                        ]
                     except Exception:
                         pass
 
-        # Add remaining baseline exposure endpoints
-        for key, value in effective_exposures.items():
-            if len(value) == 3:
-                # Modified — use the pre-built endpoint_dict
-                _, _, endpoint_dict = value
-                result_config["endpoints"].append(endpoint_dict)
-            else:
-                exposure, resource = value
-                try:
-                    endpoint_config = self.generator_registry.generate_config(
-                        resource_id=str(resource.id),
-                        resource_type=resource.type,
-                        resource_metadata=resource.resource_metadata,
-                        settings=exposure.settings,
-                    )
-                    endpoint_dict = endpoint_config.model_dump(exclude_none=True)
-                    if isinstance(endpoint_dict.get("method"), list):
-                        endpoint_dict["method"] = ",".join(endpoint_dict["method"])
-                    endpoint_dict["@managed_by"] = "platform-manager"
-                    endpoint_dict["@exposure_id"] = str(exposure.id)
-                    result_config["endpoints"].append(endpoint_dict)
-                except Exception:
-                    pass
-
         return result_config
+
+    @staticmethod
+    def _endpoint_matches_removal(
+        endpoint: dict[str, Any], exposure_id: str | None, resource_id: str | None
+    ) -> bool:
+        """Check if an endpoint should be removed. Only removes platform-manager routes."""
+        if endpoint.get("@managed_by") != "platform-manager":
+            return False
+        if exposure_id and endpoint.get("@exposure_id") == exposure_id:
+            return True
+        if resource_id and endpoint.get("@resource_id") == resource_id:
+            return True
+        return False
 
     async def get_diff(self, db: AsyncSession, change_set_id: UUID) -> dict[str, Any]:
         """
@@ -803,35 +863,20 @@ class ChangeSetService:
         result = await db.execute(query)
         return list(result.scalars().all())
 
-    async def _get_baseline_exposures(
-        self, db: AsyncSession, change_set: ChangeSet
-    ) -> dict[str, tuple]:
-        """
-        Get the baseline exposures for a change set.
-
-        If base_version_id is None, uses currently deployed exposures.
-        If base_version_id is set, reconstructs from that version's snapshot.
-
-        Returns: dict of exposure_id -> (exposure, resource)
-        """
-        if change_set.base_version_id is None:
-            # Current running config — use deployed exposures
-            query = (
-                select(Exposure, DiscoveredResource)
-                .join(DiscoveredResource, Exposure.resource_id == DiscoveredResource.id)
-                .where(Exposure.status == "deployed")
-            )
-            result = await db.execute(query)
-            return {str(exp.id): (exp, res) for exp, res in result.all()}
-        else:
-            # Historical version — use exposures deployed in that version
-            query = (
-                select(Exposure, DiscoveredResource)
-                .join(DiscoveredResource, Exposure.resource_id == DiscoveredResource.id)
-                .where(Exposure.deployed_in_version_id == change_set.base_version_id)
-            )
-            result = await db.execute(query)
-            return {str(exp.id): (exp, res) for exp, res in result.all()}
+    async def _find_change(
+        self, db: AsyncSession, change_set_id: UUID, change_type: str,
+        resource_id: UUID | None = None
+    ) -> ExposureChange | None:
+        """Find an existing change in a change set by type and resource_id."""
+        query = (
+            select(ExposureChange)
+            .where(ExposureChange.change_set_id == change_set_id)
+            .where(ExposureChange.change_type == change_type)
+        )
+        if resource_id:
+            query = query.where(ExposureChange.resource_id == resource_id)
+        result = await db.execute(query)
+        return result.scalar_one_or_none()
 
 
 # Singleton

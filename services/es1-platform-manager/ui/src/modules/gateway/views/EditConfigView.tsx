@@ -26,6 +26,7 @@ interface DynamicRoute {
   method: string
   resource_type?: string
   resource_source?: string
+  resource_id?: string
   resource_name?: string
   exposure_id?: string
   managed_by: string
@@ -173,26 +174,26 @@ export function EditConfigView() {
     },
   })
 
-  // Remove exposure mutation
+  // Remove dynamic route mutation (by resource_id)
   const removeMutation = useMutation({
-    mutationFn: async (exposureId: string) => {
+    mutationFn: async (resourceId: string) => {
       const res = await fetch(`/api/v1/gateway/change-sets/${changeSetId}/remove`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          exposure_id: exposureId,
+          resource_id: resourceId,
           user: 'admin',
         }),
       })
       if (!res.ok) {
         const err = await res.json()
-        throw new Error(err.detail || 'Failed to remove exposure')
+        throw new Error(err.detail || 'Failed to remove route')
       }
       return res.json()
     },
     onSuccess: () => {
       refetchChangeSet()
-      addToast({ type: 'success', title: 'Exposure marked for removal' })
+      addToast({ type: 'success', title: 'Route marked for removal' })
     },
     onError: (err: Error) => {
       addToast({ type: 'error', title: 'Error', description: err.message })
@@ -256,30 +257,33 @@ export function EditConfigView() {
       .map((c) => c.resource_id) || []
   )
 
-  // Get IDs of exposures marked for removal
-  const removedExposureIds = new Set(
+  // Get resource_ids marked for removal in this change set
+  const removedResourceIds = new Set(
     changeSet?.changes
       .filter((c) => c.change_type === 'remove')
-      .map((c) => c.exposure_id)
+      .map((c) => c.resource_id)
       .filter(Boolean) || []
   )
 
   // Currently deployed dynamic routes (from config state)
   const deployedRoutes = configState?.dynamic_routes || []
 
-  // Resources that are not already exposed through the gateway
+  // Set of resource_ids that are already in the deployed config
+  const deployedResourceIds = new Set(
+    deployedRoutes
+      .map((dr) => dr.resource_id)
+      .filter(Boolean)
+  )
+
+  // Resources available to add: active, not already in config, not already added in this change set
   const availableResources = (resources?.items || []).filter(
     (r) => {
-      // Skip resources already added in this change set
-      if (addedResourceIds.has(r.id)) return false
       if (r.status !== 'active') return false
-      // Check if this resource is already deployed by seeing if any deployed route
-      // was generated from it (match by exposure_id linkage or source_id)
-      const isDeployed = deployedRoutes.some(
-        (dr) => dr.resource_name?.toLowerCase().replace(/\s+/g, '-') === r.source_id?.toLowerCase().replace(/\s+/g, '-')
-          || dr.endpoint?.includes(r.source_id)
-      )
-      return !isDeployed
+      // Already added in this change set
+      if (addedResourceIds.has(r.id)) return false
+      // Already deployed in the config (unless marked for removal in this change set)
+      if (deployedResourceIds.has(r.id) && !removedResourceIds.has(r.id)) return false
+      return true
     }
   )
 
@@ -356,28 +360,26 @@ export function EditConfigView() {
         </Card>
       )}
 
-      {/* Currently Exposed (from active config version snapshot) */}
+      {/* Currently Exposed (from active config version snapshot, minus removals, plus additions) */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">
-            Currently Exposed ({deployedRoutes.length})
+            Currently Exposed ({deployedRoutes.filter((r) => !r.resource_id || !removedResourceIds.has(r.resource_id)).length + addedResourceIds.size})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {deployedRoutes.length === 0 ? (
+          {deployedRoutes.length === 0 && addedResourceIds.size === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
               No resources are currently exposed through the gateway.
             </p>
           ) : (
             <div className="space-y-2">
-              {deployedRoutes.map((route) => (
+              {deployedRoutes
+                .filter((route) => !route.resource_id || !removedResourceIds.has(route.resource_id))
+                .map((route) => (
                 <div
                   key={route.endpoint}
-                  className={`flex items-center justify-between p-3 border rounded ${
-                    route.exposure_id && removedExposureIds.has(route.exposure_id)
-                      ? 'bg-red-50 dark:bg-red-950/20 border-red-200'
-                      : ''
-                  }`}
+                  className="flex items-center justify-between p-3 border rounded"
                 >
                   <div className="flex items-center gap-3">
                     <Badge variant={typeColors[route.resource_type || ''] || 'secondary'}>
@@ -394,24 +396,57 @@ export function EditConfigView() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {route.exposure_id && removedExposureIds.has(route.exposure_id) ? (
-                      <Badge variant="destructive">Marked for removal</Badge>
-                    ) : route.exposure_id ? (
+                    {route.resource_id ? (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => removeMutation.mutate(route.exposure_id!)}
+                        onClick={() => removeMutation.mutate(route.resource_id!)}
                         disabled={removeMutation.isPending}
                       >
                         <Minus className="h-4 w-4 mr-1" />
                         Remove
                       </Button>
                     ) : (
-                      <Badge variant="secondary">No exposure record</Badge>
+                      <Badge variant="secondary">Legacy route</Badge>
                     )}
                   </div>
                 </div>
               ))}
+              {/* Show resources added in this change set */}
+              {(resources?.items || [])
+                .filter((r) => addedResourceIds.has(r.id))
+                .map((resource) => (
+                  <div
+                    key={resource.id}
+                    className="flex items-center justify-between p-3 border rounded bg-green-50 dark:bg-green-950/20 border-green-200"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Badge variant={typeColors[resource.type] || 'secondary'}>
+                        {resource.type}
+                      </Badge>
+                      <div>
+                        <p className="text-sm font-medium">
+                          {(resource.metadata as Record<string, string>)?.name || resource.source_id}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {resource.source} &middot; {resource.source_id}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="success">Added</Badge>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeMutation.mutate(resource.id)}
+                        disabled={removeMutation.isPending}
+                      >
+                        <Minus className="h-4 w-4 mr-1" />
+                        Undo
+                      </Button>
+                    </div>
+                  </div>
+                ))}
             </div>
           )}
         </CardContent>

@@ -157,6 +157,7 @@ class DeploymentEngine:
                 # Tag as platform-manager managed
                 endpoint_dict["@managed_by"] = "platform-manager"
                 endpoint_dict["@exposure_id"] = str(exposure.id)
+                endpoint_dict["@resource_id"] = str(resource.id)
                 endpoint_dict["@resource_type"] = resource.type
                 endpoint_dict["@resource_source"] = resource.source
 
@@ -215,6 +216,7 @@ class DeploymentEngine:
                         "method": ep.get("method", ""),
                         "resource_type": ep.get("@resource_type"),
                         "resource_source": ep.get("@resource_source"),
+                        "resource_id": ep.get("@resource_id"),
                         "exposure_id": ep.get("@exposure_id"),
                         "managed_by": "platform-manager",
                     }

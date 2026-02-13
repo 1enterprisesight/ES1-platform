@@ -311,6 +311,7 @@ class RouteInfo(BaseModel):
     # Dynamic route fields
     resource_type: str | None = None
     resource_source: str | None = None
+    resource_id: str | None = None
     resource_name: str | None = None
     exposure_id: str | None = None
     settings: dict[str, Any] | None = None
@@ -348,8 +349,13 @@ class ChangeSetAddResource(BaseModel):
 
 
 class ChangeSetRemoveExposure(BaseModel):
-    """Schema for removing an exposure from a change set."""
-    exposure_id: UUID
+    """Schema for removing a dynamic route from a change set.
+
+    Accepts resource_id (preferred) or exposure_id. The resource_id
+    matches the discovered resource that generated the endpoint.
+    """
+    resource_id: UUID | None = None
+    exposure_id: UUID | None = None
     user: str
 
 
