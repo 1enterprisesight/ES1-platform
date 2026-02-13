@@ -184,15 +184,6 @@ class DeploymentEngine:
         base_config = await self.get_base_config()
         base_endpoints = base_config.get("endpoints", [])
 
-        # Get deployed exposures with their resources
-        deployed_query = (
-            select(Exposure, DiscoveredResource)
-            .join(DiscoveredResource, Exposure.resource_id == DiscoveredResource.id)
-            .where(Exposure.status == "deployed")
-        )
-        deployed_result = await db.execute(deployed_query)
-        deployed_pairs = deployed_result.all()
-
         # Build base routes info
         base_routes = []
         for ep in base_endpoints:
@@ -212,20 +203,30 @@ class DeploymentEngine:
                 route_info["description"] = ep["@comment"]
             base_routes.append(route_info)
 
-        # Build dynamic routes info
+        # Build dynamic routes from the ACTIVE CONFIG VERSION's snapshot.
+        # The snapshot is the source of truth — it contains exactly what was deployed.
         dynamic_routes = []
-        for exposure, resource in deployed_pairs:
-            generated = exposure.generated_config or {}
-            dynamic_routes.append({
-                "endpoint": generated.get("endpoint", ""),
-                "method": generated.get("method", ""),
-                "resource_type": resource.type,
-                "resource_source": resource.source,
-                "resource_name": resource.resource_metadata.get("name", resource.source_id),
-                "exposure_id": str(exposure.id),
-                "managed_by": "platform-manager",
-                "settings": exposure.settings,
-            })
+        if active_version and active_version.config_snapshot:
+            snapshot_endpoints = active_version.config_snapshot.get("endpoints", [])
+            for ep in snapshot_endpoints:
+                if ep.get("@managed_by") == "platform-manager":
+                    route_info = {
+                        "endpoint": ep.get("endpoint", ""),
+                        "method": ep.get("method", ""),
+                        "resource_type": ep.get("@resource_type"),
+                        "resource_source": ep.get("@resource_source"),
+                        "exposure_id": ep.get("@exposure_id"),
+                        "managed_by": "platform-manager",
+                    }
+                    # Extract backend host
+                    backends = ep.get("backend", [])
+                    if backends:
+                        hosts = backends[0].get("host", [])
+                        route_info["backend_host"] = hosts[0] if hosts else ""
+                    # Derive resource name from endpoint path
+                    endpoint_path = ep.get("endpoint", "")
+                    route_info["resource_name"] = endpoint_path.rsplit("/", 1)[-1].replace("-", " ").title() if endpoint_path else ""
+                    dynamic_routes.append(route_info)
 
         # Build global config (everything except endpoints)
         global_config = {}

@@ -696,7 +696,7 @@ class ChangeSetService:
             config_version.status = "deployed"
             config_version.deployed_to_gateway_at = datetime.utcnow()
 
-            # Update linked change set
+            # Update linked change set and sync exposures table
             cs_query = select(ChangeSet).where(ChangeSet.config_version_id == version_id)
             cs_result = await db.execute(cs_query)
             change_set = cs_result.scalar_one_or_none()
@@ -707,6 +707,53 @@ class ChangeSetService:
                     change.status = "deployed"
                     change.deployed_in_version_id = version_id
                     change.deployed_at = datetime.utcnow()
+
+                    # Sync exposures table so it matches the deployed config
+                    if change.change_type == "add":
+                        resource = await db.get(DiscoveredResource, change.resource_id)
+                        if resource:
+                            try:
+                                endpoint_config = self.generator_registry.generate_config(
+                                    resource_id=str(resource.id),
+                                    resource_type=resource.type,
+                                    resource_metadata=resource.resource_metadata,
+                                    settings=change.settings_after or {},
+                                )
+                                generated = endpoint_config.model_dump(exclude_none=True)
+                                new_exposure = Exposure(
+                                    resource_id=change.resource_id,
+                                    settings=change.settings_after or {},
+                                    generated_config=generated,
+                                    status="deployed",
+                                    created_by=user,
+                                    deployed_in_version_id=version_id,
+                                )
+                                db.add(new_exposure)
+                            except Exception:
+                                pass  # Non-fatal: config is already deployed
+
+                    elif change.change_type == "remove" and change.exposure_id:
+                        exposure = await db.get(Exposure, change.exposure_id)
+                        if exposure:
+                            exposure.status = "removed"
+                            exposure.removed_in_version_id = version_id
+
+                    elif change.change_type == "modify" and change.exposure_id:
+                        exposure = await db.get(Exposure, change.exposure_id)
+                        if exposure:
+                            exposure.settings = change.settings_after or exposure.settings
+                            try:
+                                resource = await db.get(DiscoveredResource, exposure.resource_id)
+                                if resource:
+                                    endpoint_config = self.generator_registry.generate_config(
+                                        resource_id=str(resource.id),
+                                        resource_type=resource.type,
+                                        resource_metadata=resource.resource_metadata,
+                                        settings=change.settings_after or {},
+                                    )
+                                    exposure.generated_config = endpoint_config.model_dump(exclude_none=True)
+                            except Exception:
+                                pass  # Non-fatal
 
             # Audit
             db.add(EventLog(

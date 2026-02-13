@@ -21,27 +21,24 @@ interface ResourceListResponse {
   page_size: number
 }
 
-interface Exposure {
-  id: string
-  resource_id: string
-  settings: Record<string, unknown>
-  generated_config: Record<string, unknown>
-  status: string
-  created_by: string
-  resource?: {
-    id: string
-    type: string
-    source: string
-    source_id: string
-    metadata: Record<string, unknown>
-  }
+interface DynamicRoute {
+  endpoint: string
+  method: string
+  resource_type?: string
+  resource_source?: string
+  resource_name?: string
+  exposure_id?: string
+  managed_by: string
+  backend_host?: string
 }
 
-interface ExposureListResponse {
-  items: Exposure[]
-  total: number
-  page: number
-  page_size: number
+interface ConfigState {
+  active_version: number | null
+  dynamic_routes: DynamicRoute[]
+  base_routes: unknown[]
+  total_endpoints: number
+  base_endpoint_count: number
+  dynamic_endpoint_count: number
 }
 
 interface ChangeSet {
@@ -85,12 +82,12 @@ export function EditConfigView() {
   const [previewData, setPreviewData] = useState<Record<string, unknown> | null>(null)
   const [diffData, setDiffData] = useState<DiffResponse | null>(null)
 
-  // Fetch deployed exposures (current state)
-  const { data: exposures } = useQuery<ExposureListResponse>({
-    queryKey: ['exposures-deployed'],
+  // Fetch current config state (source of truth for what's deployed)
+  const { data: configState } = useQuery<ConfigState>({
+    queryKey: ['gateway-config-state'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/exposures?status=deployed&page_size=100')
-      if (!res.ok) throw new Error('Failed to fetch exposures')
+      const res = await fetch('/api/v1/gateway/config/state')
+      if (!res.ok) throw new Error('Failed to fetch config state')
       return res.json()
     },
   })
@@ -267,10 +264,25 @@ export function EditConfigView() {
       .filter(Boolean) || []
   )
 
-  // Resources that are not already exposed
-  const exposedResourceIds = new Set((exposures?.items || []).map((e) => e.resource_id))
+  // Currently deployed dynamic routes (from config state)
+  const deployedRoutes = configState?.dynamic_routes || []
+
+  // Resources that are not already exposed through the gateway
+  // Match by checking if a resource's endpoint already exists in deployed routes
+  const deployedEndpoints = new Set(deployedRoutes.map((r) => r.endpoint))
   const availableResources = (resources?.items || []).filter(
-    (r) => !exposedResourceIds.has(r.id) && !addedResourceIds.has(r.id) && r.status === 'active'
+    (r) => {
+      // Skip resources already added in this change set
+      if (addedResourceIds.has(r.id)) return false
+      if (r.status !== 'active') return false
+      // Check if this resource is already deployed by seeing if any deployed route
+      // was generated from it (match by exposure_id linkage or source_id)
+      const isDeployed = deployedRoutes.some(
+        (dr) => dr.resource_name?.toLowerCase().replace(/\s+/g, '-') === r.source_id?.toLowerCase().replace(/\s+/g, '-')
+          || dr.endpoint?.includes(r.source_id)
+      )
+      return !isDeployed
+    }
   )
 
   const changeCount = changeSet?.changes.length || 0
@@ -346,55 +358,58 @@ export function EditConfigView() {
         </Card>
       )}
 
-      {/* Currently Exposed */}
+      {/* Currently Exposed (from active config version snapshot) */}
       <Card>
         <CardHeader>
           <CardTitle className="text-sm font-medium">
-            Currently Exposed ({exposures?.items.length || 0})
+            Currently Exposed ({deployedRoutes.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {!exposures?.items.length ? (
+          {deployedRoutes.length === 0 ? (
             <p className="text-sm text-muted-foreground py-4 text-center">
               No resources are currently exposed through the gateway.
             </p>
           ) : (
             <div className="space-y-2">
-              {exposures.items.map((exposure) => (
+              {deployedRoutes.map((route) => (
                 <div
-                  key={exposure.id}
+                  key={route.endpoint}
                   className={`flex items-center justify-between p-3 border rounded ${
-                    removedExposureIds.has(exposure.id) ? 'bg-red-50 dark:bg-red-950/20 border-red-200' : ''
+                    route.exposure_id && removedExposureIds.has(route.exposure_id)
+                      ? 'bg-red-50 dark:bg-red-950/20 border-red-200'
+                      : ''
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Badge variant={typeColors[exposure.resource?.type || ''] || 'secondary'}>
-                      {exposure.resource?.type || 'unknown'}
+                    <Badge variant={typeColors[route.resource_type || ''] || 'secondary'}>
+                      {route.resource_type || 'unknown'}
                     </Badge>
                     <div>
                       <p className="text-sm font-medium">
-                        {(exposure.resource?.metadata as Record<string, string>)?.name ||
-                          exposure.resource?.source_id || 'Unknown'}
+                        {route.resource_name || 'Unknown'}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {exposure.resource?.source} &middot;{' '}
-                        {(exposure.generated_config as Record<string, string>)?.endpoint || 'No endpoint'}
+                        {route.resource_source} &middot;{' '}
+                        <span className="font-mono">{route.method} {route.endpoint}</span>
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {removedExposureIds.has(exposure.id) ? (
+                    {route.exposure_id && removedExposureIds.has(route.exposure_id) ? (
                       <Badge variant="destructive">Marked for removal</Badge>
-                    ) : (
+                    ) : route.exposure_id ? (
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => removeMutation.mutate(exposure.id)}
+                        onClick={() => removeMutation.mutate(route.exposure_id!)}
                         disabled={removeMutation.isPending}
                       >
                         <Minus className="h-4 w-4 mr-1" />
                         Remove
                       </Button>
+                    ) : (
+                      <Badge variant="secondary">No exposure record</Badge>
                     )}
                   </div>
                 </div>
