@@ -15,8 +15,8 @@ from app.core.database import get_db
 
 router = APIRouter(prefix="/models", tags=["Models Inventory"])
 
-OLLAMA_URL = getattr(settings, 'OLLAMA_URL', 'http://es1-ollama:11434')
-MLFLOW_URL = getattr(settings, 'MLFLOW_URL', 'http://es1-mlflow:5000')
+OLLAMA_URL = settings.OLLAMA_URL
+MLFLOW_URL = settings.MLFLOW_URL
 
 
 # =============================================================================

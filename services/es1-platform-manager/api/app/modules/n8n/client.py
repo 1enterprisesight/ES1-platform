@@ -81,7 +81,7 @@ class N8NClient:
                         return {
                             "status": "setup_required",
                             "message": "n8n is running but API key not configured",
-                            "setup_url": "http://localhost:5678",
+                            "setup_url": settings.N8N_URL,
                         }
                     return {"status": "healthy", "data": {"message": "n8n is running"}}
                 return {"status": "unhealthy", "error": f"HTTP {response.status_code}"}
