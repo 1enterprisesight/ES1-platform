@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { RefreshCw, History, RotateCcw, Play, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 
@@ -52,7 +53,7 @@ export function HistoryView() {
   const [rollbackReason, setRollbackReason] = useState('')
 
   const { data: versions, isLoading, refetch } = useQuery<ConfigVersionListResponse>({
-    queryKey: ['config-versions'],
+    queryKey: gatewayKeys.versions.list,
     queryFn: async () => {
       const res = await fetch('/api/v1/config-versions?page_size=50')
       if (!res.ok) throw new Error('Failed to fetch config versions')
@@ -61,7 +62,7 @@ export function HistoryView() {
   })
 
   const { data: deployments } = useQuery<DeploymentListResponse>({
-    queryKey: ['deployments-recent'],
+    queryKey: gatewayKeys.deployments.recent,
     queryFn: async () => {
       const res = await fetch('/api/v1/deployments?page_size=50')
       if (!res.ok) throw new Error('Failed to fetch deployments')
@@ -101,9 +102,9 @@ export function HistoryView() {
       setRollbackDialogOpen(false)
       setSelectedVersion(null)
       setRollbackReason('')
-      queryClient.invalidateQueries({ queryKey: ['config-versions'] })
-      queryClient.invalidateQueries({ queryKey: ['deployments'] })
-      queryClient.invalidateQueries({ queryKey: ['gateway-config-state'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.versions.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.deployments.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.config.state })
       addToast({ type: 'success', title: 'Rollback successful' })
     },
     onError: (err: Error) => {

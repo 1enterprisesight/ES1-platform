@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { RefreshCw, CheckCircle, XCircle, Clock, RotateCcw, Rocket, History, AlertTriangle } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 
@@ -50,7 +51,7 @@ export function DeploymentsView() {
   const { addToast } = useToast()
 
   const { data, isLoading, refetch } = useQuery<DeploymentListResponse>({
-    queryKey: ['deployments', page],
+    queryKey: gatewayKeys.deployments.list(page),
     queryFn: async () => {
       const res = await fetch(`/api/v1/deployments?page=${page}&page_size=20`)
       if (!res.ok) throw new Error('Failed to fetch deployments')
@@ -59,7 +60,7 @@ export function DeploymentsView() {
   })
 
   const { data: versions, isLoading: versionsLoading } = useQuery<ConfigVersionListResponse>({
-    queryKey: ['config-versions'],
+    queryKey: gatewayKeys.versions.list,
     queryFn: async () => {
       const res = await fetch('/api/v1/config-versions?page_size=50')
       if (!res.ok) throw new Error('Failed to fetch config versions')
@@ -89,9 +90,9 @@ export function DeploymentsView() {
       setRollbackDialogOpen(false)
       setSelectedVersion(null)
       setRollbackReason('')
-      queryClient.invalidateQueries({ queryKey: ['deployments'] })
-      queryClient.invalidateQueries({ queryKey: ['config-versions'] })
-      queryClient.invalidateQueries({ queryKey: ['gateway-status'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.deployments.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.versions.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.config.state })
       addToast({ type: 'success', title: 'Rollback successful', description: `Rolled back to v${selectedVersion?.version}` })
     },
     onError: (err: Error) => {
@@ -116,10 +117,10 @@ export function DeploymentsView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['deployments'] })
-      queryClient.invalidateQueries({ queryKey: ['config-versions'] })
-      queryClient.invalidateQueries({ queryKey: ['gateway-status'] })
-      queryClient.invalidateQueries({ queryKey: ['exposures'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.deployments.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.versions.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.config.state })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.exposures.all })
       addToast({ type: 'success', title: 'Deployment started' })
     },
     onError: (err: Error) => {

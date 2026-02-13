@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, X, Rocket, RefreshCw } from 'lucide-react'
+import { gatewayKeys } from '../queryKeys'
 import { Button, Card, Badge } from '@/design-system/components'
 import { useToast } from '@/shared/contexts/ToastContext'
 
@@ -37,7 +38,7 @@ export function ExposuresView() {
   const { addToast } = useToast()
 
   const { data, isLoading, refetch } = useQuery<ExposureListResponse>({
-    queryKey: ['exposures', page, statusFilter],
+    queryKey: gatewayKeys.exposures.list(page, statusFilter),
     queryFn: async () => {
       const params = new URLSearchParams({ page: String(page), page_size: '20' })
       if (statusFilter) params.set('status', statusFilter)
@@ -58,7 +59,7 @@ export function ExposuresView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exposures'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.exposures.all })
       addToast({ type: 'success', title: 'Exposure approved' })
     },
   })
@@ -74,7 +75,7 @@ export function ExposuresView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exposures'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.exposures.all })
       addToast({ type: 'info', title: 'Exposure rejected' })
     },
   })
@@ -93,9 +94,9 @@ export function ExposuresView() {
       return res.json()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['exposures'] })
-      queryClient.invalidateQueries({ queryKey: ['deployments'] })
-      queryClient.invalidateQueries({ queryKey: ['gateway-status'] })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.exposures.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.deployments.all })
+      queryClient.invalidateQueries({ queryKey: gatewayKeys.config.state })
       addToast({ type: 'success', title: 'Deployment successful' })
     },
     onError: (err: Error) => {
