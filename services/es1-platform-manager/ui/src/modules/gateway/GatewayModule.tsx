@@ -1,16 +1,16 @@
 import { Routes, Route, NavLink, useLocation } from 'react-router-dom'
 import { cn } from '@/shared/utils/cn'
-import { ResourcesView } from './views/ResourcesView'
-import { ExposuresView } from './views/ExposuresView'
-import { DeploymentsView } from './views/DeploymentsView'
+import { CurrentStateView } from './views/CurrentStateView'
+import { EditConfigView } from './views/EditConfigView'
+import { ReviewView } from './views/ReviewView'
+import { HistoryView } from './views/HistoryView'
 import { HealthView } from './views/HealthView'
-import { ConfigView } from './views/ConfigView'
 
 const tabs = [
-  { path: '/gateway', label: 'Resources', exact: true },
-  { path: '/gateway/exposures', label: 'Exposures' },
-  { path: '/gateway/deployments', label: 'Deployments' },
-  { path: '/gateway/config', label: 'Config' },
+  { path: '/gateway', label: 'Overview', exact: true },
+  { path: '/gateway/edit', label: 'Edit' },
+  { path: '/gateway/review', label: 'Review' },
+  { path: '/gateway/history', label: 'History' },
   { path: '/gateway/health', label: 'Health' },
 ]
 
@@ -21,7 +21,7 @@ export function GatewayModule() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">API Gateway</h1>
-        <p className="text-muted-foreground">Manage gateway resources, exposures, and deployments</p>
+        <p className="text-muted-foreground">Manage gateway configuration, exposures, and deployments</p>
       </div>
 
       {/* Tab Navigation */}
@@ -53,10 +53,10 @@ export function GatewayModule() {
 
       {/* Tab Content */}
       <Routes>
-        <Route index element={<ResourcesView />} />
-        <Route path="exposures" element={<ExposuresView />} />
-        <Route path="deployments" element={<DeploymentsView />} />
-        <Route path="config" element={<ConfigView />} />
+        <Route index element={<CurrentStateView />} />
+        <Route path="edit" element={<EditConfigView />} />
+        <Route path="review" element={<ReviewView />} />
+        <Route path="history" element={<HistoryView />} />
         <Route path="health" element={<HealthView />} />
       </Routes>
     </div>
