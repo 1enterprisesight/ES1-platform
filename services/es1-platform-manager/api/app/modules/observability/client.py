@@ -63,7 +63,7 @@ class LangfuseClient:
                     return {
                         "status": "setup_required",
                         "message": "Langfuse is running but API keys not configured. Create API keys in Langfuse UI.",
-                        "setup_url": "http://localhost:3000/project/default/settings/api-keys",
+                        "setup_url": f"{settings.LANGFUSE_URL}/project/default/settings/api-keys",
                     }
                 return {"status": "healthy", "data": response.json()}
             return {"status": "unhealthy", "error": f"HTTP {response.status_code}"}

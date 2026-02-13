@@ -7,7 +7,7 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/mlflow", tags=["MLflow"])
 
-MLFLOW_URL = getattr(settings, 'MLFLOW_URL', 'http://es1-mlflow:5000')
+MLFLOW_URL = settings.MLFLOW_URL
 
 
 async def mlflow_request(method: str, endpoint: str, **kwargs) -> dict:

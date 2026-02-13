@@ -8,7 +8,7 @@ from app.core.config import settings
 
 router = APIRouter(prefix="/ollama", tags=["Ollama"])
 
-OLLAMA_URL = getattr(settings, 'OLLAMA_URL', 'http://es1-ollama:11434')
+OLLAMA_URL = settings.OLLAMA_URL
 
 
 class ModelPullRequest(BaseModel):
