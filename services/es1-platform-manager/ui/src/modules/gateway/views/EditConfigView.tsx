@@ -268,8 +268,6 @@ export function EditConfigView() {
   const deployedRoutes = configState?.dynamic_routes || []
 
   // Resources that are not already exposed through the gateway
-  // Match by checking if a resource's endpoint already exists in deployed routes
-  const deployedEndpoints = new Set(deployedRoutes.map((r) => r.endpoint))
   const availableResources = (resources?.items || []).filter(
     (r) => {
       // Skip resources already added in this change set
