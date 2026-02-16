@@ -1,0 +1,35 @@
+# ES1 Platform Image Manifest
+# Version: v2.1.1
+# Generated: 2026-02-16T20:19:29Z
+# Registry: ghcr.io/1enterprisesight/es1-platform
+#
+# Custom-built images (13):
+ghcr.io/1enterprisesight/es1-platform/postgres:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/redis:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/krakend:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/aiml-postgres:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/mlflow:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/crewai:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/autogen:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/crewai-studio:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/autogen-studio:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/db-migrate:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/agent-router:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/platform-manager-api:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/platform-manager-ui:v2.1.1
+#
+# Pre-built images (14):
+ghcr.io/1enterprisesight/es1-platform/ollama:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/ollama-webui:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/airflow:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/statsd-exporter:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/langflow:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/langfuse:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/n8n:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/prometheus:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/grafana:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/cadvisor:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/node-exporter:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/postgres-exporter:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/redis-exporter:v2.1.1
+ghcr.io/1enterprisesight/es1-platform/kube-state-metrics:v2.1.1
