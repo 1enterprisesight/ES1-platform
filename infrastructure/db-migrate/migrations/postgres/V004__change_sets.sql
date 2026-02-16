@@ -1,6 +1,22 @@
 -- V004: Change Sets for gateway configuration management
 -- Adds change_sets table and links exposure_changes to change sets
 
+-- Ensure config_versions exists before creating FKs.
+-- On fresh installs the db-migrate hook runs before the API pod starts,
+-- so the table created by SQLAlchemy create_all() may not exist yet.
+-- When the API starts later its CREATE TABLE IF NOT EXISTS is a no-op.
+CREATE TABLE IF NOT EXISTS config_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version INTEGER NOT NULL UNIQUE,
+    config_snapshot JSONB NOT NULL,
+    created_by VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    commit_message TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT false,
+    deployed_to_gateway_at TIMESTAMP,
+    status VARCHAR(50)
+);
+
 -- Change sets represent a draft collection of configuration changes
 -- that can be previewed, submitted for approval, and deployed as a unit.
 CREATE TABLE IF NOT EXISTS change_sets (

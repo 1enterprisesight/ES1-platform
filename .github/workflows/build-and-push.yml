@@ -1,29 +1,15 @@
-name: Build and Push Multi-Arch Images
+name: CI — Validate Docker Builds
+
+# Build validation only — no images are pushed.
+# Images are only pushed to GHCR by build-release-images.yml on version tags.
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'services/**'
-      - 'infrastructure/**'
-      - '.github/workflows/build-and-push.yml'
   pull_request:
     branches:
       - main
     paths:
       - 'services/**'
       - 'infrastructure/**'
-  workflow_dispatch:
-    inputs:
-      service:
-        description: 'Service to build (leave empty for all)'
-        required: false
-        default: ''
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || format('{0}/es1-platform', github.repository_owner) }}
 
 jobs:
   detect-changes:
@@ -36,33 +22,28 @@ jobs:
       - name: Detect changed services
         id: changes
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]] && [[ -n "${{ github.event.inputs.service }}" ]]; then
-            INPUT="${{ github.event.inputs.service }}"
-            MATRIX="[{\"service\":\"${INPUT}\",\"context\":\"${INPUT}\"}]"
-          else
-            # Find all directories with Dockerfiles across services/ and infrastructure/
-            MATRIX="["
-            FIRST=true
-            for dockerfile in $(find services infrastructure -name "Dockerfile" -not -path "*/service-template-*" 2>/dev/null | sort); do
-              CONTEXT=$(dirname "$dockerfile")
-              SERVICE=$(basename "$CONTEXT")
-              # Special handling for nested services
-              if [[ "$CONTEXT" == "services/es1-platform-manager/api" ]]; then
-                SERVICE="platform-manager-api"
-              elif [[ "$CONTEXT" == "services/es1-platform-manager/ui" ]]; then
-                SERVICE="platform-manager-ui"
-              elif [[ "$CONTEXT" == "services/agents/router" ]]; then
-                SERVICE="agent-router"
-              fi
-              if [[ "$FIRST" == "true" ]]; then
-                FIRST=false
-              else
-                MATRIX+=","
-              fi
-              MATRIX+="{\"service\":\"${SERVICE}\",\"context\":\"${CONTEXT}\"}"
-            done
-            MATRIX+="]"
-          fi
+          # Find all directories with Dockerfiles across services/ and infrastructure/
+          MATRIX="["
+          FIRST=true
+          for dockerfile in $(find services infrastructure -name "Dockerfile" -not -path "*/service-template-*" 2>/dev/null | sort); do
+            CONTEXT=$(dirname "$dockerfile")
+            SERVICE=$(basename "$CONTEXT")
+            # Special handling for nested services
+            if [[ "$CONTEXT" == "services/es1-platform-manager/api" ]]; then
+              SERVICE="platform-manager-api"
+            elif [[ "$CONTEXT" == "services/es1-platform-manager/ui" ]]; then
+              SERVICE="platform-manager-ui"
+            elif [[ "$CONTEXT" == "services/agents/router" ]]; then
+              SERVICE="agent-router"
+            fi
+            if [[ "$FIRST" == "true" ]]; then
+              FIRST=false
+            else
+              MATRIX+=","
+            fi
+            MATRIX+="{\"service\":\"${SERVICE}\",\"context\":\"${CONTEXT}\"}"
+          done
+          MATRIX+="]"
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   build:
@@ -74,10 +55,6 @@ jobs:
         include: ${{ fromJson(needs.detect-changes.outputs.matrix) }}
       fail-fast: false
 
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -87,33 +64,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.service }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=sha,prefix=
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
-
-      - name: Build and push
+      - name: Build (no push)
         uses: docker/build-push-action@v5
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.context }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
