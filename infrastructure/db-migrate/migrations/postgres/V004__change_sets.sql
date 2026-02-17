@@ -26,7 +26,12 @@ CREATE TABLE IF NOT EXISTS config_versions (
     commit_message TEXT,
     is_active BOOLEAN NOT NULL DEFAULT false,
     deployed_to_gateway_at TIMESTAMP,
-    status VARCHAR(50)
+    status VARCHAR(50),
+    approved_by VARCHAR(255),
+    approved_at TIMESTAMP,
+    rejected_by VARCHAR(255),
+    rejected_at TIMESTAMP,
+    rejection_reason TEXT
 );
 
 CREATE TABLE IF NOT EXISTS exposures (
