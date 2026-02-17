@@ -297,8 +297,6 @@ jobs:
             source: prometheuscommunity/postgres-exporter:v0.15.0
           - service: redis-exporter
             source: oliver006/redis_exporter:v1.58.0
-          - service: kube-state-metrics
-            source: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0
     steps:
       - name: Install crane
         uses: imjasonh/setup-crane@v0.4
@@ -373,7 +371,7 @@ jobs:
           ${REGISTRY_PREFIX}/platform-manager-api:${VERSION}
           ${REGISTRY_PREFIX}/platform-manager-ui:${VERSION}
           #
-          # Pre-built images (14):
+          # Pre-built images (13):
           ${REGISTRY_PREFIX}/ollama:${VERSION}
           ${REGISTRY_PREFIX}/ollama-webui:${VERSION}
           ${REGISTRY_PREFIX}/airflow:${VERSION}
@@ -387,7 +385,6 @@ jobs:
           ${REGISTRY_PREFIX}/node-exporter:${VERSION}
           ${REGISTRY_PREFIX}/postgres-exporter:${VERSION}
           ${REGISTRY_PREFIX}/redis-exporter:${VERSION}
-          ${REGISTRY_PREFIX}/kube-state-metrics:${VERSION}
           EOF
 
       - name: Commit manifest
@@ -434,7 +431,7 @@ jobs:
           echo "| mirror-prebuilt-images | ${{ needs.mirror-prebuilt-images.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          echo "### All Images (27)" >> $GITHUB_STEP_SUMMARY
+          echo "### All Images (26)" >> $GITHUB_STEP_SUMMARY
           echo "Registry: \`${REGISTRY_PREFIX}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Custom Images (13):**" >> $GITHUB_STEP_SUMMARY
@@ -444,9 +441,9 @@ jobs:
           done
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Pre-built Images (14):**" >> $GITHUB_STEP_SUMMARY
+          echo "**Pre-built Images (13):**" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          for svc in ollama ollama-webui airflow statsd-exporter langflow langfuse n8n prometheus grafana cadvisor node-exporter postgres-exporter redis-exporter kube-state-metrics; do
+          for svc in ollama ollama-webui airflow statsd-exporter langflow langfuse n8n prometheus grafana cadvisor node-exporter postgres-exporter redis-exporter; do
             echo "${REGISTRY_PREFIX}/${svc}:${VERSION}" >> $GITHUB_STEP_SUMMARY
           done
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
