@@ -475,28 +475,27 @@ jobs:
             kube-state-metrics
           )
 
-          cat > ".github/image-manifests/${VERSION}.yml" <<HEADER
-# ES1 Platform -- Image Manifest
-# Version: ${VERSION}
-# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
-# Registry: ${REGISTRY}
-# Platform: linux/amd64
-#
-# Each image is an independent, single-arch manifest.
-# No multi-arch indexes, no attestations, no tag pointers.
-version: "${VERSION}"
-registry: "${REGISTRY}"
-platform: "linux/amd64"
-images:
-HEADER
+          MANIFEST=".github/image-manifests/${VERSION}.yml"
+          {
+            echo "# ES1 Platform -- Image Manifest"
+            echo "# Version: ${VERSION}"
+            echo "# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "# Registry: ${REGISTRY}"
+            echo "# Platform: linux/amd64"
+            echo "#"
+            echo "# Each image is an independent, single-arch manifest."
+            echo "# No multi-arch indexes, no attestations, no tag pointers."
+            echo "version: \"${VERSION}\""
+            echo "registry: \"${REGISTRY}\""
+            echo "platform: \"linux/amd64\""
+            echo "images:"
+          } > "$MANIFEST"
 
           for IMG in "${IMAGES[@]}"; do
             DIGEST=$(crane digest "${REGISTRY}/${IMG}:${VERSION}" 2>/dev/null || echo "unknown")
-            cat >> ".github/image-manifests/${VERSION}.yml" <<ENTRY
-  - name: ${IMG}
-    tag: ${VERSION}
-    digest: ${DIGEST}
-ENTRY
+            echo "  - name: ${IMG}" >> "$MANIFEST"
+            echo "    tag: ${VERSION}" >> "$MANIFEST"
+            echo "    digest: ${DIGEST}" >> "$MANIFEST"
           done
 
       - name: Commit manifest
