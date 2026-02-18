@@ -1,14 +1,14 @@
-# ES1 Platform — Release Images
+# ES1 Platform -- Release Images
 #
 # Builds a complete, self-contained set of images for a release version.
-# Each version is independent — no tag pointers to other versions.
+# Each version is independent -- no tag pointers to other versions.
 # Only two versions are kept on GHCR: current and previous.
 #
 # Trigger: Manual only (workflow_dispatch)
 #
 # Image types:
-#   Custom (13) — built from source when code changes, copied forward when not
-#   Upstream (14) — pulled from public registries when source tag changes in
+#   Custom (13) -- built from source when code changes, copied forward when not
+#   Upstream (14) -- pulled from public registries when source tag changes in
 #                   .github/upstream-images.json, copied forward when not
 #
 # Result: 27 clean, single-arch (amd64) images on GHCR, each verified.
@@ -143,7 +143,7 @@ jobs:
               PREV_SOURCE=$(echo "$PREV_CONFIG" | jq -r ".images[] | select(.name==\"$NAME\") | .source // \"\"")
 
               if [[ "$SOURCE" != "$PREV_SOURCE" ]]; then
-                echo "  CHANGED upstream: $NAME ($PREV_SOURCE → $SOURCE)"
+                echo "  CHANGED upstream: $NAME ($PREV_SOURCE -> $SOURCE)"
                 UPSTREAM_CHANGED=$(echo "$UPSTREAM_CHANGED" | jq -c ". + [{\"name\": \"$NAME\", \"source\": \"$SOURCE\"}]")
               else
                 echo "  unchanged upstream: $NAME"
@@ -253,7 +253,7 @@ jobs:
           VERSION="${{ needs.detect-changes.outputs.version }}"
           TARGET="${REGISTRY}/${NAME}:${VERSION}"
 
-          echo "Copying ${SOURCE} → ${TARGET} (amd64 only)"
+          echo "Copying ${SOURCE} -> ${TARGET} (amd64 only)"
           crane copy --platform linux/amd64 "${SOURCE}" "${TARGET}"
           echo "Done: ${TARGET}"
 
@@ -287,7 +287,7 @@ jobs:
           SRC="${REGISTRY}/${NAME}:${PREV}"
           DST="${REGISTRY}/${NAME}:${VERSION}"
 
-          echo "Copying ${SRC} → ${DST}"
+          echo "Copying ${SRC} -> ${DST}"
           crane copy "${SRC}" "${DST}"
           echo "Done: ${DST}"
 
@@ -347,7 +347,7 @@ jobs:
               MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: warn-multiarch\n"
               FAIL=$((FAIL + 1))
             else
-              echo "  FAIL: ${IMG} — ${MEDIA_TYPE}"
+              echo "  FAIL: ${IMG} -- ${MEDIA_TYPE}"
               MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: missing\n"
               FAIL=$((FAIL + 1))
             fi
@@ -476,7 +476,7 @@ jobs:
           )
 
           cat > ".github/image-manifests/${VERSION}.yml" <<HEADER
-# ES1 Platform — Image Manifest
+# ES1 Platform -- Image Manifest
 # Version: ${VERSION}
 # Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
 # Registry: ${REGISTRY}
