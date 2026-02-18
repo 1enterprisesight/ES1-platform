@@ -239,13 +239,14 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.detect-changes.outputs.upstream_changed) }}
     steps:
-      - name: Install crane
-        uses: imjasonh/setup-crane@v0.4
-
       - name: Log in to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Copy from public registry
+      - name: Pull, retag, and push
         run: |
           REGISTRY="${{ needs.detect-changes.outputs.registry }}"
           NAME="${{ matrix.name }}"
@@ -253,8 +254,10 @@ jobs:
           VERSION="${{ needs.detect-changes.outputs.version }}"
           TARGET="${REGISTRY}/${NAME}:${VERSION}"
 
-          echo "Copying ${SOURCE} -> ${TARGET} (amd64 only)"
-          crane copy --platform linux/amd64 "${SOURCE}" "${TARGET}"
+          echo "Pulling ${SOURCE} (amd64)"
+          docker pull --platform linux/amd64 "${SOURCE}"
+          docker tag "${SOURCE}" "${TARGET}"
+          docker push "${TARGET}"
           echo "Done: ${TARGET}"
 
   # ===========================================================================
