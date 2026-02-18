@@ -1,0 +1,508 @@
+# ES1 Platform — Release Images
+#
+# Builds a complete, self-contained set of images for a release version.
+# Each version is independent — no tag pointers to other versions.
+# Only two versions are kept on GHCR: current and previous.
+#
+# Trigger: Manual only (workflow_dispatch)
+#
+# Image types:
+#   Custom (13) — built from source when code changes, copied forward when not
+#   Upstream (14) — pulled from public registries when source tag changes in
+#                   .github/upstream-images.json, copied forward when not
+#
+# Result: 27 clean, single-arch (amd64) images on GHCR, each verified.
+
+name: Release Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. v2.1.3). Must be a git tag.'
+        required: true
+        type: string
+      force_rebuild_all:
+        description: 'Force rebuild/re-pull ALL images (ignore change detection)'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ vars.IMAGE_PREFIX || format('{0}/es1-platform', github.repository_owner) }}
+
+jobs:
+  # ===========================================================================
+  # Step 1: Detect what changed
+  # ===========================================================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.config.outputs.version }}
+      prev_version: ${{ steps.config.outputs.prev_version }}
+      registry: ${{ steps.config.outputs.registry }}
+      custom_changed: ${{ steps.changes.outputs.custom_changed }}
+      upstream_changed: ${{ steps.changes.outputs.upstream_changed }}
+      all_unchanged: ${{ steps.changes.outputs.all_unchanged }}
+      has_custom_changed: ${{ steps.changes.outputs.has_custom_changed }}
+      has_upstream_changed: ${{ steps.changes.outputs.has_upstream_changed }}
+      has_unchanged: ${{ steps.changes.outputs.has_unchanged }}
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate inputs
+        run: |
+          VERSION="${{ inputs.version }}"
+          if ! git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "::error::Tag '$VERSION' does not exist. Create the tag first."
+            exit 1
+          fi
+
+      - name: Configure versions
+        id: config
+        run: |
+          VERSION="${{ inputs.version }}"
+          PREV=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1)
+          REGISTRY="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "prev_version=$PREV" >> $GITHUB_OUTPUT
+          echo "registry=$REGISTRY" >> $GITHUB_OUTPUT
+
+          echo "## Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| | |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | \`$VERSION\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Previous | \`$PREV\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Registry | \`$REGISTRY\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Force rebuild | ${{ inputs.force_rebuild_all }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Detect changes
+        id: changes
+        run: |
+          VERSION="${{ inputs.version }}"
+          PREV="${{ steps.config.outputs.prev_version }}"
+          FORCE="${{ inputs.force_rebuild_all }}"
+
+          # --- Custom images: 13 services with build contexts ---
+          declare -A CUSTOM_CONTEXTS=(
+            ["platform-manager-api"]="services/es1-platform-manager/api"
+            ["platform-manager-ui"]="services/es1-platform-manager/ui"
+            ["db-migrate"]="infrastructure/db-migrate"
+            ["agent-router"]="services/agents/router"
+            ["krakend"]="services/krakend"
+            ["postgres"]="infrastructure/postgres"
+            ["aiml-postgres"]="infrastructure/aiml-postgres"
+            ["redis"]="infrastructure/redis"
+            ["mlflow"]="infrastructure/mlflow"
+            ["crewai"]="services/agents/crewai"
+            ["autogen"]="services/agents/autogen"
+            ["crewai-studio"]="services/agents/crewai-studio"
+            ["autogen-studio"]="services/agents/autogen-studio"
+          )
+
+          CUSTOM_CHANGED="[]"
+          CUSTOM_UNCHANGED="[]"
+
+          for SERVICE in "${!CUSTOM_CONTEXTS[@]}"; do
+            CONTEXT="${CUSTOM_CONTEXTS[$SERVICE]}"
+            if [[ "$FORCE" == "true" || -z "$PREV" ]]; then
+              CUSTOM_CHANGED=$(echo "$CUSTOM_CHANGED" | jq -c ". + [{\"name\": \"$SERVICE\", \"context\": \"$CONTEXT\"}]")
+            else
+              DIFF=$(git diff --name-only "$PREV..$VERSION" -- "$CONTEXT" | wc -l | tr -d ' ')
+              if [[ "$DIFF" -gt 0 ]]; then
+                echo "  CHANGED: $SERVICE ($DIFF files)"
+                CUSTOM_CHANGED=$(echo "$CUSTOM_CHANGED" | jq -c ". + [{\"name\": \"$SERVICE\", \"context\": \"$CONTEXT\"}]")
+              else
+                echo "  unchanged: $SERVICE"
+                CUSTOM_UNCHANGED=$(echo "$CUSTOM_UNCHANGED" | jq -c ". + [{\"name\": \"$SERVICE\"}]")
+              fi
+            fi
+          done
+
+          # --- Upstream images: detect source tag changes in config ---
+          UPSTREAM_CHANGED="[]"
+          UPSTREAM_UNCHANGED="[]"
+
+          if [[ "$FORCE" == "true" || -z "$PREV" ]]; then
+            # Force: pull everything fresh
+            UPSTREAM_CHANGED=$(jq -c '[.images[] | {name: .name, source: .source}]' .github/upstream-images.json)
+          else
+            # Compare upstream-images.json between versions
+            CURRENT_CONFIG=$(cat .github/upstream-images.json)
+            PREV_CONFIG=$(git show "$PREV:.github/upstream-images.json" 2>/dev/null || echo '{"images":[]}')
+
+            for row in $(echo "$CURRENT_CONFIG" | jq -c '.images[]'); do
+              NAME=$(echo "$row" | jq -r '.name')
+              SOURCE=$(echo "$row" | jq -r '.source')
+              PREV_SOURCE=$(echo "$PREV_CONFIG" | jq -r ".images[] | select(.name==\"$NAME\") | .source // \"\"")
+
+              if [[ "$SOURCE" != "$PREV_SOURCE" ]]; then
+                echo "  CHANGED upstream: $NAME ($PREV_SOURCE → $SOURCE)"
+                UPSTREAM_CHANGED=$(echo "$UPSTREAM_CHANGED" | jq -c ". + [{\"name\": \"$NAME\", \"source\": \"$SOURCE\"}]")
+              else
+                echo "  unchanged upstream: $NAME"
+                UPSTREAM_UNCHANGED=$(echo "$UPSTREAM_UNCHANGED" | jq -c ". + [{\"name\": \"$NAME\"}]")
+              fi
+            done
+          fi
+
+          # Merge all unchanged into one array for a single copy job
+          ALL_UNCHANGED=$(jq -cn --argjson a "$CUSTOM_UNCHANGED" --argjson b "$UPSTREAM_UNCHANGED" '$a + $b')
+
+          # Output matrices
+          echo "custom_changed={\"include\":$CUSTOM_CHANGED}" >> $GITHUB_OUTPUT
+          echo "upstream_changed={\"include\":$UPSTREAM_CHANGED}" >> $GITHUB_OUTPUT
+          echo "all_unchanged={\"include\":$ALL_UNCHANGED}" >> $GITHUB_OUTPUT
+
+          CC=$(echo "$CUSTOM_CHANGED" | jq length)
+          CU=$(echo "$CUSTOM_UNCHANGED" | jq length)
+          UC=$(echo "$UPSTREAM_CHANGED" | jq length)
+          UU=$(echo "$UPSTREAM_UNCHANGED" | jq length)
+          AU=$(echo "$ALL_UNCHANGED" | jq length)
+
+          echo "has_custom_changed=$( [[ $CC -gt 0 ]] && echo true || echo false )" >> $GITHUB_OUTPUT
+          echo "has_upstream_changed=$( [[ $UC -gt 0 ]] && echo true || echo false )" >> $GITHUB_OUTPUT
+          echo "has_unchanged=$( [[ $AU -gt 0 ]] && echo true || echo false )" >> $GITHUB_OUTPUT
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Changes Detected" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Changed | Unchanged |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|---------|-----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Custom images | $CC | $CU |" >> $GITHUB_STEP_SUMMARY
+          echo "| Upstream images | $UC | $UU |" >> $GITHUB_STEP_SUMMARY
+
+  # ===========================================================================
+  # Step 2: Build changed custom images
+  # ===========================================================================
+  build-custom:
+    name: Build ${{ matrix.name }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_custom_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.custom_changed) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.detect-changes.outputs.version }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        run: |
+          REGISTRY="${{ needs.detect-changes.outputs.registry }}"
+          NAME="${{ matrix.name }}"
+          VERSION="${{ needs.detect-changes.outputs.version }}"
+          CONTEXT="${{ matrix.context }}"
+          TAG="${REGISTRY}/${NAME}:${VERSION}"
+
+          echo "Building ${NAME} from ${CONTEXT}"
+          docker build \
+            --platform linux/amd64 \
+            --label "org.opencontainers.image.version=${VERSION}" \
+            --label "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}" \
+            --label "org.opencontainers.image.revision=${{ github.sha }}" \
+            -t "${TAG}" \
+            -f "${CONTEXT}/Dockerfile" \
+            "${CONTEXT}"
+
+          docker push "${TAG}"
+          echo "Pushed ${TAG}"
+
+  # ===========================================================================
+  # Step 3: Pull changed upstream images from public registries
+  # ===========================================================================
+  pull-upstream:
+    name: Pull ${{ matrix.name }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_upstream_changed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.upstream_changed) }}
+    steps:
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Copy from public registry
+        run: |
+          REGISTRY="${{ needs.detect-changes.outputs.registry }}"
+          NAME="${{ matrix.name }}"
+          SOURCE="${{ matrix.source }}"
+          VERSION="${{ needs.detect-changes.outputs.version }}"
+          TARGET="${REGISTRY}/${NAME}:${VERSION}"
+
+          echo "Copying ${SOURCE} → ${TARGET} (amd64 only)"
+          crane copy --platform linux/amd64 "${SOURCE}" "${TARGET}"
+          echo "Done: ${TARGET}"
+
+  # ===========================================================================
+  # Step 4: Copy ALL unchanged images from previous version
+  # ===========================================================================
+  copy-unchanged:
+    name: Copy ${{ matrix.name }}
+    needs: detect-changes
+    if: needs.detect-changes.outputs.has_unchanged == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.detect-changes.outputs.all_unchanged) }}
+    steps:
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Copy from previous version
+        run: |
+          REGISTRY="${{ needs.detect-changes.outputs.registry }}"
+          NAME="${{ matrix.name }}"
+          PREV="${{ needs.detect-changes.outputs.prev_version }}"
+          VERSION="${{ needs.detect-changes.outputs.version }}"
+
+          SRC="${REGISTRY}/${NAME}:${PREV}"
+          DST="${REGISTRY}/${NAME}:${VERSION}"
+
+          echo "Copying ${SRC} → ${DST}"
+          crane copy "${SRC}" "${DST}"
+          echo "Done: ${DST}"
+
+  # ===========================================================================
+  # Step 5: Verify every image
+  # ===========================================================================
+  verify:
+    name: Verify All Images
+    needs: [detect-changes, build-custom, pull-upstream, copy-unchanged]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    permissions:
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Verify all 27 images exist and are valid amd64
+        id: verify
+        run: |
+          REGISTRY="${{ needs.detect-changes.outputs.registry }}"
+          VERSION="${{ needs.detect-changes.outputs.version }}"
+
+          # All 27 image names
+          IMAGES=(
+            platform-manager-api platform-manager-ui db-migrate agent-router
+            krakend postgres aiml-postgres redis mlflow
+            crewai autogen crewai-studio autogen-studio
+            ollama ollama-webui airflow statsd-exporter
+            langflow langfuse n8n prometheus grafana
+            cadvisor node-exporter postgres-exporter redis-exporter
+            kube-state-metrics
+          )
+
+          PASS=0
+          FAIL=0
+          MANIFEST_YAML="version: ${VERSION}\nregistry: ${REGISTRY}\ngenerated: $(date -u +%Y-%m-%dT%H:%M:%SZ)\nimages:\n"
+
+          for IMG in "${IMAGES[@]}"; do
+            TAG="${REGISTRY}/${IMG}:${VERSION}"
+            # Get the manifest and check it's a single-arch image (not an index)
+            MEDIA_TYPE=$(crane manifest "$TAG" 2>/dev/null | jq -r '.mediaType // "MISSING"')
+            DIGEST=$(crane digest "$TAG" 2>/dev/null || echo "MISSING")
+
+            if [[ "$MEDIA_TYPE" == "application/vnd.oci.image.manifest.v1+json" || "$MEDIA_TYPE" == "application/vnd.docker.distribution.manifest.v2+json" ]]; then
+              echo "  OK: ${IMG} (${DIGEST:0:20}...)"
+              MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: ok\n"
+              PASS=$((PASS + 1))
+            elif [[ "$MEDIA_TYPE" == *"index"* ]]; then
+              echo "  WARN: ${IMG} is a multi-arch index (expected single-arch)"
+              MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: warn-multiarch\n"
+              FAIL=$((FAIL + 1))
+            else
+              echo "  FAIL: ${IMG} — ${MEDIA_TYPE}"
+              MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: missing\n"
+              FAIL=$((FAIL + 1))
+            fi
+          done
+
+          echo ""
+          echo "Results: ${PASS} passed, ${FAIL} failed, ${#IMAGES[@]} total"
+
+          # Save manifest for later steps
+          echo -e "$MANIFEST_YAML" > /tmp/manifest.yaml
+
+          echo "pass=$PASS" >> $GITHUB_OUTPUT
+          echo "fail=$FAIL" >> $GITHUB_OUTPUT
+          echo "total=${#IMAGES[@]}" >> $GITHUB_OUTPUT
+
+          if [[ "$FAIL" -gt 0 ]]; then
+            echo "::error::${FAIL} images failed verification"
+            exit 1
+          fi
+
+      - name: Upload manifest artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-manifest-${{ needs.detect-changes.outputs.version }}
+          path: /tmp/manifest.yaml
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Verification: ${{ steps.verify.outputs.pass }}/${{ steps.verify.outputs.total }} passed" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.verify.outputs.fail }}" -gt 0 ]]; then
+            echo "**${{ steps.verify.outputs.fail }} images FAILED verification.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ===========================================================================
+  # Step 6: Cleanup old versions (keep current + previous only)
+  # ===========================================================================
+  cleanup:
+    name: Cleanup Old Versions
+    needs: [detect-changes, verify]
+    if: needs.verify.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: List and clean old versions
+        run: |
+          REGISTRY="${{ needs.detect-changes.outputs.registry }}"
+          VERSION="${{ needs.detect-changes.outputs.version }}"
+          PREV="${{ needs.detect-changes.outputs.prev_version }}"
+
+          echo "Keeping: ${VERSION}, ${PREV}"
+          echo "Will delete any other version tags."
+          echo ""
+
+          # Use platform-manager-api as the reference to find all version tags
+          REFERENCE="${REGISTRY}/platform-manager-api"
+          ALL_TAGS=$(crane ls "$REFERENCE" 2>/dev/null | grep '^v' | sort -V)
+
+          for TAG in $ALL_TAGS; do
+            if [[ "$TAG" != "$VERSION" && "$TAG" != "$PREV" && "$TAG" != "latest" ]]; then
+              echo "Deleting old version: $TAG"
+              # Delete each image at this old version tag
+              IMAGES=(
+                platform-manager-api platform-manager-ui db-migrate agent-router
+                krakend postgres aiml-postgres redis mlflow
+                crewai autogen crewai-studio autogen-studio
+                ollama ollama-webui airflow statsd-exporter
+                langflow langfuse n8n prometheus grafana
+                cadvisor node-exporter postgres-exporter redis-exporter
+                kube-state-metrics
+              )
+              for IMG in "${IMAGES[@]}"; do
+                crane delete "${REGISTRY}/${IMG}:${TAG}" 2>/dev/null && echo "  deleted ${IMG}:${TAG}" || echo "  skip ${IMG}:${TAG}"
+              done
+            fi
+          done
+
+          echo ""
+          echo "Cleanup complete. Remaining versions: ${PREV}, ${VERSION}"
+
+  # ===========================================================================
+  # Step 7: Write manifest to repo
+  # ===========================================================================
+  save-manifest:
+    name: Save Manifest
+    needs: [detect-changes, verify]
+    if: needs.verify.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Generate manifest with digests
+        run: |
+          REGISTRY="${{ needs.detect-changes.outputs.registry }}"
+          VERSION="${{ needs.detect-changes.outputs.version }}"
+
+          mkdir -p .github/image-manifests
+
+          IMAGES=(
+            platform-manager-api platform-manager-ui db-migrate agent-router
+            krakend postgres aiml-postgres redis mlflow
+            crewai autogen crewai-studio autogen-studio
+            ollama ollama-webui airflow statsd-exporter
+            langflow langfuse n8n prometheus grafana
+            cadvisor node-exporter postgres-exporter redis-exporter
+            kube-state-metrics
+          )
+
+          cat > ".github/image-manifests/${VERSION}.yml" <<HEADER
+# ES1 Platform — Image Manifest
+# Version: ${VERSION}
+# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+# Registry: ${REGISTRY}
+# Platform: linux/amd64
+#
+# Each image is an independent, single-arch manifest.
+# No multi-arch indexes, no attestations, no tag pointers.
+version: "${VERSION}"
+registry: "${REGISTRY}"
+platform: "linux/amd64"
+images:
+HEADER
+
+          for IMG in "${IMAGES[@]}"; do
+            DIGEST=$(crane digest "${REGISTRY}/${IMG}:${VERSION}" 2>/dev/null || echo "unknown")
+            cat >> ".github/image-manifests/${VERSION}.yml" <<ENTRY
+  - name: ${IMG}
+    tag: ${VERSION}
+    digest: ${DIGEST}
+ENTRY
+          done
+
+      - name: Commit manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/image-manifests/
+          git diff --staged --quiet || git commit -m "release: image manifest for ${{ needs.detect-changes.outputs.version }}"
+          git push || true

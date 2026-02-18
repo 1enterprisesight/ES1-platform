@@ -1,0 +1,19 @@
+{
+  "_comment": "Upstream image sources. Change a 'source' value to trigger a fresh pull from the public registry on the next release. Otherwise the image is copied forward from the previous release version.",
+  "images": [
+    { "name": "ollama",            "source": "ollama/ollama:latest" },
+    { "name": "ollama-webui",      "source": "ghcr.io/open-webui/open-webui:main" },
+    { "name": "airflow",           "source": "apache/airflow:2.8.1-python3.11" },
+    { "name": "statsd-exporter",   "source": "prom/statsd-exporter:v0.26.0" },
+    { "name": "langflow",          "source": "langflowai/langflow:latest" },
+    { "name": "langfuse",          "source": "langfuse/langfuse:2" },
+    { "name": "n8n",               "source": "n8nio/n8n:latest" },
+    { "name": "prometheus",        "source": "prom/prometheus:v2.51.0" },
+    { "name": "grafana",           "source": "grafana/grafana:10.4.0" },
+    { "name": "cadvisor",          "source": "gcr.io/cadvisor/cadvisor:v0.49.1" },
+    { "name": "node-exporter",     "source": "prom/node-exporter:v1.7.0" },
+    { "name": "postgres-exporter", "source": "prometheuscommunity/postgres-exporter:v0.15.0" },
+    { "name": "redis-exporter",    "source": "oliver006/redis_exporter:v1.58.0" },
+    { "name": "kube-state-metrics","source": "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0" }
+  ]
+}
