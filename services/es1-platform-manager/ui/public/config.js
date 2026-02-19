@@ -51,6 +51,22 @@ window.__PLATFORM_CONFIG__ = {
     enableAutogenStudio: true,
     enableLangfuse: true,
     enableMlflow: true,
+    enableOllama: true,
+    enableOpenWebUI: true,
+    enableMonitoring: true,
+    enableAgentRouter: true,
+    enableAirflow: true,
+  },
+
+  credentials: {
+    n8n: {
+      email: 'admin@engine.local',
+      password: 'Engineadmin!',
+    },
+    langfuse: {
+      email: 'admin@engine.local',
+      password: 'Engineadmin!',
+    },
   },
 
   auth: {
@@ -59,7 +75,7 @@ window.__PLATFORM_CONFIG__ = {
 
   branding: {
     pageTitle: 'Platform',
-    platformName: 'ES1 Platform',
+    platformName: 'Engine Platform',
     metaDescription: 'Enterprise AI Platform',
     faviconUrl: '',
   },

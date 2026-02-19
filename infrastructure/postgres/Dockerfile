@@ -10,5 +10,5 @@ LABEL org.opencontainers.image.description="PostgreSQL 16 with pgvector extensio
 COPY init/ /docker-entrypoint-initdb.d/
 
 # Default environment variables
-ENV POSTGRES_DB=es1_platform \
-    POSTGRES_USER=es1_user
+ENV POSTGRES_DB=engine_platform \
+    POSTGRES_USER=engine_user

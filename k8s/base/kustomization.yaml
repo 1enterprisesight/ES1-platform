@@ -9,5 +9,5 @@ resources:
 labels:
   - pairs:
       app.kubernetes.io/managed-by: kustomize
-      app.kubernetes.io/part-of: es1-platform
+      app.kubernetes.io/part-of: engine-platform
     includeSelectors: false

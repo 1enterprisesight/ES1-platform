@@ -1,5 +1,5 @@
 # Database Migration Service
-# Runs versioned SQL migrations for ES1 Platform databases
+# Runs versioned SQL migrations for Platform databases
 #
 # Usage:
 #   # Run all migrations with default (reference) seeds
@@ -19,14 +19,14 @@ services:
     build:
       context: ./infrastructure/db-migrate
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-db-migrate
+    container_name: ${CONTAINER_PREFIX:-engine}-db-migrate
     environment:
       # Main PostgreSQL
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: platform_manager
-      POSTGRES_USER: ${POSTGRES_USER:-es1_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
+      POSTGRES_USER: ${POSTGRES_USER:-engine_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-engine_dev_password}
       # AIML PostgreSQL
       AIML_POSTGRES_HOST: ${AIML_POSTGRES_HOST:-aiml-postgres}
       AIML_POSTGRES_PORT: ${AIML_POSTGRES_PORT:-5432}
@@ -39,4 +39,4 @@ services:
       aiml-postgres:
         condition: service_healthy
     networks:
-      - es1-network
+      - engine-network

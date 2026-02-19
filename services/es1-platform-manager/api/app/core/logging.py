@@ -124,4 +124,4 @@ def get_logger(name: str, json_format: bool = False) -> StructuredLogger:
 
 
 # Default application logger
-logger = get_logger("es1-platform-manager")
+logger = get_logger("platform-manager")

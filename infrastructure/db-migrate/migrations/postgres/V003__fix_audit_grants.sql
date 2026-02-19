@@ -1,6 +1,6 @@
--- V003: Fix audit schema grants for white-label deployments
--- V002 hardcoded 'es1_user' in GRANT statements. This migration
--- re-grants privileges using CURRENT_USER so any DB username works.
+-- V003: Ensure audit schema grants use CURRENT_USER
+-- Originally fixed V002's hardcoded username. Now V002 uses CURRENT_USER
+-- directly, but this migration is kept for ordering consistency.
 -- Phase 5: Credential Externalization & Secrets Management
 
 -- Re-grant schema usage to the current database user

@@ -15,7 +15,7 @@ services:
     build:
       context: ./services/agents/autogen-studio
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-autogen-studio
+    container_name: ${CONTAINER_PREFIX:-engine}-autogen-studio
     ports:
       - "${AUTOGEN_STUDIO_PORT:-8502}:8502"
     environment:
@@ -38,13 +38,13 @@ services:
       retries: 3
       start_period: 90s
     networks:
-      - es1-network
+      - engine-network
     restart: unless-stopped
     labels:
-      - "es1.service=autogen-studio"
-      - "es1.category=agents"
-      - "es1.ui.port=8502"
+      - "engine.service=autogen-studio"
+      - "engine.category=agents"
+      - "engine.ui.port=8502"
 
 volumes:
   autogen_studio_data:
-    name: ${CONTAINER_PREFIX:-es1}-autogen-studio-data
+    name: ${CONTAINER_PREFIX:-engine}-autogen-studio-data

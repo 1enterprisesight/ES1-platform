@@ -55,7 +55,7 @@ scrape_configs:
   # Platform Manager API
   - job_name: 'platform-manager'
     static_configs:
-      - targets: ['es1-platform-manager-api:8000']
+      - targets: ['platform-manager-api:8000']
     metrics_path: '/metrics'
 
   # Airflow (via StatsD Exporter)

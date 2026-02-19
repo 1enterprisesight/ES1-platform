@@ -14,7 +14,7 @@ kind: Job
 metadata:
   name: db-migrate
   labels:
-    app: es1-platform
+    app: engine-platform
     component: db-migrate
 spec:
   backoffLimit: 3
@@ -22,7 +22,7 @@ spec:
   template:
     metadata:
       labels:
-        app: es1-platform
+        app: engine-platform
         component: db-migrate
     spec:
       restartPolicy: OnFailure
@@ -67,7 +67,7 @@ spec:
             - name: POSTGRES_PORT
               value: "5432"
             - name: POSTGRES_DB
-              value: "es1_platform"
+              value: "engine_platform"
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:

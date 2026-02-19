@@ -64,9 +64,9 @@ class KnowledgeConfig:
     platform_db: DatabaseConfig = field(default_factory=lambda: DatabaseConfig(
         host=os.getenv("PLATFORM_DB_HOST", "postgres"),
         port=int(os.getenv("PLATFORM_DB_PORT", "5432")),
-        database=os.getenv("PLATFORM_DB_NAME", "es1_platform"),
-        user=os.getenv("PLATFORM_DB_USER", "es1_user"),
-        password=os.getenv("PLATFORM_DB_PASSWORD", "es1_dev_password"),
+        database=os.getenv("PLATFORM_DB_NAME", "engine_platform"),
+        user=os.getenv("PLATFORM_DB_USER", "engine_user"),
+        password=os.getenv("PLATFORM_DB_PASSWORD", "engine_dev_password"),
     ))
 
     # Ollama configuration

@@ -1,4 +1,4 @@
-# Langflow visual LLM pipeline builder for ES1 Platform
+# Langflow visual LLM pipeline builder for the Platform
 # Usage: docker compose -f docker-compose.yml -f docker-compose.langflow.yml up -d
 #
 # Langflow provides:
@@ -14,13 +14,13 @@
 services:
   langflow:
     image: langflowai/langflow:latest
-    container_name: ${CONTAINER_PREFIX:-es1}-langflow
+    container_name: ${CONTAINER_PREFIX:-engine}-langflow
     user: root
     ports:
       - "7860:7860"
     environment:
       # Database
-      LANGFLOW_DATABASE_URL: postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/langflow
+      LANGFLOW_DATABASE_URL: postgresql://${POSTGRES_USER:-engine_user}:${POSTGRES_PASSWORD:-engine_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/langflow
       # Configuration
       LANGFLOW_CONFIG_DIR: /tmp/langflow
       LANGFLOW_LOG_LEVEL: info
@@ -57,7 +57,7 @@ services:
       start_period: 60s
     restart: unless-stopped
     networks:
-      - es1-network
+      - engine-network
 
 volumes:
   langflow_data:

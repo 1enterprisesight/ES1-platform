@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent, Skeleton, SkeletonServiceCard } from '@/design-system/components'
 import { StatusIndicator } from '@/design-system/components/StatusIndicator'
+import { isFeatureEnabled } from '@/config'
 
 interface GatewayStatus {
   health: {
@@ -104,6 +105,7 @@ export function Dashboard() {
       return res.json()
     },
     refetchInterval: 30000,
+    enabled: isFeatureEnabled('enableAirflow'),
   })
 
   // Langflow health
@@ -115,6 +117,7 @@ export function Dashboard() {
       return res.json()
     },
     refetchInterval: 30000,
+    enabled: isFeatureEnabled('enableLangflow'),
   })
 
   // n8n health
@@ -126,6 +129,7 @@ export function Dashboard() {
       return res.json()
     },
     refetchInterval: 30000,
+    enabled: isFeatureEnabled('enableN8n'),
   })
 
   // Langfuse/Observability health
@@ -137,6 +141,7 @@ export function Dashboard() {
       return res.json()
     },
     refetchInterval: 30000,
+    enabled: isFeatureEnabled('enableLangfuse'),
   })
 
   const gatewayHealth: ServiceHealth = gatewayStatus
@@ -162,42 +167,50 @@ export function Dashboard() {
             description="KrakenD"
             colorClass="text-blue-500"
           />
-          <ServiceStatusCard
-            name="Workflows"
-            icon={Workflow}
-            health={airflowHealth}
-            isLoading={airflowLoading}
-            href="/workflows"
-            description="Apache Airflow"
-            colorClass="text-green-500"
-          />
-          <ServiceStatusCard
-            name="AI Flows"
-            icon={Brain}
-            health={langflowHealth}
-            isLoading={langflowLoading}
-            href="/ai"
-            description="Langflow"
-            colorClass="text-purple-500"
-          />
-          <ServiceStatusCard
-            name="Automation"
-            icon={Zap}
-            health={n8nHealth}
-            isLoading={n8nLoading}
-            href="/automation"
-            description="n8n"
-            colorClass="text-orange-500"
-          />
-          <ServiceStatusCard
-            name="Observability"
-            icon={Activity}
-            health={langfuseHealth}
-            isLoading={langfuseLoading}
-            href="/observability"
-            description="Langfuse"
-            colorClass="text-cyan-500"
-          />
+          {isFeatureEnabled('enableAirflow') && (
+            <ServiceStatusCard
+              name="Workflows"
+              icon={Workflow}
+              health={airflowHealth}
+              isLoading={airflowLoading}
+              href="/workflows"
+              description="Apache Airflow"
+              colorClass="text-green-500"
+            />
+          )}
+          {isFeatureEnabled('enableLangflow') && (
+            <ServiceStatusCard
+              name="AI Flows"
+              icon={Brain}
+              health={langflowHealth}
+              isLoading={langflowLoading}
+              href="/ai"
+              description="Langflow"
+              colorClass="text-purple-500"
+            />
+          )}
+          {isFeatureEnabled('enableN8n') && (
+            <ServiceStatusCard
+              name="Automation"
+              icon={Zap}
+              health={n8nHealth}
+              isLoading={n8nLoading}
+              href="/automation"
+              description="n8n"
+              colorClass="text-orange-500"
+            />
+          )}
+          {isFeatureEnabled('enableLangfuse') && (
+            <ServiceStatusCard
+              name="Observability"
+              icon={Activity}
+              health={langfuseHealth}
+              isLoading={langfuseLoading}
+              href="/observability"
+              description="Langfuse"
+              colorClass="text-cyan-500"
+            />
+          )}
         </div>
       </div>
 
@@ -283,72 +296,74 @@ export function Dashboard() {
       </div>
 
       {/* System Monitoring */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold">System Monitoring</h2>
-          <Link
-            to="/monitoring"
-            className="text-sm text-primary hover:underline flex items-center gap-1"
-          >
-            <BarChart3 className="h-4 w-4" />
-            View Dashboards
-          </Link>
+      {isFeatureEnabled('enableMonitoring') && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold">System Monitoring</h2>
+            <Link
+              to="/monitoring"
+              className="text-sm text-primary hover:underline flex items-center gap-1"
+            >
+              <BarChart3 className="h-4 w-4" />
+              View Dashboards
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Link to="/monitoring/system-overview">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">System Overview</CardTitle>
+                  <BarChart3 className="h-4 w-4 text-blue-500" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    All services health at a glance
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/monitoring/containers">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Containers</CardTitle>
+                  <Server className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Docker container metrics
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/monitoring/postgresql">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">PostgreSQL</CardTitle>
+                  <Database className="h-4 w-4 text-purple-500" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Database performance
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+            <Link to="/monitoring/redis">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Redis</CardTitle>
+                  <HardDrive className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Cache performance
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Link to="/monitoring/system-overview">
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">System Overview</CardTitle>
-                <BarChart3 className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  All services health at a glance
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/monitoring/containers">
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Containers</CardTitle>
-                <Server className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Docker container metrics
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/monitoring/postgresql">
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">PostgreSQL</CardTitle>
-                <Database className="h-4 w-4 text-purple-500" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Database performance
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-          <Link to="/monitoring/redis">
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Redis</CardTitle>
-                <HardDrive className="h-4 w-4 text-orange-500" />
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Cache performance
-                </p>
-              </CardContent>
-            </Card>
-          </Link>
-        </div>
-      </div>
+      )}
 
       {/* Quick Actions */}
       <div>
@@ -386,37 +401,41 @@ export function Dashboard() {
             </Card>
           </Link>
 
-          <Link to="/workflows/dags">
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-              <CardContent className="flex items-center gap-4 p-6">
-                <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/20">
-                  <Workflow className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Manage DAGs</h3>
-                  <p className="text-sm text-muted-foreground">
-                    View and trigger workflows
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          {isFeatureEnabled('enableAirflow') && (
+            <Link to="/workflows/dags">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/20">
+                    <Workflow className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Manage DAGs</h3>
+                    <p className="text-sm text-muted-foreground">
+                      View and trigger workflows
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
 
-          <Link to="/ai/flows">
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-              <CardContent className="flex items-center gap-4 p-6">
-                <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/20">
-                  <Brain className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">AI Flows</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Run Langflow pipelines
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+          {isFeatureEnabled('enableLangflow') && (
+            <Link to="/ai/flows">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                <CardContent className="flex items-center gap-4 p-6">
+                  <div className="p-3 rounded-lg bg-purple-100 dark:bg-purple-900/20">
+                    <Brain className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">AI Flows</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Run Langflow pipelines
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
         </div>
       </div>
     </div>

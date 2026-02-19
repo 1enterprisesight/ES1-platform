@@ -26,6 +26,8 @@ import { useEventBus } from '@/shared/contexts/EventBusContext'
 import { useBranding } from '@/shared/contexts/BrandingContext'
 import { useKeyboardShortcuts } from '@/shared/hooks/useKeyboardShortcuts'
 import { cn } from '@/shared/utils/cn'
+import { isFeatureEnabled } from '@/config'
+import type { RuntimeConfig } from '@/config'
 import { Button } from '../components/Button'
 import { ActivityFeed } from '../components/ActivityFeed'
 import { KeyboardShortcutsHelp } from '../components/KeyboardShortcutsHelp'
@@ -41,20 +43,32 @@ function useMediaQuery(query: string) {
   return matches
 }
 
-const navItems = [
+const allNavItems: Array<{
+  to: string
+  icon: typeof LayoutDashboard
+  label: string
+  featureFlag?: keyof RuntimeConfig['features']
+  featureCheck?: () => boolean
+}> = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/gateway', icon: Network, label: 'Gateway' },
-  { to: '/workflows', icon: Workflow, label: 'Workflows' },
-  { to: '/automation', icon: Zap, label: 'Automation' },
-  { to: '/ai', icon: Brain, label: 'AI Flows' },
-  { to: '/agents', icon: Bot, label: 'Agents' },
+  { to: '/workflows', icon: Workflow, label: 'Workflows', featureFlag: 'enableAirflow' },
+  { to: '/automation', icon: Zap, label: 'Automation', featureFlag: 'enableN8n' },
+  { to: '/ai', icon: Brain, label: 'AI Flows', featureFlag: 'enableLangflow' },
+  { to: '/agents', icon: Bot, label: 'Agents', featureFlag: 'enableAgentRouter' },
   { to: '/knowledge', icon: Database, label: 'Knowledge' },
   { to: '/traffic', icon: Activity, label: 'API Traffic' },
-  { to: '/models', icon: Box, label: 'Models' },
-  { to: '/observability', icon: LineChart, label: 'Observability' },
-  { to: '/monitoring', icon: BarChart3, label: 'Monitoring' },
+  { to: '/models', icon: Box, label: 'Models', featureCheck: () => isFeatureEnabled('enableOllama') || isFeatureEnabled('enableMlflow') },
+  { to: '/observability', icon: LineChart, label: 'Observability', featureFlag: 'enableLangfuse' },
+  { to: '/monitoring', icon: BarChart3, label: 'Monitoring', featureFlag: 'enableMonitoring' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ]
+
+const navItems = allNavItems.filter(item => {
+  if (item.featureFlag) return isFeatureEnabled(item.featureFlag)
+  if (item.featureCheck) return item.featureCheck()
+  return true
+})
 
 export function MainLayout() {
   const { setTheme, resolvedTheme } = useTheme()

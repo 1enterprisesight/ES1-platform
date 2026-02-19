@@ -14,6 +14,8 @@ import { MonitoringModule } from './modules/monitoring/MonitoringModule'
 import { SettingsModule } from './modules/settings/SettingsModule'
 import { LoginPage } from './modules/auth/LoginPage'
 import { useAuth } from './shared/contexts/AuthContext'
+import { isFeatureEnabled } from './config'
+import type { RuntimeConfig } from './config'
 import { Loader2 } from 'lucide-react'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
@@ -34,6 +36,16 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function FeatureGuard({ flag, fallbackFlag, children }: {
+  flag: keyof RuntimeConfig['features']
+  fallbackFlag?: keyof RuntimeConfig['features']
+  children: React.ReactNode
+}) {
+  const enabled = isFeatureEnabled(flag) || (fallbackFlag ? isFeatureEnabled(fallbackFlag) : false)
+  if (!enabled) return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
 function App() {
   return (
     <Routes>
@@ -47,15 +59,15 @@ function App() {
       >
         <Route path="/" element={<Dashboard />} />
         <Route path="/gateway/*" element={<GatewayModule />} />
-        <Route path="/workflows/*" element={<WorkflowsModule />} />
-        <Route path="/ai/*" element={<AIModule />} />
-        <Route path="/agents/*" element={<AgentsModule />} />
+        <Route path="/workflows/*" element={<FeatureGuard flag="enableAirflow"><WorkflowsModule /></FeatureGuard>} />
+        <Route path="/ai/*" element={<FeatureGuard flag="enableLangflow"><AIModule /></FeatureGuard>} />
+        <Route path="/agents/*" element={<FeatureGuard flag="enableAgentRouter"><AgentsModule /></FeatureGuard>} />
         <Route path="/knowledge/*" element={<KnowledgeModule />} />
         <Route path="/traffic/*" element={<TrafficModule />} />
-        <Route path="/models/*" element={<ModelsModule />} />
-        <Route path="/observability/*" element={<ObservabilityModule />} />
-        <Route path="/automation/*" element={<AutomationModule />} />
-        <Route path="/monitoring/*" element={<MonitoringModule />} />
+        <Route path="/models/*" element={<FeatureGuard flag="enableOllama" fallbackFlag="enableMlflow"><ModelsModule /></FeatureGuard>} />
+        <Route path="/observability/*" element={<FeatureGuard flag="enableLangfuse"><ObservabilityModule /></FeatureGuard>} />
+        <Route path="/automation/*" element={<FeatureGuard flag="enableN8n"><AutomationModule /></FeatureGuard>} />
+        <Route path="/monitoring/*" element={<FeatureGuard flag="enableMonitoring"><MonitoringModule /></FeatureGuard>} />
         <Route path="/settings" element={<SettingsModule />} />
       </Route>
     </Routes>

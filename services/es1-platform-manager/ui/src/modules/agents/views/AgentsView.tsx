@@ -5,7 +5,7 @@ import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { Input } from '@/design-system/components/Input'
 import { RefreshCw, Search, Trash2 } from 'lucide-react'
-import { agentRouterUrl } from '@/config'
+import { agentRouterUrl, isFeatureEnabled } from '@/config'
 
 interface Agent {
   key: string
@@ -133,10 +133,10 @@ export function AgentsView() {
           className="px-3 py-2 border rounded-md bg-background text-sm"
         >
           <option value="">All Frameworks</option>
-          <option value="crewai">CrewAI</option>
-          <option value="autogen">AutoGen</option>
-          <option value="langflow">Langflow</option>
-          <option value="n8n">n8n</option>
+          {isFeatureEnabled('enableCrewaiStudio') && <option value="crewai">CrewAI</option>}
+          {isFeatureEnabled('enableAutogenStudio') && <option value="autogen">AutoGen</option>}
+          {isFeatureEnabled('enableLangflow') && <option value="langflow">Langflow</option>}
+          {isFeatureEnabled('enableN8n') && <option value="n8n">n8n</option>}
         </select>
         <Button variant="outline" size="sm" onClick={fetchAgents} disabled={loading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />

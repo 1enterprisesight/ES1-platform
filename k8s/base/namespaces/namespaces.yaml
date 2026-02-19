@@ -2,20 +2,20 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: es1-platform
+  name: engine-platform
   labels:
-    app.kubernetes.io/part-of: es1-platform
+    app.kubernetes.io/part-of: engine-platform
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: es1-infrastructure
+  name: engine-infrastructure
   labels:
-    app.kubernetes.io/part-of: es1-platform
+    app.kubernetes.io/part-of: engine-platform
 ---
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: es1-monitoring
+  name: engine-monitoring
   labels:
-    app.kubernetes.io/part-of: es1-platform
+    app.kubernetes.io/part-of: engine-platform

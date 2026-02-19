@@ -14,7 +14,7 @@ services:
     build:
       context: ./services/agents/crewai-studio
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-crewai-studio
+    container_name: ${CONTAINER_PREFIX:-engine}-crewai-studio
     ports:
       - "${CREWAI_STUDIO_PORT:-8501}:8501"
     environment:
@@ -41,13 +41,13 @@ services:
       retries: 3
       start_period: 60s
     networks:
-      - es1-network
+      - engine-network
     restart: unless-stopped
     labels:
-      - "es1.service=crewai-studio"
-      - "es1.category=agents"
-      - "es1.ui.port=8501"
+      - "engine.service=crewai-studio"
+      - "engine.category=agents"
+      - "engine.ui.port=8501"
 
 volumes:
   crewai_studio_data:
-    name: ${CONTAINER_PREFIX:-es1}-crewai-studio-data
+    name: ${CONTAINER_PREFIX:-engine}-crewai-studio-data

@@ -9,12 +9,12 @@
 #
 # Branding:
 #   PAGE_TITLE            - Browser tab title (default: Platform)
-#   PLATFORM_NAME         - Platform display name (default: ES1 Platform)
+#   PLATFORM_NAME         - Platform display name (default: Engine Platform)
 #   META_DESCRIPTION      - HTML meta description (default: Enterprise AI Platform)
 #   FAVICON_URL           - Custom favicon URL (default: empty - uses built-in)
 #
 # Internal services (proxied through nginx):
-#   PLATFORM_API_HOST     - Platform Manager API host (default: es1-platform-manager-api)
+#   PLATFORM_API_HOST     - Platform Manager API host (default: platform-manager-api)
 #   PLATFORM_API_PORT     - Platform Manager API port (default: 8000)
 #   AGENT_ROUTER_HOST     - Agent Router host (default: agent-router)
 #   AGENT_ROUTER_PORT     - Agent Router port (default: 8102)
@@ -46,6 +46,13 @@
 #   ENABLE_OPEN_WEBUI     - Enable Open WebUI link (default: true)
 #   ENABLE_MONITORING     - Enable monitoring dashboards (default: true)
 #   ENABLE_AGENT_ROUTER   - Enable agent services (default: true)
+#   ENABLE_AIRFLOW        - Enable Airflow integration (default: true)
+#
+# Service credentials (displayed in UI):
+#   N8N_CREDENTIAL_EMAIL      - n8n admin email (default: admin@engine.local)
+#   N8N_CREDENTIAL_PASSWORD   - n8n admin password (default: Engineadmin!)
+#   LANGFUSE_CREDENTIAL_EMAIL - Langfuse admin email (default: admin@engine.local)
+#   LANGFUSE_CREDENTIAL_PASSWORD - Langfuse admin password (default: Engineadmin!)
 
 set -e
 
@@ -53,14 +60,14 @@ set -e
 # Default values for branding
 # =============================================================================
 PAGE_TITLE="${PAGE_TITLE:-Platform}"
-PLATFORM_NAME="${PLATFORM_NAME:-ES1 Platform}"
+PLATFORM_NAME="${PLATFORM_NAME:-Engine Platform}"
 META_DESCRIPTION="${META_DESCRIPTION:-Enterprise AI Platform}"
 FAVICON_URL="${FAVICON_URL:-}"
 
 # =============================================================================
 # Default values for internal services
 # =============================================================================
-export PLATFORM_API_HOST="${PLATFORM_API_HOST:-es1-platform-manager-api}"
+export PLATFORM_API_HOST="${PLATFORM_API_HOST:-platform-manager-api}"
 export PLATFORM_API_PORT="${PLATFORM_API_PORT:-8000}"
 export AGENT_ROUTER_HOST="${AGENT_ROUTER_HOST:-agent-router}"
 export AGENT_ROUTER_PORT="${AGENT_ROUTER_PORT:-8102}"
@@ -94,6 +101,15 @@ ENABLE_OLLAMA="${ENABLE_OLLAMA:-true}"
 ENABLE_OPEN_WEBUI="${ENABLE_OPEN_WEBUI:-true}"
 ENABLE_MONITORING="${ENABLE_MONITORING:-true}"
 ENABLE_AGENT_ROUTER="${ENABLE_AGENT_ROUTER:-true}"
+ENABLE_AIRFLOW="${ENABLE_AIRFLOW:-true}"
+
+# =============================================================================
+# Default values for service credentials (displayed in UI)
+# =============================================================================
+N8N_CREDENTIAL_EMAIL="${N8N_CREDENTIAL_EMAIL:-admin@engine.local}"
+N8N_CREDENTIAL_PASSWORD="${N8N_CREDENTIAL_PASSWORD:-Engineadmin!}"
+LANGFUSE_CREDENTIAL_EMAIL="${LANGFUSE_CREDENTIAL_EMAIL:-admin@engine.local}"
+LANGFUSE_CREDENTIAL_PASSWORD="${LANGFUSE_CREDENTIAL_PASSWORD:-Engineadmin!}"
 
 # =============================================================================
 # Default values for monitoring
@@ -182,6 +198,18 @@ window.__PLATFORM_CONFIG__ = {
     enableOpenWebUI: ${ENABLE_OPEN_WEBUI},
     enableMonitoring: ${ENABLE_MONITORING},
     enableAgentRouter: ${ENABLE_AGENT_ROUTER},
+    enableAirflow: ${ENABLE_AIRFLOW},
+  },
+
+  credentials: {
+    n8n: {
+      email: '${N8N_CREDENTIAL_EMAIL}',
+      password: '${N8N_CREDENTIAL_PASSWORD}',
+    },
+    langfuse: {
+      email: '${LANGFUSE_CREDENTIAL_EMAIL}',
+      password: '${LANGFUSE_CREDENTIAL_PASSWORD}',
+    },
   },
 
   monitoring: {

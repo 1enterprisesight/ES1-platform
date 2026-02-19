@@ -29,7 +29,7 @@ class SettingsListResponse(BaseModel):
 
 class BrandingResponse(BaseModel):
     """Branding configuration response."""
-    name: str = "ES1 Platform"
+    name: str = "Engine Platform"
     tagline: str | None = None
     logo_url: str | None = None
     logo_dark_url: str | None = None

@@ -32,9 +32,9 @@ DATABASES = {
     'postgres': {
         'host': os.getenv('POSTGRES_HOST', 'postgres'),
         'port': int(os.getenv('POSTGRES_PORT', '5432')),
-        'database': os.getenv('POSTGRES_DB', 'es1_platform'),
-        'user': os.getenv('POSTGRES_USER', 'es1_user'),
-        'password': os.getenv('POSTGRES_PASSWORD', 'es1_dev_password'),
+        'database': os.getenv('POSTGRES_DB', 'engine_platform'),
+        'user': os.getenv('POSTGRES_USER', 'engine_user'),
+        'password': os.getenv('POSTGRES_PASSWORD', 'engine_dev_password'),
         'migrations_dir': 'migrations/postgres',
         'seeds_dir': 'seeds/postgres',
     },

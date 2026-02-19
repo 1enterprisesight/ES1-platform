@@ -39,6 +39,17 @@ export const defaultConfig: RuntimeConfig = {
     agentRouter: '/agent-router',
   },
 
+  credentials: {
+    n8n: {
+      email: 'admin@engine.local',
+      password: 'Engineadmin!',
+    },
+    langfuse: {
+      email: 'admin@engine.local',
+      password: 'Engineadmin!',
+    },
+  },
+
   monitoring: {
     grafanaDashboardPrefix: 'platform',
   },
@@ -54,5 +65,6 @@ export const defaultConfig: RuntimeConfig = {
     enableOpenWebUI: true,
     enableMonitoring: true,
     enableAgentRouter: true,
+    enableAirflow: true,
   },
 };

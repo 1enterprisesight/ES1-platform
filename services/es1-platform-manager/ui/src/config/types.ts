@@ -72,6 +72,24 @@ export interface RuntimeConfig {
     enableMonitoring: boolean;
     /** Enable Agent Router and agent services */
     enableAgentRouter: boolean;
+    /** Enable Airflow integration in Workflows module */
+    enableAirflow: boolean;
+  };
+
+  /**
+   * Service credentials displayed in the UI for setup guidance
+   */
+  credentials: {
+    /** n8n admin credentials */
+    n8n: {
+      email: string;
+      password: string;
+    };
+    /** Langfuse admin credentials */
+    langfuse: {
+      email: string;
+      password: string;
+    };
   };
 
   /**

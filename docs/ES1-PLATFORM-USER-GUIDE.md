@@ -440,14 +440,14 @@ docker compose -f docker-compose.yml \
   restart
 
 # Restart single service
-docker compose restart es1-platform-manager-api
+docker compose restart platform-manager-api
 ```
 
 ### View Logs
 
 ```bash
 # Platform Manager API
-docker logs -f es1-platform-manager-api
+docker logs -f platform-manager-api
 
 # KrakenD
 docker logs -f es1-krakend
