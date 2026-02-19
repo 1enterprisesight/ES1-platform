@@ -17,7 +17,7 @@ services:
   prometheus:
     profiles: ["monitoring", "full"]
     image: prom/prometheus:v2.51.0
-    container_name: ${CONTAINER_PREFIX:-es1}-prometheus
+    container_name: ${CONTAINER_PREFIX:-engine}-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -37,7 +37,7 @@ services:
   grafana:
     profiles: ["monitoring", "full"]
     image: grafana/grafana:10.4.0
-    container_name: ${CONTAINER_PREFIX:-es1}-grafana
+    container_name: ${CONTAINER_PREFIX:-engine}-grafana
     ports:
       - "3002:3000"
     environment:
@@ -64,7 +64,7 @@ services:
   cadvisor:
     profiles: ["monitoring", "full"]
     image: gcr.io/cadvisor/cadvisor:v0.49.1
-    container_name: ${CONTAINER_PREFIX:-es1}-cadvisor
+    container_name: ${CONTAINER_PREFIX:-engine}-cadvisor
     ports:
       - "8082:8080"  # Changed from 8081 to avoid conflict with Airflow
     volumes:
@@ -89,7 +89,7 @@ services:
   node-exporter:
     profiles: ["monitoring", "full"]
     image: prom/node-exporter:v1.7.0
-    container_name: ${CONTAINER_PREFIX:-es1}-node-exporter
+    container_name: ${CONTAINER_PREFIX:-engine}-node-exporter
     ports:
       - "9100:9100"
     volumes:
@@ -109,11 +109,11 @@ services:
   postgres-exporter:
     profiles: ["monitoring", "full"]
     image: prometheuscommunity/postgres-exporter:v0.15.0
-    container_name: ${CONTAINER_PREFIX:-es1}-postgres-exporter
+    container_name: ${CONTAINER_PREFIX:-engine}-postgres-exporter
     ports:
       - "9187:9187"
     environment:
-      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/platform_manager?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-engine_user}:${POSTGRES_PASSWORD:-engine_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/platform_manager?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy
@@ -125,7 +125,7 @@ services:
   redis-exporter:
     profiles: ["monitoring", "full"]
     image: oliver006/redis_exporter:v1.58.0
-    container_name: ${CONTAINER_PREFIX:-es1}-redis-exporter
+    container_name: ${CONTAINER_PREFIX:-engine}-redis-exporter
     ports:
       - "9121:9121"
     environment:

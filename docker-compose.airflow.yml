@@ -1,4 +1,4 @@
-# Airflow services for ES1 Platform
+# Airflow services for the Platform
 # Usage: docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d
 #
 # Airflow provides full DAG management capabilities:
@@ -17,8 +17,8 @@ x-airflow-common:
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/airflow
-    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/airflow
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-engine_user}:${POSTGRES_PASSWORD:-engine_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/airflow
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${POSTGRES_USER:-engine_user}:${POSTGRES_PASSWORD:-engine_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/airflow
     AIRFLOW__CELERY__BROKER_URL: redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
     AIRFLOW__CORE__FERNET_KEY: '${AIRFLOW_FERNET_KEY:-}'
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
@@ -38,7 +38,7 @@ x-airflow-common:
     AIRFLOW__METRICS__STATSD_PORT: 9125
     AIRFLOW__METRICS__STATSD_PREFIX: airflow
     # Connection to Platform Manager for notifications
-    AIRFLOW_CONN_PLATFORM_MANAGER: 'http://${PLATFORM_API_HOST:-es1-platform-manager-api}:${PLATFORM_API_PORT:-8000}'
+    AIRFLOW_CONN_PLATFORM_MANAGER: 'http://${PLATFORM_API_HOST:-platform-manager-api}:${PLATFORM_API_PORT:-8000}'
     # Note: Additional packages installed via custom Dockerfile when needed
     # _PIP_ADDITIONAL_REQUIREMENTS: 'psycopg2-binary requests pdfplumber'
     _PIP_ADDITIONAL_REQUIREMENTS: ''
@@ -51,9 +51,9 @@ x-airflow-common:
     # Platform Database connection for audit logging
     PLATFORM_DB_HOST: ${POSTGRES_HOST:-postgres}
     PLATFORM_DB_PORT: '${POSTGRES_PORT:-5432}'
-    PLATFORM_DB_NAME: ${POSTGRES_DB:-es1_platform}
-    PLATFORM_DB_USER: ${POSTGRES_USER:-es1_user}
-    PLATFORM_DB_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
+    PLATFORM_DB_NAME: ${POSTGRES_DB:-engine_platform}
+    PLATFORM_DB_USER: ${POSTGRES_USER:-engine_user}
+    PLATFORM_DB_PASSWORD: ${POSTGRES_PASSWORD:-engine_dev_password}
     # Ollama configuration
     OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
     OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
@@ -75,7 +75,7 @@ services:
   # Initialize Airflow database and create admin user
   airflow-init:
     <<: *airflow-common
-    container_name: ${CONTAINER_PREFIX:-es1}-airflow-init
+    container_name: ${CONTAINER_PREFIX:-engine}-airflow-init
     entrypoint: /bin/bash
     command:
       - -c
@@ -96,7 +96,7 @@ services:
 
   airflow-webserver:
     <<: *airflow-common
-    container_name: ${CONTAINER_PREFIX:-es1}-airflow-webserver
+    container_name: ${CONTAINER_PREFIX:-engine}-airflow-webserver
     command: webserver
     ports:
       - "8081:8080"
@@ -114,7 +114,7 @@ services:
 
   airflow-scheduler:
     <<: *airflow-common
-    container_name: ${CONTAINER_PREFIX:-es1}-airflow-scheduler
+    container_name: ${CONTAINER_PREFIX:-engine}-airflow-scheduler
     command: scheduler
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
@@ -130,7 +130,7 @@ services:
 
   airflow-worker:
     <<: *airflow-common
-    container_name: ${CONTAINER_PREFIX:-es1}-airflow-worker
+    container_name: ${CONTAINER_PREFIX:-engine}-airflow-worker
     command: celery worker
     healthcheck:
       test:
@@ -151,7 +151,7 @@ services:
 
   airflow-triggerer:
     <<: *airflow-common
-    container_name: ${CONTAINER_PREFIX:-es1}-airflow-triggerer
+    container_name: ${CONTAINER_PREFIX:-engine}-airflow-triggerer
     command: triggerer
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
@@ -168,7 +168,7 @@ services:
   # StatsD Exporter for Airflow metrics
   statsd-exporter:
     image: prom/statsd-exporter:v0.26.0
-    container_name: ${CONTAINER_PREFIX:-es1}-statsd-exporter
+    container_name: ${CONTAINER_PREFIX:-engine}-statsd-exporter
     ports:
       - "9102:9102"   # Prometheus metrics
       - "9125:9125/udp"  # StatsD UDP

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # DAG Configuration
 default_args = {
-    'owner': 'es1-platform',
+    'owner': 'engine-platform',
     'depends_on_past': False,
     'email_on_failure': False,
     'email_on_retry': False,
@@ -25,7 +25,7 @@ default_args = {
 with DAG(
     'knowledge_document_ingestion',
     default_args=default_args,
-    description='Ingest documents into the ES1 knowledge graph',
+    description='Ingest documents into the knowledge graph',
     schedule_interval=None,  # Triggered via API
     start_date=datetime(2024, 1, 1),
     catchup=False,

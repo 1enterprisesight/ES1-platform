@@ -5,12 +5,12 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
-    # Database (ES1-platform defaults for local development)
+    # Database (defaults for local development)
     POSTGRES_HOST: str = "postgres"
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "platform_manager"
-    POSTGRES_USER: str = "es1_user"
-    POSTGRES_PASSWORD: str = "es1_dev_password"
+    POSTGRES_USER: str = "engine_user"
+    POSTGRES_PASSWORD: str = "engine_dev_password"
 
     # API
     API_V1_PREFIX: str = "/api/v1"
@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     # Kubernetes secret for Airflow credentials (K8s mode)
     AIRFLOW_CREDENTIALS_SECRET: str = "airflow-credentials"
     # Uses KRAKEND_NAMESPACE since Airflow lives in the infrastructure namespace
-    AIRFLOW_CREDENTIALS_NAMESPACE: str = "es1-infrastructure"
+    AIRFLOW_CREDENTIALS_NAMESPACE: str = "engine-infrastructure"
 
     # DAG file management (path to Airflow dags folder)
     AIRFLOW_DAGS_PATH: str = "/shared/airflow/dags"
