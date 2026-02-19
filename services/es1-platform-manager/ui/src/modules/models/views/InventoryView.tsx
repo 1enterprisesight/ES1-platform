@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/design-system/compon
 import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, Box, Brain, Server, HardDrive } from 'lucide-react'
-import { apiUrl } from '@/config'
+import { apiUrl, isFeatureEnabled } from '@/config'
 
 interface OllamaModel {
   name: string
@@ -110,35 +110,39 @@ export function InventoryView() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Brain className="h-5 w-5 text-purple-500" />
-                <div>
-                  <p className="text-sm font-medium">Ollama Models</p>
-                  <p className="text-2xl font-bold">{inventory?.ollama.models.length || 0}</p>
+        {isFeatureEnabled('enableOllama') && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-purple-500" />
+                  <div>
+                    <p className="text-sm font-medium">Ollama Models</p>
+                    <p className="text-2xl font-bold">{inventory?.ollama.models.length || 0}</p>
+                  </div>
                 </div>
+                {inventory && getStatusBadge(inventory.ollama.status)}
               </div>
-              {inventory && getStatusBadge(inventory.ollama.status)}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Box className="h-5 w-5 text-blue-500" />
-                <div>
-                  <p className="text-sm font-medium">MLflow Models</p>
-                  <p className="text-2xl font-bold">{inventory?.mlflow.models.length || 0}</p>
+        {isFeatureEnabled('enableMlflow') && (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Box className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm font-medium">MLflow Models</p>
+                    <p className="text-2xl font-bold">{inventory?.mlflow.models.length || 0}</p>
+                  </div>
                 </div>
+                {inventory && getStatusBadge(inventory.mlflow.status)}
               </div>
-              {inventory && getStatusBadge(inventory.mlflow.status)}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="p-4">
@@ -156,100 +160,104 @@ export function InventoryView() {
       </div>
 
       {/* Ollama Models */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Brain className="h-4 w-4 text-purple-500" />
-            Ollama LLM Models
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {inventory?.ollama.error ? (
-            <p className="text-sm text-destructive">{inventory.ollama.error}</p>
-          ) : inventory?.ollama.models.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No Ollama models found. Pull a model using the Ollama tab.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {inventory?.ollama.models.map((model) => (
-                <div
-                  key={model.name}
-                  className="flex items-center justify-between p-3 bg-muted rounded-md"
-                >
-                  <div className="flex items-center gap-3">
-                    <Server className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">{model.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {model.family} {model.parameter_size && `• ${model.parameter_size}`}
-                        {model.quantization && ` • ${model.quantization}`}
-                      </p>
+      {isFeatureEnabled('enableOllama') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Brain className="h-4 w-4 text-purple-500" />
+              Ollama LLM Models
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {inventory?.ollama.error ? (
+              <p className="text-sm text-destructive">{inventory.ollama.error}</p>
+            ) : inventory?.ollama.models.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No Ollama models found. Pull a model using the Ollama tab.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {inventory?.ollama.models.map((model) => (
+                  <div
+                    key={model.name}
+                    className="flex items-center justify-between p-3 bg-muted rounded-md"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Server className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{model.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {model.family} {model.parameter_size && `• ${model.parameter_size}`}
+                          {model.quantization && ` • ${model.quantization}`}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{model.size_gb} GB</p>
+                      <Badge variant="secondary" className="text-xs">LLM</Badge>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">{model.size_gb} GB</p>
-                    <Badge variant="secondary" className="text-xs">LLM</Badge>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* MLflow Models */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base flex items-center gap-2">
-            <Box className="h-4 w-4 text-blue-500" />
-            MLflow Registered Models
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {inventory?.mlflow.error ? (
-            <p className="text-sm text-destructive">{inventory.mlflow.error}</p>
-          ) : inventory?.mlflow.models.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-4">
-              No MLflow models registered yet.
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {inventory?.mlflow.models.map((model) => (
-                <div
-                  key={model.name}
-                  className="flex items-center justify-between p-3 bg-muted rounded-md"
-                >
-                  <div className="flex items-center gap-3">
-                    <Box className="h-4 w-4 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">{model.name}</p>
-                      {model.description && (
-                        <p className="text-xs text-muted-foreground truncate max-w-md">
-                          {model.description}
-                        </p>
+      {isFeatureEnabled('enableMlflow') && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Box className="h-4 w-4 text-blue-500" />
+              MLflow Registered Models
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {inventory?.mlflow.error ? (
+              <p className="text-sm text-destructive">{inventory.mlflow.error}</p>
+            ) : inventory?.mlflow.models.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                No MLflow models registered yet.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {inventory?.mlflow.models.map((model) => (
+                  <div
+                    key={model.name}
+                    className="flex items-center justify-between p-3 bg-muted rounded-md"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Box className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{model.name}</p>
+                        {model.description && (
+                          <p className="text-xs text-muted-foreground truncate max-w-md">
+                            {model.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right flex items-center gap-2">
+                      {model.latest_version && (
+                        <span className="text-xs text-muted-foreground">v{model.latest_version}</span>
+                      )}
+                      {model.stage && (
+                        <Badge
+                          variant={model.stage === 'Production' ? 'success' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {model.stage}
+                        </Badge>
                       )}
                     </div>
                   </div>
-                  <div className="text-right flex items-center gap-2">
-                    {model.latest_version && (
-                      <span className="text-xs text-muted-foreground">v{model.latest_version}</span>
-                    )}
-                    {model.stage && (
-                      <Badge
-                        variant={model.stage === 'Production' ? 'success' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {model.stage}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
