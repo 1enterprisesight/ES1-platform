@@ -1,4 +1,4 @@
-# ES1 Platform Makefile
+# Platform Makefile
 # Common commands for development and deployment
 
 .PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack up-aiml up-monitoring down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager logs-aiml logs-monitoring build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push generate-creds
@@ -41,7 +41,7 @@ up-langflow: ## Start base + Langflow
 up-gateway-manager: ## Start base + Gateway Manager (legacy)
 	docker compose -f docker-compose.yml -f docker-compose.gateway-manager.yml up -d
 
-up-platform-manager: ## Start base + ES1 Platform Manager
+up-platform-manager: ## Start base + Platform Manager
 	docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml up -d
 
 up-ml-stack: ## Start Airflow + Langfuse + Langflow (ML/AI stack)
@@ -101,7 +101,7 @@ logs-airflow: ## Tail logs from Airflow services
 logs-gateway-manager: ## Tail logs from Gateway Manager (legacy)
 	docker compose -f docker-compose.yml -f docker-compose.gateway-manager.yml logs -f gateway-manager-api gateway-manager-ui
 
-logs-platform-manager: ## Tail logs from ES1 Platform Manager
+logs-platform-manager: ## Tail logs from Platform Manager
 	docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml logs -f es1-platform-manager-api es1-platform-manager-ui
 
 logs-aiml: ## Tail logs from AI/ML stack
@@ -146,15 +146,15 @@ undeploy: ## Remove all from local Kubernetes
 
 status: ## Show Kubernetes status
 	@echo "=== Pods ==="
-	kubectl get pods -n es1-platform
-	kubectl get pods -n es1-infrastructure
+	kubectl get pods -n engine-platform
+	kubectl get pods -n engine-infrastructure
 	@echo ""
 	@echo "=== Services ==="
-	kubectl get svc -n es1-platform
-	kubectl get svc -n es1-infrastructure
+	kubectl get svc -n engine-platform
+	kubectl get svc -n engine-infrastructure
 
 port-forward: ## Port forward KrakenD to localhost:8080
-	kubectl port-forward svc/krakend 8080:80 -n es1-platform
+	kubectl port-forward svc/krakend 8080:80 -n engine-platform
 
 # =============================================================================
 # Credential Generation
