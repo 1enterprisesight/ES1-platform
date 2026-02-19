@@ -347,21 +347,36 @@ jobs:
 
           for IMG in "${IMAGES[@]}"; do
             TAG="${REGISTRY}/${IMG}:${VERSION}"
-            # Get the manifest and check it's a single-arch image (not an index)
-            MEDIA_TYPE=$(crane manifest "$TAG" 2>/dev/null | jq -r '.mediaType // "MISSING"')
+            MANIFEST=$(crane manifest "$TAG" 2>/dev/null || echo "")
+            MEDIA_TYPE=$(echo "$MANIFEST" | jq -r '.mediaType // "MISSING"')
             DIGEST=$(crane digest "$TAG" 2>/dev/null || echo "MISSING")
 
-            if [[ "$MEDIA_TYPE" == "application/vnd.oci.image.manifest.v1+json" || "$MEDIA_TYPE" == "application/vnd.docker.distribution.manifest.v2+json" ]]; then
-              echo "  OK: ${IMG} (${DIGEST:0:20}...)"
+            if [[ "$DIGEST" == "MISSING" || -z "$MANIFEST" ]]; then
+              echo "  FAIL: ${IMG} -- not found"
+              MANIFEST_YAML+="  - name: ${IMG}\n    digest: MISSING\n    status: missing\n"
+              FAIL=$((FAIL + 1))
+            elif [[ "$MEDIA_TYPE" == *"index"* ]]; then
+              # OCI index: check it has an amd64 manifest and no attestations
+              AMD64_COUNT=$(echo "$MANIFEST" | jq '[.manifests[] | select(.platform.architecture == "amd64" and .platform.os == "linux")] | length')
+              ATTEST_COUNT=$(echo "$MANIFEST" | jq '[.manifests[] | select(.annotations["vnd.docker.reference.type"] == "attestation-manifest")] | length')
+              TOTAL_COUNT=$(echo "$MANIFEST" | jq '.manifests | length')
+
+              if [[ "$AMD64_COUNT" -ge 1 && "$ATTEST_COUNT" -eq 0 ]]; then
+                echo "  OK: ${IMG} (index, ${TOTAL_COUNT} entry, amd64, ${DIGEST:0:20}...)"
+                MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: ok\n"
+                PASS=$((PASS + 1))
+              else
+                echo "  FAIL: ${IMG} -- index with ${AMD64_COUNT} amd64, ${ATTEST_COUNT} attestations"
+                MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: bad-index\n"
+                FAIL=$((FAIL + 1))
+              fi
+            elif [[ "$MEDIA_TYPE" == "application/vnd.oci.image.manifest.v1+json" || "$MEDIA_TYPE" == "application/vnd.docker.distribution.manifest.v2+json" ]]; then
+              echo "  OK: ${IMG} (single-arch, ${DIGEST:0:20}...)"
               MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: ok\n"
               PASS=$((PASS + 1))
-            elif [[ "$MEDIA_TYPE" == *"index"* ]]; then
-              echo "  WARN: ${IMG} is a multi-arch index (expected single-arch)"
-              MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: warn-multiarch\n"
-              FAIL=$((FAIL + 1))
             else
               echo "  FAIL: ${IMG} -- ${MEDIA_TYPE}"
-              MANIFEST_YAML+="  - name: ${IMG}\n    digest: ${DIGEST}\n    status: missing\n"
+              MANIFEST_YAML+="  - name: ${IMG}\n    digest: MISSING\n    status: unknown\n"
               FAIL=$((FAIL + 1))
             fi
           done
