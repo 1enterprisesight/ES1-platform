@@ -36,7 +36,8 @@ server {
     location /agent-router/ {
         resolver 127.0.0.11 valid=30s;
         set $agent_router http://${AGENT_ROUTER_HOST}:${AGENT_ROUTER_PORT};
-        proxy_pass $agent_router/;
+        rewrite ^/agent-router/(.*) /$1 break;
+        proxy_pass $agent_router;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
