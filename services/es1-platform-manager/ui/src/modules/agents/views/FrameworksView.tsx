@@ -59,7 +59,7 @@ const FRAMEWORK_INFO: Record<string, {
     serviceKey: 'n8n',
     hasUI: true,
     hasApiDocs: true,
-    credentials: { user: 'admin@es1.local', pass: 'Es1admin!' },
+    credentials: { user: config().credentials.n8n.email, pass: config().credentials.n8n.password },
   },
 }
 

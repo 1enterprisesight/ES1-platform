@@ -4,7 +4,7 @@ import { TracesView } from './TracesView'
 import { SessionsView } from './SessionsView'
 import { MetricsView } from './MetricsView'
 import { Button } from '@/design-system/components/Button'
-import { serviceUrl, isFeatureEnabled } from '@/config'
+import { config, serviceUrl, isFeatureEnabled } from '@/config'
 
 export function ObservabilityModule() {
   const openLangfuse = () => {
@@ -19,9 +19,9 @@ export function ObservabilityModule() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <KeyRound className="h-3 w-3" />
-              <code className="bg-muted px-1 rounded">admin@es1.local</code>
+              <code className="bg-muted px-1 rounded">{config().credentials.langfuse.email}</code>
               <span>/</span>
-              <code className="bg-muted px-1 rounded">Es1admin!</code>
+              <code className="bg-muted px-1 rounded">{config().credentials.langfuse.password}</code>
             </div>
             <Button variant="outline" size="sm" onClick={openLangfuse}>
               <ExternalLink className="h-4 w-4 mr-2" />

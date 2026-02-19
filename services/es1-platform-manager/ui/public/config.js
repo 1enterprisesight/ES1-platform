@@ -58,6 +58,17 @@ window.__PLATFORM_CONFIG__ = {
     enableAirflow: true,
   },
 
+  credentials: {
+    n8n: {
+      email: 'admin@engine.local',
+      password: 'Engineadmin!',
+    },
+    langfuse: {
+      email: 'admin@engine.local',
+      password: 'Engineadmin!',
+    },
+  },
+
   auth: {
     mode: 'none',
   },

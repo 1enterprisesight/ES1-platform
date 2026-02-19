@@ -47,6 +47,12 @@
 #   ENABLE_MONITORING     - Enable monitoring dashboards (default: true)
 #   ENABLE_AGENT_ROUTER   - Enable agent services (default: true)
 #   ENABLE_AIRFLOW        - Enable Airflow integration (default: true)
+#
+# Service credentials (displayed in UI):
+#   N8N_CREDENTIAL_EMAIL      - n8n admin email (default: admin@engine.local)
+#   N8N_CREDENTIAL_PASSWORD   - n8n admin password (default: Engineadmin!)
+#   LANGFUSE_CREDENTIAL_EMAIL - Langfuse admin email (default: admin@engine.local)
+#   LANGFUSE_CREDENTIAL_PASSWORD - Langfuse admin password (default: Engineadmin!)
 
 set -e
 
@@ -96,6 +102,14 @@ ENABLE_OPEN_WEBUI="${ENABLE_OPEN_WEBUI:-true}"
 ENABLE_MONITORING="${ENABLE_MONITORING:-true}"
 ENABLE_AGENT_ROUTER="${ENABLE_AGENT_ROUTER:-true}"
 ENABLE_AIRFLOW="${ENABLE_AIRFLOW:-true}"
+
+# =============================================================================
+# Default values for service credentials (displayed in UI)
+# =============================================================================
+N8N_CREDENTIAL_EMAIL="${N8N_CREDENTIAL_EMAIL:-admin@engine.local}"
+N8N_CREDENTIAL_PASSWORD="${N8N_CREDENTIAL_PASSWORD:-Engineadmin!}"
+LANGFUSE_CREDENTIAL_EMAIL="${LANGFUSE_CREDENTIAL_EMAIL:-admin@engine.local}"
+LANGFUSE_CREDENTIAL_PASSWORD="${LANGFUSE_CREDENTIAL_PASSWORD:-Engineadmin!}"
 
 # =============================================================================
 # Default values for monitoring
@@ -185,6 +199,17 @@ window.__PLATFORM_CONFIG__ = {
     enableMonitoring: ${ENABLE_MONITORING},
     enableAgentRouter: ${ENABLE_AGENT_ROUTER},
     enableAirflow: ${ENABLE_AIRFLOW},
+  },
+
+  credentials: {
+    n8n: {
+      email: '${N8N_CREDENTIAL_EMAIL}',
+      password: '${N8N_CREDENTIAL_PASSWORD}',
+    },
+    langfuse: {
+      email: '${LANGFUSE_CREDENTIAL_EMAIL}',
+      password: '${LANGFUSE_CREDENTIAL_PASSWORD}',
+    },
   },
 
   monitoring: {

@@ -25,6 +25,16 @@ function mergeConfig(
       ...defaults.features,
       ...(runtime.features || {}),
     },
+    credentials: {
+      n8n: {
+        ...defaults.credentials.n8n,
+        ...((runtime.credentials as RuntimeConfig['credentials'])?.n8n || {}),
+      },
+      langfuse: {
+        ...defaults.credentials.langfuse,
+        ...((runtime.credentials as RuntimeConfig['credentials'])?.langfuse || {}),
+      },
+    },
     monitoring: {
       ...defaults.monitoring,
       ...(runtime.monitoring || {}),
