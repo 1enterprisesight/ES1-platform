@@ -8,10 +8,11 @@
 #
 # Image types:
 #   Custom (13) -- built from source when code changes, copied forward when not
-#   Upstream (14) -- pulled from public registries when source tag changes in
+#   Upstream (13) -- pulled from public registries when source tag changes in
 #                   .github/upstream-images.json, copied forward when not
 #
-# Result: 27 clean, single-arch (amd64) images on GHCR, each verified.
+# Result: 26 images on GHCR, each verified as clean single-arch amd64.
+# Note: kube-state-metrics is pulled directly from registry.k8s.io during deployment.
 
 name: Release Images
 
@@ -326,7 +327,7 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Verify all 27 images exist and are valid amd64
+      - name: Verify all 26 images exist and are valid amd64
         id: verify
         run: |
           REGISTRY="${{ needs.detect-changes.outputs.registry }}"
@@ -340,7 +341,6 @@ jobs:
             ollama ollama-webui airflow statsd-exporter
             langflow langfuse n8n prometheus grafana
             cadvisor node-exporter postgres-exporter redis-exporter
-            kube-state-metrics
           )
 
           PASS=0
@@ -502,7 +502,6 @@ jobs:
             ollama ollama-webui airflow statsd-exporter
             langflow langfuse n8n prometheus grafana
             cadvisor node-exporter postgres-exporter redis-exporter
-            kube-state-metrics
           )
 
           MANIFEST=".github/image-manifests/${VERSION}.yml"
