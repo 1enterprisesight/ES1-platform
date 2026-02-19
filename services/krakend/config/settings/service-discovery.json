@@ -3,60 +3,60 @@
   "comment": "Service discovery configuration - customize backend hosts per environment. Local values are Docker Compose service names. Kubernetes values use cross-namespace DNS with configurable customer prefix.",
   "services": {
     "platform-manager-api": {
-      "local": "http://es1-platform-manager-api:8000",
-      "kubernetes": "http://platform-manager-api.${CUSTOMER_NAME:-es1}-engine.svc.cluster.local:8000"
+      "local": "http://platform-manager-api:8000",
+      "kubernetes": "http://platform-manager-api.${CUSTOMER_NAME:-engine}-engine.svc.cluster.local:8000"
     },
     "platform-manager-ui": {
-      "local": "http://es1-platform-manager-ui:80",
-      "kubernetes": "http://platform-manager-ui.${CUSTOMER_NAME:-es1}-engine.svc.cluster.local:80"
+      "local": "http://platform-manager-ui:80",
+      "kubernetes": "http://platform-manager-ui.${CUSTOMER_NAME:-engine}-engine.svc.cluster.local:80"
     },
     "airflow": {
       "local": "http://airflow-webserver:8080",
-      "kubernetes": "http://airflow-webserver.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:8080"
+      "kubernetes": "http://airflow-webserver.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:8080"
     },
     "langfuse": {
       "local": "http://langfuse:3000",
-      "kubernetes": "http://langfuse.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:3000"
+      "kubernetes": "http://langfuse.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:3000"
     },
     "langflow": {
       "local": "http://langflow:7860",
-      "kubernetes": "http://langflow.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:7860"
+      "kubernetes": "http://langflow.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:7860"
     },
     "postgres": {
       "local": "postgres:5432",
-      "kubernetes": "postgresql.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:5432"
+      "kubernetes": "postgresql.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:5432"
     },
     "redis": {
       "local": "redis:6379",
-      "kubernetes": "redis-master.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:6379"
+      "kubernetes": "redis-master.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:6379"
     },
     "agent-router": {
       "local": "http://agent-router:8102",
-      "kubernetes": "http://agent-router.${CUSTOMER_NAME:-es1}-engine.svc.cluster.local:8102"
+      "kubernetes": "http://agent-router.${CUSTOMER_NAME:-engine}-engine.svc.cluster.local:8102"
     },
     "crewai": {
       "local": "http://crewai:8100",
-      "kubernetes": "http://crewai.${CUSTOMER_NAME:-es1}-engine.svc.cluster.local:8100"
+      "kubernetes": "http://crewai.${CUSTOMER_NAME:-engine}-engine.svc.cluster.local:8100"
     },
     "autogen": {
       "local": "http://autogen:8101",
-      "kubernetes": "http://autogen.${CUSTOMER_NAME:-es1}-engine.svc.cluster.local:8101"
+      "kubernetes": "http://autogen.${CUSTOMER_NAME:-engine}-engine.svc.cluster.local:8101"
     },
     "crewai-studio": {
       "local": "http://crewai-studio:8501",
-      "kubernetes": "http://crewai-studio.${CUSTOMER_NAME:-es1}-engine.svc.cluster.local:8501"
+      "kubernetes": "http://crewai-studio.${CUSTOMER_NAME:-engine}-engine.svc.cluster.local:8501"
     },
     "ollama": {
       "local": "http://ollama:11434",
-      "kubernetes": "http://ollama.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:11434"
+      "kubernetes": "http://ollama.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:11434"
     },
     "mlflow": {
       "local": "http://mlflow:5000",
-      "kubernetes": "http://mlflow.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:5000"
+      "kubernetes": "http://mlflow.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:5000"
     },
     "n8n": {
       "local": "http://n8n:5678",
-      "kubernetes": "http://n8n.${CUSTOMER_NAME:-es1}-infrastructure.svc.cluster.local:5678"
+      "kubernetes": "http://n8n.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:5678"
     }
   }
 }

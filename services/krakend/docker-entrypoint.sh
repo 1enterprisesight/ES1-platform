@@ -2,7 +2,7 @@
 # docker-entrypoint.sh - Generate KrakenD config from template with env var substitution
 #
 # Environment variables for backend host overrides:
-#   KRAKEND_BACKEND_PLATFORM_API   - Platform Manager API host (default: es1-platform-manager-api:8000)
+#   KRAKEND_BACKEND_PLATFORM_API   - Platform Manager API host (default: platform-manager-api:8000)
 #   KRAKEND_BACKEND_AIRFLOW        - Airflow webserver host (default: airflow-webserver:8080)
 #   KRAKEND_BACKEND_LANGFLOW       - Langflow host (default: langflow:7860)
 #   KRAKEND_BACKEND_LANGFUSE       - Langfuse host (default: langfuse:3000)
@@ -16,7 +16,7 @@ set -e
 # =============================================================================
 # Default values for backend hosts
 # =============================================================================
-export KRAKEND_BACKEND_PLATFORM_API="${KRAKEND_BACKEND_PLATFORM_API:-es1-platform-manager-api:8000}"
+export KRAKEND_BACKEND_PLATFORM_API="${KRAKEND_BACKEND_PLATFORM_API:-platform-manager-api:8000}"
 export KRAKEND_BACKEND_AIRFLOW="${KRAKEND_BACKEND_AIRFLOW:-airflow-webserver:8080}"
 export KRAKEND_BACKEND_LANGFLOW="${KRAKEND_BACKEND_LANGFLOW:-langflow:7860}"
 export KRAKEND_BACKEND_LANGFUSE="${KRAKEND_BACKEND_LANGFUSE:-langfuse:3000}"

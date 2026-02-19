@@ -1,5 +1,5 @@
 {
-  "@comment": "Docker Compose base config. Backend hosts use compose service names (es1-platform-manager-api, airflow-webserver, etc) and static URLs (admin_ui) reference localhost. For Kubernetes, the Helm chart must provide a K8s-specific overlay with correct service names, namespaced DNS (e.g. airflow-webserver.<namespace>.svc.cluster.local), and external-facing URLs.",
+  "@comment": "Docker Compose base config. Backend hosts use compose service names (platform-manager-api, airflow-webserver, etc) and static URLs (admin_ui) reference localhost. For Kubernetes, the Helm chart must provide a K8s-specific overlay with correct service names, namespaced DNS (e.g. airflow-webserver.<namespace>.svc.cluster.local), and external-facing URLs.",
   "$schema": "https://www.krakend.io/schema/krakend.json",
   "version": 3,
   "name": "ES1 Platform API Gateway",
@@ -115,7 +115,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/{path}",
           "encoding": "no-op"
         }
@@ -128,7 +128,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/{path}",
           "encoding": "no-op"
         }
@@ -141,7 +141,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/{path}",
           "encoding": "no-op"
         }
@@ -154,7 +154,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/{path}",
           "encoding": "no-op"
         }
@@ -380,7 +380,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/knowledge/{path}",
           "encoding": "no-op"
         }
@@ -393,7 +393,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/knowledge/{path}",
           "encoding": "no-op"
         }
@@ -406,7 +406,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/knowledge/{path}",
           "encoding": "no-op"
         }
@@ -419,7 +419,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/knowledge/{path}",
           "encoding": "no-op"
         }
@@ -434,7 +434,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/agents/{path}",
           "encoding": "no-op"
         }
@@ -448,7 +448,7 @@
       "timeout": "300s",
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/agents/{path}",
           "encoding": "no-op"
         }
@@ -461,7 +461,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/agents/{path}",
           "encoding": "no-op"
         }
@@ -474,7 +474,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/agents/{path}",
           "encoding": "no-op"
         }
@@ -489,7 +489,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/audit/{path}",
           "encoding": "no-op"
         }
@@ -502,7 +502,7 @@
       "input_headers": ["*"],
       "backend": [
         {
-          "host": ["http://es1-platform-manager-api:8000"],
+          "host": ["http://platform-manager-api:8000"],
           "url_pattern": "/api/v1/audit/{path}",
           "encoding": "no-op"
         }
