@@ -1,7 +1,7 @@
-# ES1 Platform Manager services
+# Platform Manager services
 # Usage: docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml up -d
 #
-# ES1 Platform Manager provides:
+# Platform Manager provides:
 # - Unified management for API Gateway, Workflows, and AI services
 # - Resource discovery from Airflow DAGs, Langflow flows, and K8s services
 # - Real-time event streaming via SSE
@@ -15,7 +15,7 @@
 # - API Docs: http://localhost:8000/docs
 
 services:
-  es1-platform-manager-api:
+  platform-manager-api:
     build:
       context: ./services/es1-platform-manager/api
       dockerfile: Dockerfile
@@ -129,9 +129,9 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - es1-network
+      - engine-network
 
-  es1-platform-manager-ui:
+  platform-manager-ui:
     build:
       context: ./services/es1-platform-manager/ui
       dockerfile: Dockerfile
@@ -189,7 +189,7 @@ services:
       ENABLE_MLFLOW: "${ENABLE_MLFLOW:-true}"
 
     depends_on:
-      es1-platform-manager-api:
+      platform-manager-api:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://127.0.0.1:80/health || exit 1"]
@@ -199,9 +199,9 @@ services:
       start_period: 10s
     restart: unless-stopped
     networks:
-      - es1-network
+      - engine-network
 
 volumes:
   krakend_config:
-    # Shared between es1-platform-manager-api and krakend
+    # Shared between platform-manager-api and krakend
     # Platform Manager writes config, KrakenD reads it

@@ -13,8 +13,8 @@ ES1 Platform
 │   └── krakend           (API Gateway - port 8080)
 │
 ├── Platform Services
-│   ├── es1-platform-manager-api  (Backend API - port 8000)
-│   └── es1-platform-manager-ui   (Frontend UI - port 3001)
+│   ├── platform-manager-api  (Backend API - port 8000)
+│   └── platform-manager-ui   (Frontend UI - port 3001)
 │
 ├── Agent Frameworks
 │   ├── agent-router      (Unified agent API - port 8102)
@@ -334,8 +334,8 @@ All custom images are built locally from Dockerfiles for air-gapped deployment s
 | es1-aiml-postgres | `infrastructure/aiml-postgres/` |
 | es1-redis | `infrastructure/redis/` |
 | es1-krakend | `services/krakend/` |
-| es1-platform-manager-api | `services/es1-platform-manager/api/` |
-| es1-platform-manager-ui | `services/es1-platform-manager/ui/` |
+| platform-manager-api | `services/es1-platform-manager/api/` |
+| platform-manager-ui | `services/es1-platform-manager/ui/` |
 | es1-crewai | `services/agents/crewai/` |
 | es1-autogen | `services/agents/autogen/` |
 | es1-agent-router | `services/agents/router/` |

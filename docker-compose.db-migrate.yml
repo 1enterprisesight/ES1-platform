@@ -39,4 +39,4 @@ services:
       aiml-postgres:
         condition: service_healthy
     networks:
-      - es1-network
+      - engine-network

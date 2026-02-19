@@ -69,7 +69,7 @@ x-airflow-common:
     redis:
       condition: service_healthy
   networks:
-    - es1-network
+    - engine-network
 
 services:
   # Initialize Airflow database and create admin user
@@ -177,7 +177,7 @@ services:
       - '--web.listen-address=:9102'
     restart: unless-stopped
     networks:
-      - es1-network
+      - engine-network
 
 volumes:
   airflow_logs:

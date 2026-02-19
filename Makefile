@@ -102,7 +102,7 @@ logs-gateway-manager: ## Tail logs from Gateway Manager (legacy)
 	docker compose -f docker-compose.yml -f docker-compose.gateway-manager.yml logs -f gateway-manager-api gateway-manager-ui
 
 logs-platform-manager: ## Tail logs from Platform Manager
-	docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml logs -f es1-platform-manager-api es1-platform-manager-ui
+	docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml logs -f platform-manager-api platform-manager-ui
 
 logs-aiml: ## Tail logs from AI/ML stack
 	docker compose -f docker-compose.yml -f docker-compose.aiml.yml logs -f aiml-postgres ollama ollama-webui mlflow

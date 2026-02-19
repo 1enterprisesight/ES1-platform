@@ -1,5 +1,5 @@
 -- V001: Extensions and app schema
--- Initial setup for es1_platform database
+-- Initial setup for platform database
 
 -- Enable extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

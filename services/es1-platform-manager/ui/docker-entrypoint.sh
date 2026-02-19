@@ -9,12 +9,12 @@
 #
 # Branding:
 #   PAGE_TITLE            - Browser tab title (default: Platform)
-#   PLATFORM_NAME         - Platform display name (default: ES1 Platform)
+#   PLATFORM_NAME         - Platform display name (default: Engine Platform)
 #   META_DESCRIPTION      - HTML meta description (default: Enterprise AI Platform)
 #   FAVICON_URL           - Custom favicon URL (default: empty - uses built-in)
 #
 # Internal services (proxied through nginx):
-#   PLATFORM_API_HOST     - Platform Manager API host (default: es1-platform-manager-api)
+#   PLATFORM_API_HOST     - Platform Manager API host (default: platform-manager-api)
 #   PLATFORM_API_PORT     - Platform Manager API port (default: 8000)
 #   AGENT_ROUTER_HOST     - Agent Router host (default: agent-router)
 #   AGENT_ROUTER_PORT     - Agent Router port (default: 8102)

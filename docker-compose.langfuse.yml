@@ -57,4 +57,4 @@ services:
       start_period: 30s
     restart: unless-stopped
     networks:
-      - es1-network
+      - engine-network

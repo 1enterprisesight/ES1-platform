@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Docker Compose upgrade script for ES1 Platform
+# Docker Compose upgrade script for the Platform
 # Pulls new images, runs database migrations, restarts services with zero data loss.
 #
 # Usage:
@@ -35,7 +35,7 @@ COMPOSE_FILES=(
 
 cd "$PROJECT_DIR"
 
-echo "=== ES1 Platform Upgrade ==="
+echo "=== Platform Upgrade ==="
 echo ""
 
 # Step 1: Pull latest images

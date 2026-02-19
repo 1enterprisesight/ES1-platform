@@ -24,7 +24,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - es1-network
+      - engine-network
 
   redis:
     build:
@@ -41,7 +41,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - es1-network
+      - engine-network
 
   # ==========================================================================
   # API Gateway (KrakenD)
@@ -81,7 +81,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - es1-network
+      - engine-network
 
 volumes:
   postgres_data:
@@ -90,5 +90,5 @@ volumes:
     # Shared volume for Gateway Manager to deploy configs
 
 networks:
-  es1-network:
+  engine-network:
     driver: bridge

@@ -72,7 +72,7 @@ n8n Community Edition does not support programmatic API key creation. This step 
    **Option B — Via environment variable (requires restart):**
    ```bash
    echo "N8N_API_KEY=YOUR_N8N_KEY" >> .env
-   docker compose restart es1-platform-manager-api
+   docker compose restart platform-manager-api
    ```
 
    For Kubernetes, update the `n8n-secrets` Secret and restart the Platform Manager pod.

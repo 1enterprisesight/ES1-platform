@@ -4,9 +4,9 @@
 
 CREATE SCHEMA IF NOT EXISTS audit;
 
--- Grant access
-GRANT USAGE ON SCHEMA audit TO es1_user;
-ALTER DEFAULT PRIVILEGES IN SCHEMA audit GRANT ALL PRIVILEGES ON TABLES TO es1_user;
+-- Grant access to the current database user
+GRANT USAGE ON SCHEMA audit TO CURRENT_USER;
+ALTER DEFAULT PRIVILEGES IN SCHEMA audit GRANT ALL PRIVILEGES ON TABLES TO CURRENT_USER;
 
 -- Every API call logged
 CREATE TABLE IF NOT EXISTS audit.api_requests (
@@ -175,4 +175,4 @@ COMMENT ON TABLE audit.security_events IS 'Security-related events requiring att
 COMMENT ON TABLE audit.api_keys IS 'API keys for service-to-service authentication';
 
 -- Grant permissions on newly created tables
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA audit TO es1_user;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA audit TO CURRENT_USER;

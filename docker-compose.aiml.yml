@@ -28,7 +28,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - es1-network
+      - engine-network
     # Resource limits for vector operations
     deploy:
       resources:
@@ -59,7 +59,7 @@ services:
       retries: 5
       start_period: 60s
     networks:
-      - es1-network
+      - engine-network
     # GPU support (uncomment if you have NVIDIA GPU)
     # deploy:
     #   resources:
@@ -88,7 +88,7 @@ services:
       ollama:
         condition: service_started
     networks:
-      - es1-network
+      - engine-network
 
   # ==========================================================================
   # MLflow - ML Experiment Tracking & Model Registry
@@ -120,7 +120,7 @@ services:
       retries: 5
       start_period: 30s
     networks:
-      - es1-network
+      - engine-network
 
 volumes:
   aiml_postgres_data:
