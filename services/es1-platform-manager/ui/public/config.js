@@ -51,6 +51,11 @@ window.__PLATFORM_CONFIG__ = {
     enableAutogenStudio: true,
     enableLangfuse: true,
     enableMlflow: true,
+    enableOllama: true,
+    enableOpenWebUI: true,
+    enableMonitoring: true,
+    enableAgentRouter: true,
+    enableAirflow: true,
   },
 
   auth: {

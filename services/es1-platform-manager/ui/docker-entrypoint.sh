@@ -46,6 +46,7 @@
 #   ENABLE_OPEN_WEBUI     - Enable Open WebUI link (default: true)
 #   ENABLE_MONITORING     - Enable monitoring dashboards (default: true)
 #   ENABLE_AGENT_ROUTER   - Enable agent services (default: true)
+#   ENABLE_AIRFLOW        - Enable Airflow integration (default: true)
 
 set -e
 
@@ -94,6 +95,7 @@ ENABLE_OLLAMA="${ENABLE_OLLAMA:-true}"
 ENABLE_OPEN_WEBUI="${ENABLE_OPEN_WEBUI:-true}"
 ENABLE_MONITORING="${ENABLE_MONITORING:-true}"
 ENABLE_AGENT_ROUTER="${ENABLE_AGENT_ROUTER:-true}"
+ENABLE_AIRFLOW="${ENABLE_AIRFLOW:-true}"
 
 # =============================================================================
 # Default values for monitoring
@@ -182,6 +184,7 @@ window.__PLATFORM_CONFIG__ = {
     enableOpenWebUI: ${ENABLE_OPEN_WEBUI},
     enableMonitoring: ${ENABLE_MONITORING},
     enableAgentRouter: ${ENABLE_AGENT_ROUTER},
+    enableAirflow: ${ENABLE_AIRFLOW},
   },
 
   monitoring: {

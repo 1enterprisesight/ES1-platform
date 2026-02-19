@@ -72,6 +72,8 @@ export interface RuntimeConfig {
     enableMonitoring: boolean;
     /** Enable Agent Router and agent services */
     enableAgentRouter: boolean;
+    /** Enable Airflow integration in Workflows module */
+    enableAirflow: boolean;
   };
 
   /**

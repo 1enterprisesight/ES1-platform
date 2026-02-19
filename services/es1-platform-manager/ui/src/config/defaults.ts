@@ -54,5 +54,6 @@ export const defaultConfig: RuntimeConfig = {
     enableOpenWebUI: true,
     enableMonitoring: true,
     enableAgentRouter: true,
+    enableAirflow: true,
   },
 };
