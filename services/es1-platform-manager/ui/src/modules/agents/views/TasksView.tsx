@@ -11,7 +11,7 @@ import {
   ChevronDown,
   ChevronRight,
 } from 'lucide-react'
-import { serviceUrl } from '@/config'
+import { serviceUrl, isFeatureEnabled } from '@/config'
 
 interface Run {
   run_id: string
@@ -35,23 +35,28 @@ export function TasksView() {
     setLoading(true)
     setError(null)
     try {
-      const crewaiUrl = serviceUrl('crewai')
-      const autogenUrl = serviceUrl('autogen')
+      const fetches: Promise<Response>[] = []
+      const fetchLabels: ('crewai' | 'autogen')[] = []
 
-      const [crewaiResponse, autogenResponse] = await Promise.allSettled([
-        fetch(`${crewaiUrl}/runs`),
-        fetch(`${autogenUrl}/runs`),
-      ])
-
-      if (crewaiResponse.status === 'fulfilled' && crewaiResponse.value.ok) {
-        const data = await crewaiResponse.value.json()
-        setCrewaiRuns(data.runs || [])
+      if (isFeatureEnabled('enableCrewaiStudio')) {
+        fetches.push(fetch(`${serviceUrl('crewai')}/runs`))
+        fetchLabels.push('crewai')
+      }
+      if (isFeatureEnabled('enableAutogenStudio')) {
+        fetches.push(fetch(`${serviceUrl('autogen')}/runs`))
+        fetchLabels.push('autogen')
       }
 
-      if (autogenResponse.status === 'fulfilled' && autogenResponse.value.ok) {
-        const data = await autogenResponse.value.json()
-        setAutogenRuns(data.runs || [])
-      }
+      const results = await Promise.allSettled(fetches)
+
+      results.forEach((result, i) => {
+        if (result.status === 'fulfilled' && result.value.ok) {
+          result.value.json().then((data) => {
+            if (fetchLabels[i] === 'crewai') setCrewaiRuns(data.runs || [])
+            else setAutogenRuns(data.runs || [])
+          })
+        }
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     } finally {

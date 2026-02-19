@@ -4,7 +4,7 @@ import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { Input } from '@/design-system/components/Input'
 import { RefreshCw, Plus, Network, ArrowRight } from 'lucide-react'
-import { agentRouterUrl } from '@/config'
+import { agentRouterUrl, isFeatureEnabled } from '@/config'
 
 interface AgentRef {
   name: string
@@ -192,7 +192,12 @@ export function NetworksView() {
             <Network className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-muted-foreground">No agent networks defined yet.</p>
             <p className="text-sm text-muted-foreground mt-2">
-              Create a network to connect agents across CrewAI, AutoGen, Langflow, and n8n.
+              Create a network to connect agents across {[
+                isFeatureEnabled('enableCrewaiStudio') && 'CrewAI',
+                isFeatureEnabled('enableAutogenStudio') && 'AutoGen',
+                isFeatureEnabled('enableLangflow') && 'Langflow',
+                isFeatureEnabled('enableN8n') && 'n8n',
+              ].filter(Boolean).join(', ') || 'your enabled frameworks'}.
             </p>
             <Button className="mt-4" onClick={() => setShowCreateForm(true)}>
               <Plus className="h-4 w-4 mr-2" />
@@ -284,8 +289,12 @@ export function NetworksView() {
             multiple frameworks. For example:
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li>A CrewAI research team that feeds results to an AutoGen debate</li>
-            <li>A Langflow data pipeline that triggers n8n notifications</li>
+            {isFeatureEnabled('enableCrewaiStudio') && isFeatureEnabled('enableAutogenStudio') && (
+              <li>A CrewAI research team that feeds results to an AutoGen debate</li>
+            )}
+            {isFeatureEnabled('enableLangflow') && isFeatureEnabled('enableN8n') && (
+              <li>A Langflow data pipeline that triggers n8n notifications</li>
+            )}
             <li>Multiple agent teams that share context via the Agent Router</li>
           </ul>
           <p className="pt-2">

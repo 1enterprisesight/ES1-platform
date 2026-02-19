@@ -5,6 +5,7 @@ import { Badge } from '@/design-system/components/Badge'
 import { Button } from '@/design-system/components/Button'
 import { RefreshCw, ExternalLink, Users, MessageSquare, Workflow, Bot, KeyRound } from 'lucide-react'
 import { config, agentRouterUrl, serviceUrl, isFeatureEnabled } from '@/config'
+import type { RuntimeConfig } from '@/config'
 
 interface Framework {
   name: string
@@ -60,6 +61,13 @@ const FRAMEWORK_INFO: Record<string, {
     hasApiDocs: true,
     credentials: { user: 'admin@es1.local', pass: 'Es1admin!' },
   },
+}
+
+const FRAMEWORK_FEATURE_MAP: Record<string, keyof RuntimeConfig['features']> = {
+  crewai: 'enableCrewaiStudio',
+  autogen: 'enableAutogenStudio',
+  langflow: 'enableLangflow',
+  n8n: 'enableN8n',
 }
 
 export function FrameworksView() {
@@ -136,7 +144,10 @@ export function FrameworksView() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {frameworks.map((framework) => {
+        {frameworks.filter((framework) => {
+          const flagKey = FRAMEWORK_FEATURE_MAP[framework.name]
+          return !flagKey || isFeatureEnabled(flagKey)
+        }).map((framework) => {
           const info = FRAMEWORK_INFO[framework.name] || {
             icon: Bot,
             description: 'Agent framework',
@@ -226,7 +237,7 @@ export function FrameworksView() {
       </div>
 
       {/* Agent Router Info */}
-      <Card>
+      {isFeatureEnabled('enableAgentRouter') && <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5" />
@@ -259,7 +270,7 @@ export function FrameworksView() {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card>}
     </div>
   )
 }
