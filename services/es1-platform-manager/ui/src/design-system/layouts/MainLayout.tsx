@@ -55,7 +55,7 @@ const allNavItems: Array<{
   { to: '/workflows', icon: Workflow, label: 'Workflows', featureFlag: 'enableAirflow' },
   { to: '/automation', icon: Zap, label: 'Automation', featureFlag: 'enableN8n' },
   { to: '/ai', icon: Brain, label: 'AI Flows', featureFlag: 'enableLangflow' },
-  { to: '/agents', icon: Bot, label: 'Agents' },
+  { to: '/agents', icon: Bot, label: 'Agents', featureFlag: 'enableAgentRouter' },
   { to: '/knowledge', icon: Database, label: 'Knowledge' },
   { to: '/traffic', icon: Activity, label: 'API Traffic' },
   { to: '/models', icon: Box, label: 'Models', featureCheck: () => isFeatureEnabled('enableOllama') || isFeatureEnabled('enableMlflow') },

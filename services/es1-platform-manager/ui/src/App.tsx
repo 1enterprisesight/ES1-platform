@@ -61,7 +61,7 @@ function App() {
         <Route path="/gateway/*" element={<GatewayModule />} />
         <Route path="/workflows/*" element={<FeatureGuard flag="enableAirflow"><WorkflowsModule /></FeatureGuard>} />
         <Route path="/ai/*" element={<FeatureGuard flag="enableLangflow"><AIModule /></FeatureGuard>} />
-        <Route path="/agents/*" element={<AgentsModule />} />
+        <Route path="/agents/*" element={<FeatureGuard flag="enableAgentRouter"><AgentsModule /></FeatureGuard>} />
         <Route path="/knowledge/*" element={<KnowledgeModule />} />
         <Route path="/traffic/*" element={<TrafficModule />} />
         <Route path="/models/*" element={<FeatureGuard flag="enableOllama" fallbackFlag="enableMlflow"><ModelsModule /></FeatureGuard>} />
