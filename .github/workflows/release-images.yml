@@ -205,6 +205,8 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push
+        env:
+          BUILDX_NO_DEFAULT_ATTESTATIONS: 1
         run: |
           REGISTRY="${{ needs.detect-changes.outputs.registry }}"
           NAME="${{ matrix.name }}"
