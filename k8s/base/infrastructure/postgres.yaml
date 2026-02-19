@@ -3,7 +3,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-pvc
-  namespace: es1-infrastructure
+  namespace: engine-infrastructure
   labels:
     app: postgres
 spec:
@@ -17,11 +17,11 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: postgres
-  namespace: es1-infrastructure
+  namespace: engine-infrastructure
   labels:
     app: postgres
     app.kubernetes.io/name: postgres
-    app.kubernetes.io/part-of: es1-platform
+    app.kubernetes.io/part-of: engine-platform
 spec:
   serviceName: postgres
   replicas: 1
@@ -41,7 +41,7 @@ spec:
               name: postgres
           env:
             - name: POSTGRES_DB
-              value: es1_platform
+              value: engine_platform
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
@@ -71,7 +71,7 @@ spec:
                 - -U
                 - $(POSTGRES_USER)
                 - -d
-                - es1_platform
+                - engine_platform
             initialDelaySeconds: 30
             periodSeconds: 10
           readinessProbe:
@@ -81,7 +81,7 @@ spec:
                 - -U
                 - $(POSTGRES_USER)
                 - -d
-                - es1_platform
+                - engine_platform
             initialDelaySeconds: 5
             periodSeconds: 5
       volumes:
@@ -93,7 +93,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: postgres
-  namespace: es1-infrastructure
+  namespace: engine-infrastructure
   labels:
     app: postgres
 spec:

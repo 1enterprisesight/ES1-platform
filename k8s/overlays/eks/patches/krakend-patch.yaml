@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: krakend
-  namespace: es1-platform
+  namespace: engine-platform
 spec:
   template:
     spec:

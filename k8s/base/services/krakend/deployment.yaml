@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: krakend
-  namespace: es1-platform
+  namespace: engine-platform
   labels:
     app: krakend
     app.kubernetes.io/name: krakend
-    app.kubernetes.io/part-of: es1-platform
+    app.kubernetes.io/part-of: engine-platform
 spec:
   replicas: 2
   selector:

@@ -1,4 +1,4 @@
-# Agent Framework Services for ES1 Platform
+# Agent Framework Services for the Platform
 # Usage: docker compose -f docker-compose.yml -f docker-compose.agents.yml up -d
 #
 # Provides multi-framework agent support:
@@ -17,7 +17,7 @@ services:
     build:
       context: ./services/agents/crewai
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-crewai
+    container_name: ${CONTAINER_PREFIX:-engine}-crewai
     environment:
       - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
       - OLLAMA_BASE_URL=http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
@@ -47,7 +47,7 @@ services:
     build:
       context: ./services/agents/autogen
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-autogen
+    container_name: ${CONTAINER_PREFIX:-engine}-autogen
     environment:
       - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
       - OLLAMA_BASE_URL=http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
@@ -78,7 +78,7 @@ services:
     build:
       context: ./services/agents/router
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-agent-router
+    container_name: ${CONTAINER_PREFIX:-engine}-agent-router
     environment:
       - REDIS_URL=redis://${REDIS_HOST:-redis}:${REDIS_PORT:-6379}/0
       - CREWAI_URL=http://${CREWAI_HOST:-crewai}:8100
