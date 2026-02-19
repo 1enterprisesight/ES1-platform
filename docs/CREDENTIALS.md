@@ -186,7 +186,7 @@ Revoked keys are marked `is_active=false` in the database. The per-pod cache inv
 Database password rotation requires coordinated restarts:
 
 1. Generate new password
-2. Update the PostgreSQL user password: `ALTER USER es1_user WITH PASSWORD 'new_password';`
+2. Update the PostgreSQL user password: `ALTER USER engine_user WITH PASSWORD 'new_password';`
 3. Update `POSTGRES_PASSWORD` in all services that connect to the database
 4. Rolling restart all affected services
 

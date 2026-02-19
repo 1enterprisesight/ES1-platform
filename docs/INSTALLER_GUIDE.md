@@ -83,9 +83,9 @@ All credentials and URLs are configurable via environment variables for customer
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `POSTGRES_DB` | `es1_platform` | Main database name |
-| `POSTGRES_USER` | `es1_user` | Main database user |
-| `POSTGRES_PASSWORD` | `es1_dev_password` | Main database password |
+| `POSTGRES_DB` | `engine_platform` | Main database name |
+| `POSTGRES_USER` | `engine_user` | Main database user |
+| `POSTGRES_PASSWORD` | `engine_dev_password` | Main database password |
 | `AIML_POSTGRES_DB` | `aiml` | AI/ML database name |
 | `AIML_POSTGRES_USER` | `aiml_user` | AI/ML database user |
 | `AIML_POSTGRES_PASSWORD` | `aiml_dev_password` | AI/ML database password |
@@ -97,9 +97,9 @@ All credentials and URLs are configurable via environment variables for customer
 | `GRAFANA_ADMIN_USER` | `admin` | Grafana admin username |
 | `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password |
 | `GRAFANA_ROOT_URL` | `http://localhost:3002` | Grafana public URL |
-| `N8N_DEFAULT_USER_EMAIL` | `admin@es1.local` | n8n default user email |
-| `N8N_DEFAULT_USER_PASSWORD` | `Es1admin!` | n8n default user password (must contain uppercase) |
-| `N8N_DEFAULT_USER_FIRST_NAME` | `ES1` | n8n user first name (branding) |
+| `N8N_DEFAULT_USER_EMAIL` | `admin@engine.local` | n8n default user email |
+| `N8N_DEFAULT_USER_PASSWORD` | `Engineadmin!` | n8n default user password (must contain uppercase) |
+| `N8N_DEFAULT_USER_FIRST_NAME` | `Engine` | n8n user first name (branding) |
 | `N8N_DEFAULT_USER_LAST_NAME` | `Admin` | n8n user last name |
 | `_AIRFLOW_WWW_USER_USERNAME` | `airflow` | Airflow admin username |
 | `_AIRFLOW_WWW_USER_PASSWORD` | `airflow` | Airflow admin password |
@@ -112,11 +112,11 @@ All credentials and URLs are configurable via environment variables for customer
 | `LANGFUSE_NEXTAUTH_SECRET` | dev secret | Auth secret (generate: `openssl rand -base64 32`) |
 | `LANGFUSE_SALT` | dev salt | Password salt (generate: `openssl rand -base64 32`) |
 | `LANGFUSE_TELEMETRY_ENABLED` | `false` | Enable/disable telemetry |
-| `LANGFUSE_INIT_USER_EMAIL` | `admin@es1.local` | Default admin email |
-| `LANGFUSE_INIT_USER_NAME` | `ES1 Admin` | Default admin display name |
-| `LANGFUSE_INIT_USER_PASSWORD` | `es1admin` | Default admin password |
-| `LANGFUSE_INIT_ORG_NAME` | `ES1 Platform` | Organization name (branding) |
-| `LANGFUSE_INIT_PROJECT_NAME` | `ES1 Platform` | Default project name |
+| `LANGFUSE_INIT_USER_EMAIL` | `admin@engine.local` | Default admin email |
+| `LANGFUSE_INIT_USER_NAME` | `Engine Admin` | Default admin display name |
+| `LANGFUSE_INIT_USER_PASSWORD` | `Engineadmin!` | Default admin password |
+| `LANGFUSE_INIT_ORG_NAME` | `Engine Platform` | Organization name (branding) |
+| `LANGFUSE_INIT_PROJECT_NAME` | `Engine Platform` | Default project name |
 | `LANGFUSE_INIT_PROJECT_PUBLIC_KEY` | dev key | API public key for integrations |
 | `LANGFUSE_INIT_PROJECT_SECRET_KEY` | dev key | API secret key for integrations |
 
@@ -130,7 +130,7 @@ These configure where nginx proxies API requests. In Kubernetes, set these to th
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `PLATFORM_API_HOST` | `es1-platform-manager-api` | Platform API service hostname |
+| `PLATFORM_API_HOST` | `platform-manager-api` | Platform API service hostname |
 | `PLATFORM_API_PORT` | `8000` | Platform API service port |
 | `AGENT_ROUTER_HOST` | `agent-router` | Agent Router service hostname |
 | `AGENT_ROUTER_PORT` | `8102` | Agent Router service port |
@@ -298,8 +298,8 @@ All services have configurable default credentials. Change these for production 
 
 | Service | Username Variable | Password Variable | Defaults |
 |---------|-------------------|-------------------|----------|
-| **n8n** | `N8N_DEFAULT_USER_EMAIL` | `N8N_DEFAULT_USER_PASSWORD` | `admin@es1.local` / `Es1admin!` |
-| **Langfuse** | `LANGFUSE_INIT_USER_EMAIL` | `LANGFUSE_INIT_USER_PASSWORD` | `admin@es1.local` / `Es1admin!` |
+| **n8n** | `N8N_DEFAULT_USER_EMAIL` | `N8N_DEFAULT_USER_PASSWORD` | `admin@engine.local` / `Engineadmin!` |
+| **Langfuse** | `LANGFUSE_INIT_USER_EMAIL` | `LANGFUSE_INIT_USER_PASSWORD` | `admin@engine.local` / `Engineadmin!` |
 | **Grafana** | `GRAFANA_ADMIN_USER` | `GRAFANA_ADMIN_PASSWORD` | `admin` / `admin` |
 | **Airflow** | `_AIRFLOW_WWW_USER_USERNAME` | `_AIRFLOW_WWW_USER_PASSWORD` | `airflow` / `airflow` |
 
@@ -314,11 +314,11 @@ curl http://localhost:8102/agents | jq '.agents | length'
 # Expected: 17 agents
 
 # Check knowledge bases
-docker exec es1-aiml-postgres psql -U aiml_user -d aiml \
+docker exec engine-aiml-postgres psql -U aiml_user -d aiml \
   -c "SELECT name FROM rag.knowledge_bases;"
 
 # Check migration status
-docker exec es1-postgres psql -U es1_user -d es1_platform \
+docker exec engine-postgres psql -U engine_user -d engine_platform \
   -c "SELECT * FROM _schema_migrations;"
 ```
 
