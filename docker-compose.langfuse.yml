@@ -15,16 +15,16 @@
 services:
   langfuse:
     image: langfuse/langfuse:2
-    container_name: ${CONTAINER_PREFIX:-es1}-langfuse
+    container_name: ${CONTAINER_PREFIX:-engine}-langfuse
     ports:
       - "3000:3000"
     environment:
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-es1_user}:${POSTGRES_PASSWORD:-es1_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/langfuse
+      DATABASE_URL: postgresql://${POSTGRES_USER:-engine_user}:${POSTGRES_PASSWORD:-engine_dev_password}@${POSTGRES_HOST:-postgres}:${POSTGRES_PORT:-5432}/langfuse
       # Auth (generate with: openssl rand -base64 32)
       NEXTAUTH_URL: ${LANGFUSE_URL:-http://localhost:3000}
-      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-es1-langfuse-dev-secret-change-in-production}
-      SALT: ${LANGFUSE_SALT:-es1-langfuse-salt-change-in-production}
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-engine-langfuse-dev-secret-change-in-production}
+      SALT: ${LANGFUSE_SALT:-engine-langfuse-salt-change-in-production}
       # Telemetry (disable for local dev)
       TELEMETRY_ENABLED: "${LANGFUSE_TELEMETRY_ENABLED:-false}"
       # Experimental features
@@ -34,18 +34,18 @@ services:
       # Headless Initialization (auto-creates user, org, project on first start)
       # ==========================================================================
       # Organization
-      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-es1-org}
-      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-ES1 Platform}
+      LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-engine-org}
+      LANGFUSE_INIT_ORG_NAME: ${LANGFUSE_INIT_ORG_NAME:-Engine Platform}
       # Admin user (created as owner of the organization)
-      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@es1.local}
-      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-ES1 Admin}
-      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-Es1admin!}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_USER_EMAIL:-admin@engine.local}
+      LANGFUSE_INIT_USER_NAME: ${LANGFUSE_INIT_USER_NAME:-Engine Admin}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_USER_PASSWORD:-Engineadmin!}
       # Default project
-      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-es1-platform}
-      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-ES1 Platform}
+      LANGFUSE_INIT_PROJECT_ID: ${LANGFUSE_INIT_PROJECT_ID:-engine-platform}
+      LANGFUSE_INIT_PROJECT_NAME: ${LANGFUSE_INIT_PROJECT_NAME:-Engine Platform}
       # API keys for the project (used by Platform Manager API)
-      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-es1-dev-public-key}
-      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-es1-dev-secret-key}
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-engine-dev-public-key}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-engine-dev-secret-key}
     depends_on:
       postgres:
         condition: service_healthy

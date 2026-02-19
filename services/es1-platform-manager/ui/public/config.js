@@ -75,7 +75,7 @@ window.__PLATFORM_CONFIG__ = {
 
   branding: {
     pageTitle: 'Platform',
-    platformName: 'ES1 Platform',
+    platformName: 'Engine Platform',
     metaDescription: 'Enterprise AI Platform',
     faviconUrl: '',
   },

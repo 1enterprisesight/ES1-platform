@@ -26,7 +26,7 @@ class BrandingConfig(Base):
     __tablename__ = "branding_config"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(255), nullable=False, default="ES1 Platform")
+    name = Column(String(255), nullable=False, default="Engine Platform")
     tagline = Column(String(500), nullable=True)
     logo_url = Column(String(1000), nullable=True)
     logo_dark_url = Column(String(1000), nullable=True)

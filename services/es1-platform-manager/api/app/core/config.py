@@ -63,15 +63,15 @@ class Settings(BaseSettings):
     KRAKEND_BASE_CONFIG_PATH: str = "/etc/krakend/krakend.json"
 
     # Kubernetes-specific settings
-    K8S_NAMESPACE: str = "es1-platform"
-    KRAKEND_NAMESPACE: str = "es1-infrastructure"
+    K8S_NAMESPACE: str = "engine-platform"
+    KRAKEND_NAMESPACE: str = "engine-infrastructure"
     KRAKEND_CONFIGMAP_NAME: str = "krakend-config"
     KRAKEND_DEPLOYMENT_NAME: str = "krakend"
     KRAKEND_LABEL_SELECTOR: str = "app=krakend"
 
     # Labels and annotations for K8s resources (white-label: no hardcoded product names)
     KRAKEND_MANAGED_BY_LABEL: str = "platform-manager"
-    ANNOTATION_DOMAIN: str = "es1.io"
+    ANNOTATION_DOMAIN: str = "engine.io"
 
     # ConfigMap version retention (number of old versions to keep)
     CONFIGMAP_RETENTION_COUNT: int = 10

@@ -9,11 +9,11 @@ services:
     build:
       context: ./infrastructure/postgres
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-postgres
+    container_name: ${CONTAINER_PREFIX:-engine}-postgres
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-es1_platform}
-      POSTGRES_USER: ${POSTGRES_USER:-es1_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-engine_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-engine_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-engine_dev_password}
     ports:
       - "5432:5432"
     volumes:
@@ -30,7 +30,7 @@ services:
     build:
       context: ./infrastructure/redis
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-redis
+    container_name: ${CONTAINER_PREFIX:-engine}-redis
     ports:
       - "6379:6379"
     volumes:
@@ -50,10 +50,10 @@ services:
     build:
       context: ./services/krakend
       dockerfile: Dockerfile.dev
-    container_name: ${CONTAINER_PREFIX:-es1}-krakend
+    container_name: ${CONTAINER_PREFIX:-engine}-krakend
     environment:
       KRAKEND_GATEWAY_NAME: ${KRAKEND_GATEWAY_NAME:-Platform API Gateway}
-      KRAKEND_BACKEND_PLATFORM_API: ${KRAKEND_BACKEND_PLATFORM_API:-es1-platform-manager-api:8000}
+      KRAKEND_BACKEND_PLATFORM_API: ${KRAKEND_BACKEND_PLATFORM_API:-platform-manager-api:8000}
       KRAKEND_BACKEND_AIRFLOW: ${KRAKEND_BACKEND_AIRFLOW:-airflow-webserver:8080}
       KRAKEND_BACKEND_LANGFLOW: ${KRAKEND_BACKEND_LANGFLOW:-langflow:7860}
       KRAKEND_BACKEND_LANGFUSE: ${KRAKEND_BACKEND_LANGFUSE:-langfuse:3000}

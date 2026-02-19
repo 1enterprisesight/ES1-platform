@@ -60,14 +60,14 @@ set -e
 # Default values for branding
 # =============================================================================
 PAGE_TITLE="${PAGE_TITLE:-Platform}"
-PLATFORM_NAME="${PLATFORM_NAME:-ES1 Platform}"
+PLATFORM_NAME="${PLATFORM_NAME:-Engine Platform}"
 META_DESCRIPTION="${META_DESCRIPTION:-Enterprise AI Platform}"
 FAVICON_URL="${FAVICON_URL:-}"
 
 # =============================================================================
 # Default values for internal services
 # =============================================================================
-export PLATFORM_API_HOST="${PLATFORM_API_HOST:-es1-platform-manager-api}"
+export PLATFORM_API_HOST="${PLATFORM_API_HOST:-platform-manager-api}"
 export PLATFORM_API_PORT="${PLATFORM_API_PORT:-8000}"
 export AGENT_ROUTER_HOST="${AGENT_ROUTER_HOST:-agent-router}"
 export AGENT_ROUTER_PORT="${AGENT_ROUTER_PORT:-8102}"

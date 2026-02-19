@@ -19,7 +19,7 @@ services:
     build:
       context: ./services/es1-platform-manager/api
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-platform-manager-api
+    container_name: ${CONTAINER_PREFIX:-engine}-platform-manager-api
     ports:
       - "8000:8000"
     environment:
@@ -43,8 +43,8 @@ services:
       POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: platform_manager
-      POSTGRES_USER: ${POSTGRES_USER:-es1_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-es1_dev_password}
+      POSTGRES_USER: ${POSTGRES_USER:-engine_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-engine_dev_password}
 
       # ==========================================================================
       # KrakenD Configuration
@@ -59,13 +59,13 @@ services:
       KRAKEND_BASE_CONFIG_PATH: ${KRAKEND_BASE_CONFIG_PATH:-/etc/krakend/krakend.json}
 
       # Kubernetes settings (used when RUNTIME_MODE=kubernetes)
-      K8S_NAMESPACE: ${K8S_NAMESPACE:-es1-platform}
-      KRAKEND_NAMESPACE: ${KRAKEND_NAMESPACE:-es1-infrastructure}
+      K8S_NAMESPACE: ${K8S_NAMESPACE:-engine-platform}
+      KRAKEND_NAMESPACE: ${KRAKEND_NAMESPACE:-engine-infrastructure}
       KRAKEND_CONFIGMAP_NAME: ${KRAKEND_CONFIGMAP_NAME:-krakend-config}
       KRAKEND_DEPLOYMENT_NAME: ${KRAKEND_DEPLOYMENT_NAME:-krakend}
       # White-label: K8s resource labels and annotation domain
       KRAKEND_MANAGED_BY_LABEL: ${KRAKEND_MANAGED_BY_LABEL:-platform-manager}
-      ANNOTATION_DOMAIN: ${ANNOTATION_DOMAIN:-es1.io}
+      ANNOTATION_DOMAIN: ${ANNOTATION_DOMAIN:-engine.io}
 
       # ==========================================================================
       # Airflow Integration
@@ -89,8 +89,8 @@ services:
       LANGFUSE_URL: http://${LANGFUSE_HOST:-langfuse}:3000
       LANGFUSE_API_URL: http://${LANGFUSE_HOST:-langfuse}:3000/api
       LANGFUSE_ENABLED: "true"
-      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-es1-dev-public-key}
-      LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-es1-dev-secret-key}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-engine-dev-public-key}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-engine-dev-secret-key}
 
       # ==========================================================================
       # n8n Integration (Automation)
@@ -135,14 +135,14 @@ services:
     build:
       context: ./services/es1-platform-manager/ui
       dockerfile: Dockerfile
-    container_name: ${CONTAINER_PREFIX:-es1}-platform-manager-ui
+    container_name: ${CONTAINER_PREFIX:-engine}-platform-manager-ui
     ports:
       - "3001:80"
     environment:
       # ==========================================================================
       # Internal service hosts (proxied through nginx)
       # ==========================================================================
-      PLATFORM_API_HOST: ${PLATFORM_API_HOST:-es1-platform-manager-api}
+      PLATFORM_API_HOST: ${PLATFORM_API_HOST:-platform-manager-api}
       PLATFORM_API_PORT: ${PLATFORM_API_PORT:-8000}
       AGENT_ROUTER_HOST: ${AGENT_ROUTER_HOST:-agent-router}
       AGENT_ROUTER_PORT: ${AGENT_ROUTER_PORT:-8102}
@@ -169,7 +169,7 @@ services:
       # Branding (configures page title, platform name, etc.)
       # ==========================================================================
       PAGE_TITLE: ${PAGE_TITLE:-Platform}
-      PLATFORM_NAME: "${PLATFORM_NAME:-ES1} Platform"
+      PLATFORM_NAME: "${PLATFORM_NAME:-Engine} Platform"
       META_DESCRIPTION: ${META_DESCRIPTION:-Enterprise AI Platform}
       FAVICON_URL: ${FAVICON_URL:-}
 
