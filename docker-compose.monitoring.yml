@@ -15,7 +15,7 @@
 
 services:
   prometheus:
-    profiles: ["monitoring", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     image: prom/prometheus:v2.51.0
     container_name: ${CONTAINER_PREFIX:-engine}-prometheus
     ports:
@@ -35,7 +35,7 @@ services:
       - engine-network
 
   grafana:
-    profiles: ["monitoring", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     image: grafana/grafana:10.4.0
     container_name: ${CONTAINER_PREFIX:-engine}-grafana
     ports:
@@ -62,7 +62,7 @@ services:
 
   # Container metrics exporter
   cadvisor:
-    profiles: ["monitoring", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: ${CONTAINER_PREFIX:-engine}-cadvisor
     ports:
@@ -87,7 +87,7 @@ services:
 
   # Host metrics exporter
   node-exporter:
-    profiles: ["monitoring", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     image: prom/node-exporter:v1.7.0
     container_name: ${CONTAINER_PREFIX:-engine}-node-exporter
     ports:
@@ -107,7 +107,7 @@ services:
 
   # PostgreSQL metrics exporter
   postgres-exporter:
-    profiles: ["monitoring", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: ${CONTAINER_PREFIX:-engine}-postgres-exporter
     ports:
@@ -123,7 +123,7 @@ services:
 
   # Redis metrics exporter
   redis-exporter:
-    profiles: ["monitoring", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     image: oliver006/redis_exporter:v1.58.0
     container_name: ${CONTAINER_PREFIX:-engine}-redis-exporter
     ports:

@@ -19,7 +19,7 @@ up: ## Start base services (Postgres, Redis, KrakenD)
 up-infra: ## Start only infrastructure (Postgres + Redis)
 	docker compose -f docker-compose.infra.yml up -d
 
-up-full: ## Start ALL services (infrastructure + Airflow + Langfuse + Langflow + n8n + AI/ML + Agents + Platform Manager)
+up-full: ## Start ALL services (infrastructure + Airflow + Langfuse + Langflow + n8n + AI/ML + Agents + Studios + Platform Manager)
 	docker compose \
 		-f docker-compose.yml \
 		-f docker-compose.airflow.yml \
@@ -28,6 +28,8 @@ up-full: ## Start ALL services (infrastructure + Airflow + Langfuse + Langflow +
 		-f docker-compose.n8n.yml \
 		-f docker-compose.aiml.yml \
 		-f docker-compose.agents.yml \
+		-f docker-compose.crewai-studio.yml \
+		-f docker-compose.autogen-studio.yml \
 		-f docker-compose.es1-platform-manager.yml \
 		up -d
 
@@ -76,6 +78,8 @@ up-full-monitoring: ## Start ALL services + Monitoring
 		-f docker-compose.n8n.yml \
 		-f docker-compose.aiml.yml \
 		-f docker-compose.agents.yml \
+		-f docker-compose.crewai-studio.yml \
+		-f docker-compose.autogen-studio.yml \
 		-f docker-compose.es1-platform-manager.yml \
 		-f docker-compose.monitoring.yml \
 		up -d
@@ -91,6 +95,8 @@ down: ## Stop all Docker Compose services
 		-f docker-compose.es1-platform-manager.yml \
 		-f docker-compose.aiml.yml \
 		-f docker-compose.agents.yml \
+		-f docker-compose.crewai-studio.yml \
+		-f docker-compose.autogen-studio.yml \
 		-f docker-compose.monitoring.yml \
 		down 2>/dev/null || true
 	docker compose -f docker-compose.infra.yml down 2>/dev/null || true

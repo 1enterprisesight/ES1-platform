@@ -10,7 +10,7 @@
 
 services:
   crewai-studio:
-    profiles: ["agents", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     build:
       context: ./services/agents/crewai-studio
       dockerfile: Dockerfile
