@@ -13,7 +13,6 @@
 
 services:
   n8n:
-    profiles: ["n8n", "full"]
     image: n8nio/n8n:latest
     container_name: ${CONTAINER_PREFIX:-engine}-n8n
     ports:
