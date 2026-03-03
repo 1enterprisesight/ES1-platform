@@ -6,7 +6,7 @@
 # - Testing multi-agent conversations
 # - Managing agent skills and tools
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 LABEL org.opencontainers.image.source="https://github.com/1enterprisesight/ES1-platform"
 LABEL org.opencontainers.image.description="AutoGen Studio - Visual Multi-Agent Builder"

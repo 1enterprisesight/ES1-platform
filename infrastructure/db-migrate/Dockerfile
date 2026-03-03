@@ -1,7 +1,7 @@
 # Database Migration Runner
 # Runs versioned SQL migrations for ES1 Platform databases
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 LABEL org.opencontainers.image.source="https://github.com/1enterprisesight/ES1-platform"
 LABEL org.opencontainers.image.description="ES1 Platform Database Migration Runner"

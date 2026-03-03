@@ -4,7 +4,7 @@
 # This provides a visual interface for building and managing CrewAI agents
 # and crews without writing code.
 
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 LABEL org.opencontainers.image.source="https://github.com/1enterprisesight/ES1-platform"
 LABEL org.opencontainers.image.description="CrewAI Studio - Visual Agent Builder"
