@@ -13,7 +13,7 @@ services:
   # CrewAI Service - Role-based Agent Teams
   # ==========================================================================
   crewai:
-    profiles: ["agents", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     build:
       context: ./services/agents/crewai
       dockerfile: Dockerfile
@@ -43,7 +43,7 @@ services:
   # AutoGen Service - Multi-Agent Conversations
   # ==========================================================================
   autogen:
-    profiles: ["agents", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     build:
       context: ./services/agents/autogen
       dockerfile: Dockerfile
@@ -74,7 +74,7 @@ services:
   # Routes requests to CrewAI, AutoGen, Langflow, n8n
   # ==========================================================================
   agent-router:
-    profiles: ["agents", "full"]
+    # profiles removed — local dev runs everything; feature flags are for customer Helm deploys
     build:
       context: ./services/agents/router
       dockerfile: Dockerfile

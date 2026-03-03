@@ -29,7 +29,6 @@ up-full: ## Start ALL services (infrastructure + Airflow + Langfuse + Langflow +
 		-f docker-compose.aiml.yml \
 		-f docker-compose.agents.yml \
 		-f docker-compose.es1-platform-manager.yml \
-		--profile full \
 		up -d
 
 up-airflow: ## Start base + Airflow
@@ -79,7 +78,6 @@ up-full-monitoring: ## Start ALL services + Monitoring
 		-f docker-compose.agents.yml \
 		-f docker-compose.es1-platform-manager.yml \
 		-f docker-compose.monitoring.yml \
-		--profile full \
 		up -d
 
 down: ## Stop all Docker Compose services
