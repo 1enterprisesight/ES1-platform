@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Workflow, FileCode, Clock, ExternalLink, RefreshCw, Trash2 } from 'lucide-react'
+import { Workflow, FileCode, Clock, ExternalLink, RefreshCw, Trash2, Download } from 'lucide-react'
 import { Card, Button, Badge, StatusIndicator, Skeleton, SkeletonList, ErrorDisplay, EmptyState } from '../../../design-system/components'
 import { useToast } from '../../../shared/contexts/ToastContext'
 import { serviceUrl } from '@/config'
@@ -205,6 +205,28 @@ export function DagsView() {
     },
   })
 
+  const importMutation = useMutation({
+    mutationFn: async (dagId: string) => {
+      const res = await fetch(`/api/v1/airflow/dags/${dagId}/import`, { method: 'POST' })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.detail || 'Failed to import')
+      }
+      return res.json()
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['dag-files'] })
+      addToast({
+        type: 'success',
+        message: `${data.dag_id} imported — now editable in DAG Editor`,
+      })
+      navigate(`/workflows/editor?file=${encodeURIComponent(data.filename)}`)
+    },
+    onError: (error: Error) => {
+      addToast({ type: 'error', message: error.message })
+    },
+  })
+
   const isLoading = airflowLoading || filesLoading
 
   if (isLoading) {
@@ -352,7 +374,7 @@ export function DagsView() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0 ml-4">
-                {dag.filename && (
+                {dag.filename ? (
                   <Button
                     size="sm"
                     variant="ghost"
@@ -361,7 +383,17 @@ export function DagsView() {
                   >
                     <FileCode className="h-4 w-4" />
                   </Button>
-                )}
+                ) : dag.status === 'airflow_only' ? (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => importMutation.mutate(dag.dag_id)}
+                    disabled={importMutation.isPending}
+                    title="Import to DAG Editor"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                ) : null}
                 {dag.status !== 'pending_parse' && (
                   <>
                     <Button

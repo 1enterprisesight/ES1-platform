@@ -770,6 +770,95 @@ async def upload_dag_bundle(
     )
 
 
+@router.get("/dags/{dag_id}/source")
+async def get_dag_source(dag_id: str, db: AsyncSession = Depends(get_db)):
+    """Get the source code for a DAG.
+
+    First checks the dag_files database, then falls back to Airflow's
+    dagSources API. This allows viewing source for any DAG, whether it
+    was created via the platform or loaded from the dags-folder.
+    """
+    # Try database first (platform-managed DAGs)
+    from app.modules.airflow.models import DagFile
+    result = await db.execute(
+        select(DagFile).where(DagFile.dag_id == dag_id)
+    )
+    dag_file = result.scalar_one_or_none()
+    if dag_file:
+        return {
+            "dag_id": dag_id,
+            "source": dag_file.content,
+            "filename": dag_file.filename,
+            "origin": "platform",
+        }
+
+    # Fall back to Airflow dagSources API (v2 uses dag_id directly)
+    try:
+        source = await airflow_client.get_dag_source(dag_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail=f"Could not fetch source for DAG: {dag_id}")
+
+        return {
+            "dag_id": dag_id,
+            "source": source,
+            "filename": None,
+            "origin": "airflow",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/dags/{dag_id}/import")
+async def import_dag_to_platform(dag_id: str, db: AsyncSession = Depends(get_db)):
+    """Import a DAG from Airflow into the platform database.
+
+    Fetches source from Airflow's dagSources API and stores it in the
+    dag_files table so it becomes editable in the DAG Editor.
+    """
+    # Check if already in database
+    from app.modules.airflow.models import DagFile
+    result = await db.execute(
+        select(DagFile).where(DagFile.dag_id == dag_id)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"DAG {dag_id} is already managed by the platform")
+
+    # Fetch from Airflow (v2 API uses dag_id directly)
+    try:
+        source = await airflow_client.get_dag_source(dag_id)
+        if source is None:
+            raise HTTPException(status_code=404, detail=f"Could not fetch source for DAG: {dag_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    # Store in database
+    filename = f"{dag_id}.py"
+    success = await airflow_client.write_dag_file(filename, source, db)
+    if not success:
+        raise HTTPException(status_code=500, detail="Failed to import DAG")
+
+    await event_bus.publish(
+        EventType.OPERATION_COMPLETED,
+        {
+            "operation": "dag_imported",
+            "dag_id": dag_id,
+            "filename": filename,
+            "message": f"DAG {dag_id} imported to platform",
+        },
+    )
+
+    return {
+        "success": True,
+        "dag_id": dag_id,
+        "filename": filename,
+        "message": f"DAG {dag_id} imported to platform editor",
+    }
+
+
 @router.get("/dag-templates", response_model=DAGTemplateListResponse)
 async def list_dag_templates():
     """List available DAG templates."""

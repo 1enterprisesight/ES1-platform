@@ -908,6 +908,24 @@ class AirflowClient:
         else:
             return False, "Failed to write DAG file"
 
+    async def get_dag_source(self, dag_id: str) -> str | None:
+        """Fetch DAG source code from Airflow's dagSources API.
+
+        Airflow 3 v2 API uses dag_id directly: GET /dagSources/{dag_id}
+        """
+        try:
+            client = await self._get_client()
+            response = await client.get(
+                f"/dagSources/{dag_id}",
+                headers={"Accept": "application/json"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("content") or response.text
+        except Exception as e:
+            logger.error(f"Error fetching DAG source for {dag_id}: {e}")
+            return None
+
     def get_available_templates(self) -> list[dict[str, str]]:
         """Get list of available DAG templates."""
         return [
