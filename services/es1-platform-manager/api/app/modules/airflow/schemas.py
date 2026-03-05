@@ -47,7 +47,7 @@ class DAGRunResponse(DAGRunBase):
     """Schema for DAG run response."""
     execution_date: str | None = None
     external_trigger: bool = False
-    conf: dict[str, Any] = {}
+    conf: dict[str, Any] | None = None
     note: str | None = None
 
     class Config:

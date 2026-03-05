@@ -428,11 +428,12 @@ class AirflowClient:
         """
         try:
             client = await self._get_client()
-            payload: dict[str, Any] = {}
+            # Airflow 3 v2 API requires logical_date
+            payload: dict[str, Any] = {
+                "logical_date": logical_date or datetime.utcnow().isoformat() + "Z",
+            }
             if conf:
                 payload["conf"] = conf
-            if logical_date:
-                payload["logical_date"] = logical_date
             if note:
                 payload["note"] = note
 
