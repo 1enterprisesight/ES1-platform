@@ -236,6 +236,14 @@ class CreateDAGFromTemplateRequest(BaseModel):
     tags: list[str] = []
 
 
+class BundleUploadResponse(BaseModel):
+    """Schema for bundle upload response."""
+    success: bool
+    bundle_name: str
+    files_uploaded: list[str]
+    message: str
+
+
 class DAGTemplateInfo(BaseModel):
     """Schema for DAG template info."""
     id: str

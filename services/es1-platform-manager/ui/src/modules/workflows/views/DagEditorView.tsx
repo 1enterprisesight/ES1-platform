@@ -183,23 +183,55 @@ export function DagEditorView() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    const content = await file.text()
-    const filename = file.name.endsWith('.py') ? file.name : `${file.name}.py`
+    if (file.name.endsWith('.zip')) {
+      // Bundle upload — send as multipart form
+      const formData = new FormData()
+      formData.append('file', file)
 
-    try {
-      const res = await fetch('/api/v1/airflow/dag-files', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, content }),
-      })
-      if (!res.ok) throw new Error('Failed to upload')
+      try {
+        const res = await fetch('/api/v1/airflow/dag-files/upload-bundle', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!res.ok) {
+          const err = await res.json()
+          throw new Error(err.detail || 'Failed to upload bundle')
+        }
+        const data = await res.json()
 
-      queryClient.invalidateQueries({ queryKey: ['dag-files'] })
-      queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
-      setSelectedFile(filename)
-      addToast({ type: 'success', title: 'DAG uploaded', description: `${filename} uploaded` })
-    } catch (err) {
-      addToast({ type: 'error', title: 'Upload failed', description: String(err) })
+        queryClient.invalidateQueries({ queryKey: ['dag-files'] })
+        queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
+        if (data.files_uploaded?.length > 0) {
+          setSelectedFile(data.files_uploaded[0])
+        }
+        addToast({
+          type: 'success',
+          title: 'Bundle uploaded',
+          description: `${data.files_uploaded.length} files from '${data.bundle_name}'`,
+        })
+      } catch (err) {
+        addToast({ type: 'error', title: 'Bundle upload failed', description: String(err) })
+      }
+    } else {
+      // Single .py file upload
+      const content = await file.text()
+      const filename = file.name.endsWith('.py') ? file.name : `${file.name}.py`
+
+      try {
+        const res = await fetch('/api/v1/airflow/dag-files', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename, content }),
+        })
+        if (!res.ok) throw new Error('Failed to upload')
+
+        queryClient.invalidateQueries({ queryKey: ['dag-files'] })
+        queryClient.invalidateQueries({ queryKey: ['airflow', 'dags'] })
+        setSelectedFile(filename)
+        addToast({ type: 'success', title: 'DAG uploaded', description: `${filename} uploaded` })
+      } catch (err) {
+        addToast({ type: 'error', title: 'Upload failed', description: String(err) })
+      }
     }
 
     e.target.value = ''
@@ -247,7 +279,7 @@ export function DagEditorView() {
             New
           </Button>
           <label className="cursor-pointer">
-            <input type="file" accept=".py" className="hidden" onChange={handleFileUpload} />
+            <input type="file" accept=".py,.zip" className="hidden" onChange={handleFileUpload} />
             <Button size="sm" variant="outline" asChild>
               <span>
                 <Upload className="h-4 w-4" />

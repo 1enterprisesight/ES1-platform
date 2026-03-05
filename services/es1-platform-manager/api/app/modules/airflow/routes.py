@@ -1,6 +1,9 @@
 """API routes for the Airflow module."""
+import io
+import zipfile
+
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,6 +36,7 @@ from .schemas import (
     DAGFileWriteRequest,
     DAGFileWriteResponse,
     CreateDAGFromTemplateRequest,
+    BundleUploadResponse,
     DAGTemplateInfo,
     DAGTemplateListResponse,
 )
@@ -689,6 +693,81 @@ async def cleanup_stale_dags(db: AsyncSession = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/dag-files/upload-bundle", response_model=BundleUploadResponse)
+async def upload_dag_bundle(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a zip bundle containing DAG files and helper modules.
+
+    The zip should contain a directory with Python files. All .py files
+    are extracted and stored in the database with their relative paths
+    preserved (e.g., my_bundle/dag.py, my_bundle/utils/helpers.py).
+    """
+    if not file.filename or not file.filename.endswith(".zip"):
+        raise HTTPException(status_code=400, detail="Only .zip files are accepted")
+
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:  # 10MB limit
+        raise HTTPException(status_code=400, detail="Bundle too large (max 10MB)")
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(contents))
+    except zipfile.BadZipFile:
+        raise HTTPException(status_code=400, detail="Invalid zip file")
+
+    # Extract Python files
+    py_files = [
+        name for name in zf.namelist()
+        if name.endswith(".py") and not name.startswith("__MACOSX")
+    ]
+
+    if not py_files:
+        raise HTTPException(status_code=400, detail="No .py files found in zip")
+
+    # Find common prefix (bundle directory name)
+    # e.g., if zip contains my_bundle/dag.py, my_bundle/utils.py → prefix is "my_bundle/"
+    parts = [name.split("/") for name in py_files]
+    if len(parts[0]) > 1 and all(p[0] == parts[0][0] for p in parts):
+        bundle_name = parts[0][0]
+    else:
+        # No common directory — use the zip filename as bundle name
+        bundle_name = file.filename.replace(".zip", "")
+
+    uploaded = []
+    for py_path in py_files:
+        content = zf.read(py_path).decode("utf-8")
+        # Use the path as-is if it has a directory prefix, otherwise add bundle_name
+        if "/" in py_path:
+            filename = py_path
+        else:
+            filename = f"{bundle_name}/{py_path}"
+
+        success = await airflow_client.write_dag_file(filename, content, db)
+        if success:
+            uploaded.append(filename)
+
+    if not uploaded:
+        raise HTTPException(status_code=500, detail="Failed to store any files from bundle")
+
+    await event_bus.publish(
+        EventType.OPERATION_COMPLETED,
+        {
+            "operation": "bundle_uploaded",
+            "bundle_name": bundle_name,
+            "files": uploaded,
+            "message": f"Bundle {bundle_name} uploaded with {len(uploaded)} files",
+        },
+    )
+
+    return BundleUploadResponse(
+        success=True,
+        bundle_name=bundle_name,
+        files_uploaded=uploaded,
+        message=f"Uploaded {len(uploaded)} files from bundle '{bundle_name}'",
+    )
 
 
 @router.get("/dag-templates", response_model=DAGTemplateListResponse)
