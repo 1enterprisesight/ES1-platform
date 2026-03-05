@@ -45,7 +45,7 @@ class PlatformDagBundle(BaseDagBundle):
         # Database config from kwargs or environment variables
         self.db_host = db_host or os.getenv("PLATFORM_DB_HOST", "postgres")
         self.db_port = db_port or int(os.getenv("PLATFORM_DB_PORT", "5432"))
-        self.db_name = db_name or os.getenv("PLATFORM_DB_NAME", "engine_platform")
+        self.db_name = db_name or os.getenv("PLATFORM_DB_NAME", "platform_manager")
         self.db_user = db_user or os.getenv("PLATFORM_DB_USER", "engine_user")
         self.db_password = db_password or os.getenv("PLATFORM_DB_PASSWORD", "engine_dev_password")
 

@@ -55,7 +55,7 @@ x-airflow-common:
     # Platform Database connection for audit logging
     PLATFORM_DB_HOST: ${POSTGRES_HOST:-postgres}
     PLATFORM_DB_PORT: '${POSTGRES_PORT:-5432}'
-    PLATFORM_DB_NAME: ${POSTGRES_DB:-engine_platform}
+    PLATFORM_DB_NAME: ${PLATFORM_MANAGER_DB:-platform_manager}
     PLATFORM_DB_USER: ${POSTGRES_USER:-engine_user}
     PLATFORM_DB_PASSWORD: ${POSTGRES_PASSWORD:-engine_dev_password}
     # Ollama configuration
@@ -63,6 +63,8 @@ x-airflow-common:
     OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
     # DAG Bundle: read DAG files from platform database instead of filesystem
     AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST: '[{"name": "platform-dags", "classpath": "platform_dag_bundle.PlatformDagBundle", "kwargs": {}}, {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {"path": "/opt/airflow/dags"}}]'
+    # How often the dag-processor re-scans bundles for new/changed DAG files (seconds)
+    AIRFLOW__DAG_PROCESSOR__REFRESH_INTERVAL: '${AIRFLOW_DAG_REFRESH_INTERVAL:-30}'
   volumes:
     - ./services/airflow/dags:/opt/airflow/dags
     - ./services/airflow/plugins:/opt/airflow/plugins
