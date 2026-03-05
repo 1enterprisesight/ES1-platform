@@ -62,7 +62,7 @@ with DAG(
 """
 from datetime import datetime, timedelta
 from airflow import DAG
-from airflow.providers.http.operators.http import SimpleHttpOperator
+from airflow.providers.http.operators.http import HttpOperator
 from airflow.operators.empty import EmptyOperator
 import json
 
@@ -87,7 +87,7 @@ with DAG(
 
     start = EmptyOperator(task_id='start')
 
-    call_api = SimpleHttpOperator(
+    call_api = HttpOperator(
         task_id='call_api',
         method='GET',
         http_conn_id='http_default',
