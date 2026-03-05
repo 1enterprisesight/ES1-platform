@@ -13,7 +13,10 @@
 
 x-airflow-common:
   &airflow-common
-  image: apache/airflow:3.1.7-python3.12
+  build:
+    context: ./services/airflow
+    dockerfile: Dockerfile
+  image: ${AIRFLOW_IMAGE:-engine-airflow:latest}
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -41,8 +44,8 @@ x-airflow-common:
     AIRFLOW__METRICS__STATSD_PREFIX: airflow
     # Connection to Platform Manager for notifications
     AIRFLOW_CONN_PLATFORM_MANAGER: 'http://${PLATFORM_API_HOST:-platform-manager-api}:${PLATFORM_API_PORT:-8000}'
-    # Extra pip packages
-    _PIP_ADDITIONAL_REQUIREMENTS: 'apache-airflow-providers-amazon apache-airflow-providers-postgres sqlmodel pytest testcontainers[postgres] psycopg[binary]'
+    # Packages baked into image via Dockerfile — no runtime pip installs
+    _PIP_ADDITIONAL_REQUIREMENTS: ''
     # AI/ML Database connection for knowledge ingestion
     AIML_DB_HOST: ${AIML_POSTGRES_HOST:-aiml-postgres}
     AIML_DB_PORT: '${AIML_POSTGRES_PORT:-5432}'

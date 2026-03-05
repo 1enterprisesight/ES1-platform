@@ -11,8 +11,8 @@
       "kubernetes": "http://platform-manager-ui.${CUSTOMER_NAME:-engine}-engine.svc.cluster.local:80"
     },
     "airflow": {
-      "local": "http://airflow-webserver:8080",
-      "kubernetes": "http://airflow-webserver.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:8080"
+      "local": "http://airflow-api-server:8080",
+      "kubernetes": "http://airflow-api-server.${CUSTOMER_NAME:-engine}-infrastructure.svc.cluster.local:8080"
     },
     "langfuse": {
       "local": "http://langfuse:3000",

@@ -3,7 +3,7 @@
 #
 # Environment variables for backend host overrides:
 #   KRAKEND_BACKEND_PLATFORM_API   - Platform Manager API host (default: platform-manager-api:8000)
-#   KRAKEND_BACKEND_AIRFLOW        - Airflow webserver host (default: airflow-webserver:8080)
+#   KRAKEND_BACKEND_AIRFLOW        - Airflow API server host (default: airflow-api-server:8080)
 #   KRAKEND_BACKEND_LANGFLOW       - Langflow host (default: langflow:7860)
 #   KRAKEND_BACKEND_LANGFUSE       - Langfuse host (default: langfuse:3000)
 #   KRAKEND_BACKEND_OLLAMA         - Ollama host (default: ollama:11434)
@@ -17,7 +17,7 @@ set -e
 # Default values for backend hosts
 # =============================================================================
 export KRAKEND_BACKEND_PLATFORM_API="${KRAKEND_BACKEND_PLATFORM_API:-platform-manager-api:8000}"
-export KRAKEND_BACKEND_AIRFLOW="${KRAKEND_BACKEND_AIRFLOW:-airflow-webserver:8080}"
+export KRAKEND_BACKEND_AIRFLOW="${KRAKEND_BACKEND_AIRFLOW:-airflow-api-server:8080}"
 export KRAKEND_BACKEND_LANGFLOW="${KRAKEND_BACKEND_LANGFLOW:-langflow:7860}"
 export KRAKEND_BACKEND_LANGFUSE="${KRAKEND_BACKEND_LANGFUSE:-langfuse:3000}"
 export KRAKEND_BACKEND_OLLAMA="${KRAKEND_BACKEND_OLLAMA:-ollama:11434}"

@@ -342,9 +342,9 @@ User Query → Langflow → HTTP Node → Airflow API → DAG
 Steps:
 1. In Langflow, add an **HTTP Request** component
 2. Configure:
-   - URL: `http://airflow-webserver:8080/api/v1/dags/{dag_id}/dagRuns`
+   - URL: `http://airflow-api-server:8080/api/v2/dags/{dag_id}/dagRuns`
    - Method: POST
-   - Headers: `Authorization: Basic <base64(airflow:airflow)>`
+   - Headers: `Authorization: Bearer <token>` (obtain via POST `/auth/token/cli`)
    - Body: `{"conf": {}}`
 3. Connect to your flow logic
 
@@ -359,9 +359,9 @@ n8n Trigger → n8n Workflow → HTTP Request → Airflow API → DAG
 Steps:
 1. Create workflow in n8n
 2. Add **HTTP Request** node:
-   - URL: `http://airflow-webserver:8080/api/v1/dags/{dag_id}/dagRuns`
+   - URL: `http://airflow-api-server:8080/api/v2/dags/{dag_id}/dagRuns`
    - Method: POST
-   - Authentication: Basic Auth (airflow/airflow)
+   - Authentication: Bearer token (obtain via POST `http://airflow-api-server:8080/auth/token/cli`)
 3. Connect to your trigger (webhook, schedule, etc.)
 
 ### Pattern 4: Database Query from AI Agent
@@ -453,7 +453,7 @@ docker logs -f platform-manager-api
 docker logs -f es1-krakend
 
 # Airflow
-docker logs -f es1-airflow-webserver
+docker logs -f engine-airflow-api-server
 ```
 
 ### Check API Health

@@ -3,7 +3,7 @@
   "images": [
     { "name": "ollama",            "source": "ollama/ollama:latest" },
     { "name": "ollama-webui",      "source": "ghcr.io/open-webui/open-webui:main" },
-    { "name": "airflow",           "source": "apache/airflow:2.8.1-python3.11" },
+    { "name": "airflow",           "source": "custom:services/airflow/Dockerfile" },
     { "name": "statsd-exporter",   "source": "prom/statsd-exporter:v0.26.0" },
     { "name": "langflow",          "source": "langflowai/langflow:latest" },
     { "name": "langfuse",          "source": "langfuse/langfuse:2" },
