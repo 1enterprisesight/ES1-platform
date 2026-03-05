@@ -17,6 +17,9 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False,
 )
 
+# Alias used by scheduler and other modules
+async_session_factory = AsyncSessionLocal
+
 # Base class for models
 Base = declarative_base()
 

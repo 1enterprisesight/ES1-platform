@@ -26,7 +26,7 @@ with DAG(
     'knowledge_document_ingestion',
     default_args=default_args,
     description='Ingest documents into the knowledge graph',
-    schedule_interval=None,  # Triggered via API
+    schedule=None,  # Triggered via API
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['knowledge', 'ingestion', 'rag'],

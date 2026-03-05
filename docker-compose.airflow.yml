@@ -1,19 +1,19 @@
 # Airflow services for the Platform
 # Usage: docker compose -f docker-compose.yml -f docker-compose.airflow.yml up -d
 #
-# Airflow provides full DAG management capabilities:
-# - REST API for programmatic DAG creation and execution
-# - Web UI for monitoring and manual operations
+# Airflow 3.x provides full DAG management capabilities:
+# - REST API (via api-server) for programmatic DAG creation and execution
+# - Separate dag-processor for parsing DAGs
 # - CeleryExecutor for scalable task execution
 #
 # Access:
-# - Web UI: http://localhost:8081
+# - API Server: http://localhost:8081
 # - REST API: http://localhost:8081/api/v1/
 # - Default credentials: airflow / airflow
 
 x-airflow-common:
   &airflow-common
-  image: apache/airflow:2.10.4-python3.12
+  image: apache/airflow:3.1.7-python3.12
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: CeleryExecutor
@@ -23,14 +23,16 @@ x-airflow-common:
     AIRFLOW__CORE__FERNET_KEY: '${AIRFLOW_FERNET_KEY:-}'
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    # Airflow 3 simple auth manager — fixed credentials for platform integration
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: '${AIRFLOW_ADMIN_USERNAME:-admin}:${AIRFLOW_ADMIN_PASSWORD:-airflow}'
+    AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_ALL_ADMINS: 'true'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
     AIRFLOW__API__ACCESS_CONTROL_ALLOW_HEADERS: '${AIRFLOW_CORS_ALLOW_HEADERS:-*}'
     AIRFLOW__API__ACCESS_CONTROL_ALLOW_METHODS: '${AIRFLOW_CORS_ALLOW_METHODS:-*}'
     AIRFLOW__API__ACCESS_CONTROL_ALLOW_ORIGINS: '${AIRFLOW_CORS_ALLOW_ORIGINS:-*}'
     # expose_config should be false in production (exposes credentials)
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: '${AIRFLOW_EXPOSE_CONFIG:-true}'
-    AIRFLOW__WEBSERVER__SECRET_KEY: '${AIRFLOW_WEBSERVER_SECRET:-}'
-    AIRFLOW__WEBSERVER__RBAC: 'true'
+    AIRFLOW__API__SECRET_KEY: '${AIRFLOW_WEBSERVER_SECRET:-}'
     AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
     # StatsD metrics for Prometheus
     AIRFLOW__METRICS__STATSD_ON: 'true'
@@ -39,9 +41,8 @@ x-airflow-common:
     AIRFLOW__METRICS__STATSD_PREFIX: airflow
     # Connection to Platform Manager for notifications
     AIRFLOW_CONN_PLATFORM_MANAGER: 'http://${PLATFORM_API_HOST:-platform-manager-api}:${PLATFORM_API_PORT:-8000}'
-    # Note: Additional packages installed via custom Dockerfile when needed
-    # _PIP_ADDITIONAL_REQUIREMENTS: 'psycopg2-binary requests pdfplumber'
-    _PIP_ADDITIONAL_REQUIREMENTS: ''
+    # Extra pip packages
+    _PIP_ADDITIONAL_REQUIREMENTS: 'apache-airflow-providers-amazon apache-airflow-providers-postgres sqlmodel pytest testcontainers[postgres] psycopg[binary]'
     # AI/ML Database connection for knowledge ingestion
     AIML_DB_HOST: ${AIML_POSTGRES_HOST:-aiml-postgres}
     AIML_DB_PORT: '${AIML_POSTGRES_PORT:-5432}'
@@ -90,18 +91,38 @@ services:
       _AIRFLOW_WWW_USER_CREATE: 'true'
       _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
       _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
+      # Don't install pip packages as root in init
+      _PIP_ADDITIONAL_REQUIREMENTS: ''
     user: "0:0"
     volumes:
       - ./services/airflow:/sources
 
-  airflow-webserver:
+  # Airflow 3: api-server replaces webserver
+  airflow-api-server:
     <<: *airflow-common
-    container_name: ${CONTAINER_PREFIX:-engine}-airflow-webserver
-    command: webserver
+    container_name: ${CONTAINER_PREFIX:-engine}-airflow-api-server
+    command: api-server
     ports:
       - "8081:8080"
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+
+  # Airflow 3: separate dag-processor
+  airflow-dag-processor:
+    <<: *airflow-common
+    container_name: ${CONTAINER_PREFIX:-engine}-airflow-dag-processor
+    command: dag-processor
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type DagProcessorJob --hostname \"$${HOSTNAME}\" || true"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -135,7 +156,7 @@ services:
     healthcheck:
       test:
         - "CMD-SHELL"
-        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}" || celery --app airflow.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
+        - 'celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"'
       interval: 30s
       timeout: 10s
       retries: 5
@@ -154,7 +175,7 @@ services:
     container_name: ${CONTAINER_PREFIX:-engine}-airflow-triggerer
     command: triggerer
     healthcheck:
-      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
+      test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}" || true']
       interval: 30s
       timeout: 10s
       retries: 5

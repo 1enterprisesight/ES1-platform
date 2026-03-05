@@ -2,6 +2,7 @@
 import httpx
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any
 from datetime import datetime
@@ -288,19 +289,47 @@ class AirflowClient:
     def __init__(self):
         """Initialize Airflow client."""
         self.base_url = settings.AIRFLOW_API_URL
+        self.backend_host = settings.AIRFLOW_BACKEND_HOST
         self.username = settings.AIRFLOW_USERNAME
         self.password = settings.AIRFLOW_PASSWORD
         self._client: httpx.AsyncClient | None = None
+        self._token: str | None = None
+        self._token_expiry: float = 0
+
+    async def _get_token(self) -> str:
+        """Get JWT token from Airflow 3 auth endpoint, refreshing if expired."""
+        if self._token and time.time() < self._token_expiry:
+            return self._token
+
+        token_url = f"{self.backend_host}/auth/token/cli"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                token_url,
+                json={"username": self.username, "password": self.password},
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            data = response.json()
+            self._token = data["access_token"]
+            # Refresh 5 minutes before expiry (tokens last 1 hour)
+            self._token_expiry = time.time() + 3300
+            return self._token
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client with authentication."""
+        """Get or create HTTP client with JWT authentication."""
+        token = await self._get_token()
         if self._client is None:
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
-                auth=(self.username, self.password),
                 timeout=30.0,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": f"Bearer {token}",
+                },
             )
+        else:
+            # Update token in case it was refreshed
+            self._client.headers["Authorization"] = f"Bearer {token}"
         return self._client
 
     async def close(self):
@@ -308,12 +337,14 @@ class AirflowClient:
         if self._client:
             await self._client.aclose()
             self._client = None
+        self._token = None
+        self._token_expiry = 0
 
     async def health_check(self) -> dict[str, Any]:
         """Check Airflow health status."""
         try:
             client = await self._get_client()
-            response = await client.get("/health")
+            response = await client.get("/monitor/health")
             if response.status_code == 200:
                 return {"status": "healthy", "data": response.json()}
             return {"status": "unhealthy", "error": f"HTTP {response.status_code}"}

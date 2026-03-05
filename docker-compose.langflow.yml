@@ -41,8 +41,8 @@ services:
       # Auto-activate new users: true for dev, false for production
       LANGFLOW_NEW_USER_IS_ACTIVE: "${LANGFLOW_NEW_USER_IS_ACTIVE:-true}"
       # Airflow connection for DAG triggering
-      AIRFLOW_API_URL: http://${AIRFLOW_HOST:-airflow-webserver}:8080/api/v1
-      AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-airflow}
+      AIRFLOW_API_URL: http://${AIRFLOW_HOST:-airflow-api-server}:8080/api/v2
+      AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USERNAME:-admin}
       AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-airflow}
     volumes:
       - langflow_data:/tmp/langflow

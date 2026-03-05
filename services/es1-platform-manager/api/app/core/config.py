@@ -89,14 +89,14 @@ class Settings(BaseSettings):
 
     AIRFLOW_ENABLED: bool = True
 
-    # Airflow API for Gateway Manager to call
-    AIRFLOW_API_URL: str = "http://airflow-webserver:8080/api/v1"
+    # Airflow API base URL (v2 for Airflow 3.x)
+    AIRFLOW_API_URL: str = "http://airflow-api-server:8080/api/v2"
 
-    # Airflow backend host (for KrakenD to proxy to)
-    AIRFLOW_BACKEND_HOST: str = "http://airflow-webserver:8080"
+    # Airflow backend host (for token auth and KrakenD proxy)
+    AIRFLOW_BACKEND_HOST: str = "http://airflow-api-server:8080"
 
-    # Airflow credentials (Docker mode)
-    AIRFLOW_USERNAME: str = "airflow"
+    # Airflow credentials
+    AIRFLOW_USERNAME: str = "admin"
     AIRFLOW_PASSWORD: str = "airflow"
 
     # Kubernetes secret for Airflow credentials (K8s mode)

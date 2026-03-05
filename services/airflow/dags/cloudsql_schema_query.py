@@ -233,7 +233,7 @@ with DAG(
     dag_id="cloudsql_schema_query",
     default_args=default_args,
     description="Query CloudSQL PostgreSQL database schema",
-    schedule_interval=None,  # Manual trigger only
+    schedule=None,  # Manual trigger only
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=["cloudsql", "postgresql", "schema", "read-only"],
@@ -244,21 +244,18 @@ with DAG(
     query_schema = PythonOperator(
         task_id="query_schema",
         python_callable=query_database_schema,
-        provide_context=True,
     )
 
     # Task 2: Query column details
     query_columns = PythonOperator(
         task_id="query_columns",
         python_callable=query_table_columns,
-        provide_context=True,
     )
 
     # Task 3: Summarize results
     summarize = PythonOperator(
         task_id="summarize",
         python_callable=summarize_results,
-        provide_context=True,
     )
 
     # Define task dependencies
