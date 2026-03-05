@@ -72,13 +72,13 @@ async def list_dags(
                     description=d.get("description"),
                     is_paused=d.get("is_paused", False),
                     is_active=d.get("is_active", True),
-                    schedule_interval=str(d.get("schedule_interval")) if d.get("schedule_interval") else None,
+                    schedule_interval=str(d.get("timetable_summary") or d.get("schedule_interval")) if (d.get("timetable_summary") or d.get("schedule_interval")) else None,
                     tags=[t.get("name", "") for t in d.get("tags", [])],
                     owners=d.get("owners", []),
                     file_token=d.get("file_token"),
                     timetable_description=d.get("timetable_description"),
                     last_parsed_time=d.get("last_parsed_time"),
-                    next_dagrun=d.get("next_dagrun"),
+                    next_dagrun=d.get("next_dagrun_logical_date") or d.get("next_dagrun"),
                 )
                 for d in result.get("dags", [])
             ],
@@ -99,13 +99,13 @@ async def get_dag(dag_id: str):
             description=d.get("description"),
             is_paused=d.get("is_paused", False),
             is_active=d.get("is_active", True),
-            schedule_interval=str(d.get("schedule_interval")) if d.get("schedule_interval") else None,
+            schedule_interval=str(d.get("timetable_summary") or d.get("schedule_interval")) if (d.get("timetable_summary") or d.get("schedule_interval")) else None,
             tags=[t.get("name", "") for t in d.get("tags", [])],
             owners=d.get("owners", []),
             file_token=d.get("file_token"),
             timetable_description=d.get("timetable_description"),
             last_parsed_time=d.get("last_parsed_time"),
-            next_dagrun=d.get("next_dagrun"),
+            next_dagrun=d.get("next_dagrun_logical_date") or d.get("next_dagrun"),
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

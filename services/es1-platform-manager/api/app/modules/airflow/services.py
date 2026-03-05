@@ -75,12 +75,12 @@ class AirflowDiscoveryService:
                     "file_token": dag.get("file_token"),
                     "is_paused": dag.get("is_paused", False),
                     "is_active": dag.get("is_active", True),
-                    "schedule_interval": dag.get("schedule_interval"),
+                    "schedule_interval": dag.get("timetable_summary") or dag.get("schedule_interval"),
                     "timetable_description": dag.get("timetable_description"),
                     "tags": [t.get("name") for t in dag.get("tags", [])],
                     "owners": dag.get("owners", []),
                     "last_parsed_time": dag.get("last_parsed_time"),
-                    "next_dagrun": dag.get("next_dagrun"),
+                    "next_dagrun": dag.get("next_dagrun_logical_date") or dag.get("next_dagrun"),
                 }
 
                 if existing:
