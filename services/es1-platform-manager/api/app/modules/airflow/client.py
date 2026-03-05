@@ -778,11 +778,12 @@ class AirflowClient:
         return [
             {
                 "filename": f.filename,
-                "dag_id": f.dag_id or f.filename.replace(".py", ""),
+                "dag_id": f.dag_id or f.filename.replace(".py", "").split("/")[-1],
                 "path": f"db://dag_files/{f.filename}",
                 "size": len(f.content),
                 "modified_at": f.updated_at.isoformat() if f.updated_at else "",
                 "created_at": f.created_at.isoformat() if f.created_at else "",
+                "is_dag": f.dag_id is not None,
             }
             for f in files
         ]

@@ -27,6 +27,7 @@ interface DAGFile {
   size: number
   modified_at: string
   created_at: string
+  is_dag: boolean
 }
 
 interface DAGFileListResponse {
@@ -55,8 +56,11 @@ function mergeDags(airflowDags: Dag[], dagFiles: DAGFile[]): MergedDag[] {
   const merged: MergedDag[] = []
   const filesByDagId = new Map<string, DAGFile>()
 
+  // Only include actual DAG files (not helper modules) in the merge
   for (const file of dagFiles) {
-    filesByDagId.set(file.dag_id, file)
+    if (file.is_dag) {
+      filesByDagId.set(file.dag_id, file)
+    }
   }
 
   const seenDagIds = new Set<string>()

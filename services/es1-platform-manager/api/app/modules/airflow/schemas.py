@@ -197,6 +197,7 @@ class DAGFileInfo(BaseModel):
     size: int
     modified_at: str
     created_at: str
+    is_dag: bool = True
 
 
 class DAGFileListResponse(BaseModel):
