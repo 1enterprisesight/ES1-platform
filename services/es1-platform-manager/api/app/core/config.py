@@ -104,8 +104,8 @@ class Settings(BaseSettings):
     # Uses KRAKEND_NAMESPACE since Airflow lives in the infrastructure namespace
     AIRFLOW_CREDENTIALS_NAMESPACE: str = "engine-infrastructure"
 
-    # DAG file management (path to Airflow dags folder)
-    AIRFLOW_DAGS_PATH: str = "/shared/airflow/dags"
+    # DAG file management — DAG files are stored in the database (dag_files table)
+    # and read by Airflow's DatabaseDagBundle plugin. No shared filesystem needed.
 
     # ==========================================================================
     # Langflow Integration

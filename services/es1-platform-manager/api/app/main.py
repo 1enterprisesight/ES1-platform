@@ -31,6 +31,7 @@ from app.modules.gateway.models import (
     EventLog,
 )
 from app.modules.settings.models import Setting, BrandingConfig
+from app.modules.airflow.models import DagFile
 
 # Import routers
 from app.modules.gateway.routes import router as gateway_router

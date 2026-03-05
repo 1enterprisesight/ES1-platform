@@ -546,20 +546,20 @@ async def discover_resources(db: AsyncSession = Depends(get_db)):
 # =============================================================================
 
 @router.get("/dag-files", response_model=DAGFileListResponse)
-async def list_dag_files():
-    """List all DAG files in the dags directory."""
-    files = airflow_client.list_dag_files()
+async def list_dag_files(db: AsyncSession = Depends(get_db)):
+    """List all DAG files."""
+    files = await airflow_client.list_dag_files(db)
     return DAGFileListResponse(
         files=[DAGFileInfo(**f) for f in files],
         total=len(files),
-        dags_path=str(airflow_client.get_dags_path()),
+        dags_path="db://dag_files",
     )
 
 
 @router.get("/dag-files/{filename:path}", response_model=DAGFileContentResponse)
-async def get_dag_file(filename: str):
+async def get_dag_file(filename: str, db: AsyncSession = Depends(get_db)):
     """Get the content of a DAG file."""
-    content = airflow_client.read_dag_file(filename)
+    content = await airflow_client.read_dag_file(filename, db)
     if content is None:
         raise HTTPException(status_code=404, detail=f"DAG file not found: {filename}")
 
@@ -571,9 +571,9 @@ async def get_dag_file(filename: str):
 
 
 @router.put("/dag-files", response_model=DAGFileWriteResponse)
-async def write_dag_file(request: DAGFileWriteRequest):
+async def write_dag_file(request: DAGFileWriteRequest, db: AsyncSession = Depends(get_db)):
     """Create or update a DAG file."""
-    success = airflow_client.write_dag_file(request.filename, request.content)
+    success = await airflow_client.write_dag_file(request.filename, request.content, db)
 
     if success:
         await event_bus.publish(
@@ -598,7 +598,7 @@ async def delete_dag_file(filename: str, db: AsyncSession = Depends(get_db)):
     """Delete a DAG file, deregister from Airflow, and mark gateway resource as deleted."""
     # Read dag_id from file before deleting
     import re
-    content = airflow_client.read_dag_file(filename)
+    content = await airflow_client.read_dag_file(filename, db)
     dag_id = None
     if content:
         match = re.search(r"dag_id=['\"]([^'\"]+)['\"]", content)
@@ -607,7 +607,7 @@ async def delete_dag_file(filename: str, db: AsyncSession = Depends(get_db)):
         if match:
             dag_id = match.group(1)
 
-    success = airflow_client.delete_dag_file(filename)
+    success = await airflow_client.delete_dag_file(filename, db)
     if not success:
         raise HTTPException(status_code=404, detail=f"DAG file not found: {filename}")
 
@@ -643,17 +643,17 @@ async def delete_dag_file(filename: str, db: AsyncSession = Depends(get_db)):
 
 @router.post("/dags/cleanup")
 async def cleanup_stale_dags(db: AsyncSession = Depends(get_db)):
-    """Remove DAGs from Airflow that no longer have files on disk, and mark gateway resources as deleted."""
+    """Remove DAGs from Airflow that no longer have files in the database, and mark gateway resources as deleted."""
     try:
         # Get all Airflow DAGs
         result = await airflow_client.list_dags(limit=1000, only_active=False)
         airflow_dags = {d["dag_id"] for d in result.get("dags", [])}
 
-        # Get all DAG file dag_ids
-        files = airflow_client.list_dag_files()
+        # Get all DAG file dag_ids from database
+        files = await airflow_client.list_dag_files(db)
         file_dag_ids = {f["dag_id"] for f in files}
 
-        # Find stale DAGs (in Airflow but no file)
+        # Find stale DAGs (in Airflow but no file in database)
         stale = airflow_dags - file_dag_ids
         removed = []
         for dag_id in stale:
@@ -701,10 +701,11 @@ async def list_dag_templates():
 
 
 @router.post("/dag-files/from-template", response_model=DAGFileWriteResponse)
-async def create_dag_from_template(request: CreateDAGFromTemplateRequest):
+async def create_dag_from_template(request: CreateDAGFromTemplateRequest, db: AsyncSession = Depends(get_db)):
     """Create a new DAG file from a template."""
-    success, result = airflow_client.create_dag_from_template(
+    success, result = await airflow_client.create_dag_from_template(
         dag_id=request.dag_id,
+        db=db,
         template=request.template,
         description=request.description,
         owner=request.owner,

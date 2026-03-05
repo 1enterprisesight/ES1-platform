@@ -3,7 +3,6 @@ import httpx
 import os
 import re
 import time
-from pathlib import Path
 from typing import Any
 from datetime import datetime
 
@@ -762,213 +761,140 @@ class AirflowClient:
     # DAG File Management Methods
     # =========================================================================
 
-    def get_dags_path(self) -> Path:
-        """Get the path to the Airflow dags directory."""
-        return Path(settings.AIRFLOW_DAGS_PATH)
+    # =========================================================================
+    # DAG File Management (database-backed)
+    # =========================================================================
 
-    def list_dag_files(self) -> list[dict[str, Any]]:
-        """
-        List all DAG files in the dags directory.
+    async def list_dag_files(self, db) -> list[dict[str, Any]]:
+        """List all DAG files from the database."""
+        from sqlalchemy import select
+        from app.modules.airflow.models import DagFile
 
-        Returns:
-            List of DAG file info dicts
-        """
-        dags_path = self.get_dags_path()
-        files = []
+        result = await db.execute(
+            select(DagFile).order_by(DagFile.updated_at.desc())
+        )
+        files = result.scalars().all()
 
-        if not dags_path.exists():
-            logger.warning(f"DAGs path does not exist: {dags_path}")
-            return files
+        return [
+            {
+                "filename": f.filename,
+                "dag_id": f.dag_id or f.filename.replace(".py", ""),
+                "path": f"db://dag_files/{f.filename}",
+                "size": len(f.content),
+                "modified_at": f.updated_at.isoformat() if f.updated_at else "",
+                "created_at": f.created_at.isoformat() if f.created_at else "",
+            }
+            for f in files
+        ]
 
-        for file_path in dags_path.rglob("*.py"):
-            # Skip __pycache__ and hidden directories
-            if "__pycache__" in file_path.parts or any(p.startswith('.') for p in file_path.parts):
-                continue
-            # Skip __init__.py files
-            if file_path.name == "__init__.py":
-                continue
+    async def read_dag_file(self, filename: str, db) -> str | None:
+        """Read a DAG file from the database."""
+        from sqlalchemy import select
+        from app.modules.airflow.models import DagFile
 
-            try:
-                stat = file_path.stat()
-                content = file_path.read_text()
+        result = await db.execute(
+            select(DagFile).where(DagFile.filename == filename)
+        )
+        dag_file = result.scalar_one_or_none()
+        return dag_file.content if dag_file else None
 
-                # Try to extract dag_id from the file
-                # Match keyword: dag_id='...' or dag_id="..."
-                dag_id_match = re.search(r"dag_id=['\"]([^'\"]+)['\"]", content)
-                if not dag_id_match:
-                    # Match positional: DAG('...' or DAG("..."
-                    dag_id_match = re.search(r"DAG\(\s*['\"]([^'\"]+)['\"]", content)
-                dag_id = dag_id_match.group(1) if dag_id_match else file_path.stem
+    async def write_dag_file(self, filename: str, content: str, db) -> bool:
+        """Write or update a DAG file in the database."""
+        from sqlalchemy import select
+        from app.modules.airflow.models import DagFile
 
-                # Use relative path from dags_path for subdirectory files
-                rel_path = file_path.relative_to(dags_path)
-
-                files.append({
-                    "filename": str(rel_path),
-                    "dag_id": dag_id,
-                    "path": str(file_path),
-                    "size": stat.st_size,
-                    "modified_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
-                    "created_at": datetime.fromtimestamp(stat.st_ctime).isoformat(),
-                })
-            except Exception as e:
-                logger.error(f"Error reading DAG file {file_path}: {e}")
-                continue
-
-        return sorted(files, key=lambda x: x["modified_at"], reverse=True)
-
-    def read_dag_file(self, filename: str) -> str | None:
-        """
-        Read the contents of a DAG file.
-
-        Args:
-            filename: Name of the DAG file
-
-        Returns:
-            File contents or None if not found
-        """
-        dags_path = self.get_dags_path()
-        file_path = dags_path / filename
-
-        # Security: ensure the file is within the dags directory
-        try:
-            file_path = file_path.resolve()
-            if not str(file_path).startswith(str(dags_path.resolve())):
-                logger.error(f"Attempted path traversal: {filename}")
-                return None
-        except Exception:
-            return None
-
-        if not file_path.exists() or not file_path.is_file():
-            return None
-
-        try:
-            return file_path.read_text()
-        except Exception as e:
-            logger.error(f"Error reading DAG file {filename}: {e}")
-            return None
-
-    def write_dag_file(self, filename: str, content: str) -> bool:
-        """
-        Write or update a DAG file.
-
-        Args:
-            filename: Name or relative path of the DAG file (e.g., "my_dag.py" or "subdir/my_dag.py")
-            content: Python code content
-
-        Returns:
-            True if successful, False otherwise
-        """
-        dags_path = self.get_dags_path()
-
-        # Ensure filename ends with .py
         if not filename.endswith(".py"):
             filename = f"{filename}.py"
 
-        # Sanitize each path component (allow / for subdirectories)
-        parts = Path(filename).parts
-        sanitized_parts = [re.sub(r'[^a-zA-Z0-9_\-.]', '_', p) for p in parts]
-        filename = str(Path(*sanitized_parts))
+        # Sanitize filename
+        filename = re.sub(r'[^a-zA-Z0-9_\-./]', '_', filename)
 
-        file_path = dags_path / filename
-
-        # Security: ensure the file is within the dags directory
-        try:
-            file_path = file_path.resolve()
-            if not str(file_path).startswith(str(dags_path.resolve())):
-                logger.error(f"Attempted path traversal: {filename}")
-                return False
-        except Exception:
-            return False
+        # Extract dag_id from content
+        dag_id = None
+        dag_id_match = re.search(r"dag_id=['\"]([^'\"]+)['\"]", content)
+        if not dag_id_match:
+            dag_id_match = re.search(r"DAG\(\s*['\"]([^'\"]+)['\"]", content)
+        if dag_id_match:
+            dag_id = dag_id_match.group(1)
 
         try:
-            # Ensure parent directories exist (handles subdirectory files)
-            file_path.parent.mkdir(parents=True, exist_ok=True)
+            result = await db.execute(
+                select(DagFile).where(DagFile.filename == filename)
+            )
+            existing = result.scalar_one_or_none()
 
-            # Write the file
-            file_path.write_text(content)
-            logger.info(f"Written DAG file: {file_path}")
+            if existing:
+                existing.content = content
+                existing.dag_id = dag_id
+                existing.version = existing.version + 1
+            else:
+                dag_file = DagFile(
+                    filename=filename,
+                    content=content,
+                    dag_id=dag_id,
+                )
+                db.add(dag_file)
+
+            await db.commit()
+            logger.info(f"Written DAG file to database: {filename}")
             return True
         except Exception as e:
-            logger.error(f"Error writing DAG file {filename}: {e}")
+            await db.rollback()
+            logger.error(f"Error writing DAG file to database: {e}")
             return False
 
-    def delete_dag_file(self, filename: str) -> bool:
-        """
-        Delete a DAG file.
+    async def delete_dag_file(self, filename: str, db) -> bool:
+        """Delete a DAG file from the database."""
+        from sqlalchemy import select, delete
+        from app.modules.airflow.models import DagFile
 
-        Args:
-            filename: Name of the DAG file
-
-        Returns:
-            True if successful, False otherwise
-        """
-        dags_path = self.get_dags_path()
-        file_path = dags_path / filename
-
-        # Security: ensure the file is within the dags directory
         try:
-            file_path = file_path.resolve()
-            if not str(file_path).startswith(str(dags_path.resolve())):
-                logger.error(f"Attempted path traversal: {filename}")
+            result = await db.execute(
+                select(DagFile).where(DagFile.filename == filename)
+            )
+            existing = result.scalar_one_or_none()
+            if not existing:
                 return False
-        except Exception:
-            return False
 
-        if not file_path.exists():
-            return False
-
-        try:
-            file_path.unlink()
-            logger.info(f"Deleted DAG file: {file_path}")
+            await db.execute(
+                delete(DagFile).where(DagFile.filename == filename)
+            )
+            await db.commit()
+            logger.info(f"Deleted DAG file from database: {filename}")
             return True
         except Exception as e:
-            logger.error(f"Error deleting DAG file {filename}: {e}")
+            await db.rollback()
+            logger.error(f"Error deleting DAG file from database: {e}")
             return False
 
-    def create_dag_from_template(
+    async def create_dag_from_template(
         self,
         dag_id: str,
+        db,
         template: str = "basic",
         description: str = "",
         owner: str = "airflow",
         schedule: str | None = None,
         tags: list[str] | None = None,
     ) -> tuple[bool, str]:
-        """
-        Create a new DAG from a template.
-
-        Args:
-            dag_id: Unique DAG identifier
-            template: Template name (basic, http_api, data_pipeline)
-            description: DAG description
-            owner: DAG owner
-            schedule: Schedule interval (None, '@daily', '@hourly', etc.)
-            tags: List of tags
-
-        Returns:
-            Tuple of (success, message/filename)
-        """
+        """Create a new DAG from a template and store in database."""
         if template not in DAG_TEMPLATES:
             return False, f"Unknown template: {template}"
 
-        # Validate dag_id
         if not re.match(r'^[a-zA-Z][a-zA-Z0-9_]*$', dag_id):
             return False, "dag_id must start with a letter and contain only letters, numbers, and underscores"
 
-        # Check if DAG already exists
+        # Check if DAG already exists in database
         filename = f"{dag_id}.py"
-        if (self.get_dags_path() / filename).exists():
+        existing = await self.read_dag_file(filename, db)
+        if existing is not None:
             return False, f"DAG file already exists: {filename}"
 
-        # Format schedule for Python
+        # Format schedule and tags for Python
         schedule_str = "None" if schedule is None else f"'{schedule}'"
+        tags_str = str(tags or [])
 
-        # Format tags for Python
-        tags_list = tags or []
-        tags_str = str(tags_list)
-
-        # Generate DAG content
+        # Generate DAG content from template
         content = DAG_TEMPLATES[template].format(
             dag_id=dag_id,
             description=description or f"DAG: {dag_id}",
@@ -977,7 +903,7 @@ class AirflowClient:
             tags=tags_str,
         )
 
-        if self.write_dag_file(filename, content):
+        if await self.write_dag_file(filename, content, db):
             return True, filename
         else:
             return False, "Failed to write DAG file"

@@ -61,6 +61,8 @@ x-airflow-common:
     # Ollama configuration
     OLLAMA_BASE_URL: http://${OLLAMA_HOST:-ollama}:${OLLAMA_PORT:-11434}
     OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+    # DAG Bundle: read DAG files from platform database instead of filesystem
+    AIRFLOW__DAG_PROCESSOR__DAG_BUNDLE_CONFIG_LIST: '[{"name": "platform-dags", "classpath": "platform_dag_bundle.PlatformDagBundle", "kwargs": {}}, {"name": "dags-folder", "classpath": "airflow.dag_processing.bundles.local.LocalDagBundle", "kwargs": {"path": "/opt/airflow/dags"}}]'
   volumes:
     - ./services/airflow/dags:/opt/airflow/dags
     - ./services/airflow/plugins:/opt/airflow/plugins
