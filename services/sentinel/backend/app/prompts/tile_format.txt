@@ -1,0 +1,11 @@
+Create a dashboard tile from this finding. Return JSON with these fields:
+- title: Short, specific headline (max 80 chars). Reference actual data values.
+- summary: 1-2 sentence explanation with key numbers.
+- detail: 2-3 paragraph deep analysis with context and recommended actions.
+- column: Priority lane — one of "action" (urgent/important), "watching" (trending/monitoring), "informational" (routine/FYI), "resolved" (completed/fixed).
+- chart: Sparkline pattern — one of "rising", "declining", "volatile", "stable", "spike", "plateau", or null.
+- chartLabel: Short label for the sparkline (e.g. "Order volume").
+- metric: Key number as string (e.g. "+22%", "1,335", "$240K").
+- metricSub: Metric context (e.g. "above model", "customers", "projected loss").
+- sources: Array of source labels (the silo names involved).
+- suggestedQuestions: Array of 3-4 follow-up questions a user might ask.

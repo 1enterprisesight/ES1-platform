@@ -1,0 +1,65 @@
+# Sentinel — AI-powered data dashboard
+# Usage: docker compose -f docker-compose.yml -f docker-compose.aiml.yml -f docker-compose.sentinel.yml up -d
+
+services:
+  sentinel-api:
+    build:
+      context: ./services/sentinel/backend
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_PREFIX:-engine}-sentinel-api
+    ports:
+      - "8010:8010"
+    environment:
+      # AIML PostgreSQL (sentinel schema)
+      AIML_POSTGRES_HOST: ${AIML_POSTGRES_HOST:-aiml-postgres}
+      AIML_POSTGRES_PORT: ${AIML_POSTGRES_PORT:-5432}
+      AIML_POSTGRES_DB: ${AIML_POSTGRES_DB:-aiml}
+      AIML_POSTGRES_USER: ${AIML_POSTGRES_USER:-aiml_user}
+      AIML_POSTGRES_PASSWORD: ${AIML_POSTGRES_PASSWORD:-aiml_dev_password}
+
+      # Platform services (graceful degradation if unavailable)
+      AGENT_ROUTER_URL: http://agent-router:8102
+      LANGFUSE_URL: http://langfuse:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-engine-dev-public-key}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-engine-dev-secret-key}
+
+      # Gemini / Vertex AI
+      GCP_PROJECT: ${GCP_PROJECT:-engine-prod-svc-msd0}
+      GCP_LOCATION: ${GCP_LOCATION:-us-central1}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-pro}
+
+      # Sentinel settings
+      SENTINEL_ADMIN_EMAIL: ${SENTINEL_ADMIN_EMAIL:-admin@engine.local}
+      SENTINEL_ADMIN_PASSWORD: ${SENTINEL_ADMIN_PASSWORD:-Sentinel1!}
+      SENTINEL_JWT_SECRET: ${SENTINEL_JWT_SECRET:-sentinel-dev-jwt-secret}
+      CORS_ORIGINS: ${SENTINEL_CORS_ORIGINS:-*}
+
+      # Email (optional — empty = disabled)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8010/healthz\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    depends_on:
+      aiml-postgres:
+        condition: service_healthy
+    networks:
+      - engine-network
+
+  sentinel-ui:
+    build:
+      context: ./services/sentinel/frontend
+      dockerfile: Dockerfile
+    container_name: ${CONTAINER_PREFIX:-engine}-sentinel-ui
+    ports:
+      - "3020:80"
+    depends_on:
+      sentinel-api:
+        condition: service_healthy
+    networks:
+      - engine-network

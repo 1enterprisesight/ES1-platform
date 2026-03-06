@@ -1,10 +1,14 @@
 # Platform Makefile
 # Common commands for development and deployment
 
-.PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack up-aiml up-monitoring down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager logs-aiml logs-monitoring build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push generate-creds
+.PHONY: help up up-infra up-full up-airflow up-langfuse up-langflow up-gateway-manager up-platform-manager up-ml-stack up-aiml up-sentinel up-monitoring down logs logs-gw logs-airflow logs-gateway-manager logs-platform-manager logs-aiml logs-sentinel logs-monitoring build build-all build-multiarch deploy-local setup clean new-service test lint ctx-local ctx-show status port-forward undeploy deploy-infra build-push generate-creds
 
 REGISTRY ?= ghcr.io/1enterprisesight/es1-platform
 TAG ?= local
+
+# Optional service layers — set to "true" to include
+ENABLE_SENTINEL ?= $(shell grep -s '^ENABLE_SENTINEL=true' .env >/dev/null 2>&1 && echo true)
+SENTINEL_COMPOSE := $(if $(filter true,$(ENABLE_SENTINEL)),-f docker-compose.sentinel.yml)
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -19,7 +23,7 @@ up: ## Start base services (Postgres, Redis, KrakenD)
 up-infra: ## Start only infrastructure (Postgres + Redis)
 	docker compose -f docker-compose.infra.yml up -d
 
-up-full: ## Start ALL services (infrastructure + Airflow + Langfuse + Langflow + n8n + AI/ML + Agents + Studios + Platform Manager)
+up-full: ## Start ALL services (+ Sentinel if ENABLE_SENTINEL=true in .env)
 	docker compose \
 		-f docker-compose.yml \
 		-f docker-compose.airflow.yml \
@@ -31,6 +35,7 @@ up-full: ## Start ALL services (infrastructure + Airflow + Langfuse + Langflow +
 		-f docker-compose.crewai-studio.yml \
 		-f docker-compose.autogen-studio.yml \
 		-f docker-compose.es1-platform-manager.yml \
+		$(SENTINEL_COMPOSE) \
 		up -d
 
 up-airflow: ## Start base + Airflow
@@ -66,10 +71,20 @@ up-aiml-full: ## Start AI/ML stack with Platform Manager
 		-f docker-compose.es1-platform-manager.yml \
 		up -d
 
+up-sentinel: ## Start base + AI/ML + Sentinel
+	docker compose \
+		-f docker-compose.yml \
+		-f docker-compose.aiml.yml \
+		-f docker-compose.sentinel.yml \
+		up -d
+
+logs-sentinel: ## Tail logs from Sentinel
+	docker compose -f docker-compose.yml -f docker-compose.aiml.yml -f docker-compose.sentinel.yml logs -f sentinel-api sentinel-ui
+
 up-monitoring: ## Start base + Monitoring (Prometheus, Grafana)
 	docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 
-up-full-monitoring: ## Start ALL services + Monitoring
+up-full-monitoring: ## Start ALL services + Monitoring (+ Sentinel if ENABLE_SENTINEL=true)
 	docker compose \
 		-f docker-compose.yml \
 		-f docker-compose.airflow.yml \
@@ -81,6 +96,7 @@ up-full-monitoring: ## Start ALL services + Monitoring
 		-f docker-compose.crewai-studio.yml \
 		-f docker-compose.autogen-studio.yml \
 		-f docker-compose.es1-platform-manager.yml \
+		$(SENTINEL_COMPOSE) \
 		-f docker-compose.monitoring.yml \
 		up -d
 
@@ -97,6 +113,7 @@ down: ## Stop all Docker Compose services
 		-f docker-compose.agents.yml \
 		-f docker-compose.crewai-studio.yml \
 		-f docker-compose.autogen-studio.yml \
+		-f docker-compose.sentinel.yml \
 		-f docker-compose.monitoring.yml \
 		down 2>/dev/null || true
 	docker compose -f docker-compose.infra.yml down 2>/dev/null || true
