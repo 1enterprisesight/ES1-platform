@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, Component } from "react";
 import useSSE from "./hooks/useSSE.js";
-import { fetchSilos, moveTile, fetchInteractions, fetchDatasources, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig } from "./api.js";
+import { fetchSilos, moveTile, fetchInteractions, fetchDatasources, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout } from "./api.js";
+import LoginPage from "./pages/LoginPage.jsx";
 import ScrollRow from "./components/ScrollRow.jsx";
 import FeedCard from "./components/FeedCard.jsx";
 import FeedLiveCard from "./components/FeedLiveCard.jsx";
@@ -57,7 +58,7 @@ class ErrorBoundary extends Component {
 }
 
 
-function SentinelApp() {
+function SentinelApp({ user, onLogout }) {
   const [silos, setSilos] = useState([DEFAULT_ALPHA]);
   const [activeSilos, setActiveSilos] = useState(new Set(["alpha"]));
   const [cards, setCards] = useState([]);
@@ -543,6 +544,22 @@ function SentinelApp() {
             </svg>
           </button>
 
+          {/* User / Logout */}
+          <button onClick={onLogout} title={user?.email} style={{
+            display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5,
+            border: "1px solid rgba(255,255,255,0.06)", background: "transparent",
+            color: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 500,
+            cursor: "pointer", transition: "all .15s", fontFamily: "'DM Sans',sans-serif", flexShrink: 0,
+          }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.3)"; }}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
+            {user?.display_name || user?.email?.split("@")[0] || "Logout"}
+          </button>
+
           {/* Row config editor */}
           <div style={{ position: "relative" }}>
             <button onClick={(e) => { e.stopPropagation(); setRowEditorOpen(p => !p); if (!rowEditing) setRowEditing(dynamicRows.map(r => ({ label: r.label, description: r.description }))); }} style={{
@@ -650,9 +667,37 @@ function SentinelApp() {
 
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    fetchMe()
+      .then((data) => { if (data?.user) setUser(data.user); })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, []);
+
+  const handleLogout = async () => {
+    try { await logout(); } catch (e) { console.error("Logout failed:", e); }
+    setUser(null);
+  };
+
+  if (checking) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#07080b", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34d399", animation: "p 1.2s infinite" }} />
+        <style>{`html, body { background: #07080b !important; margin: 0; } @keyframes p{0%,100%{opacity:1}50%{opacity:.25}}`}</style>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage onLogin={setUser} />;
+  }
+
   return (
     <ErrorBoundary>
-      <SentinelApp />
+      <SentinelApp user={user} onLogout={handleLogout} />
     </ErrorBoundary>
   );
 }

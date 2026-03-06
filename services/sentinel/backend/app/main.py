@@ -9,11 +9,14 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import CORS_ORIGINS
 from app.db import init_db
+from app.database import init_pool, close_pool
 from app.profiler import discover_silos, silo_discovery_done, get_silos
 from app.tiles import tile_store, recover_interacted_tiles
 from app.llm import shutdown_llm
 from app.agent import start_agent, stop_agent, is_agent_active
+from app.auth import bootstrap_admin
 from app.routes import silos, stream, tiles, ask, datasources
+from app.routes import auth as auth_routes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -36,8 +39,17 @@ async def _background_init():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup — DB is fast (sync), do it inline
+    # Startup
     logger.info("Starting Sentinel backend…")
+
+    # PostgreSQL pool + admin bootstrap
+    try:
+        await init_pool()
+        await bootstrap_admin()
+    except Exception as e:
+        logger.warning(f"PostgreSQL init failed (auth disabled): {e}")
+
+    # DuckDB — fast (sync), do it inline
     counts = init_db()
     logger.info(f"Data loaded: {counts}")
 
@@ -63,6 +75,7 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             pass
     shutdown_llm()
+    await close_pool()
     logger.info("Sentinel backend shut down")
 
 
@@ -71,10 +84,12 @@ app = FastAPI(title="Sentinel", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.include_router(auth_routes.router, prefix="/api")
 app.include_router(silos.router, prefix="/api")
 app.include_router(stream.router, prefix="/api")
 app.include_router(tiles.router, prefix="/api")

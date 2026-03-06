@@ -3,7 +3,82 @@ const BASE = '/api';
 function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+  return fetch(url, { ...options, signal: controller.signal, credentials: 'same-origin' }).finally(() => clearTimeout(timer));
+}
+
+// ---------------------------------------------------------------------------
+// Auth
+// ---------------------------------------------------------------------------
+
+export async function login(email, password) {
+  const res = await fetchWithTimeout(`${BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Login failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function register(email, password, displayName) {
+  const res = await fetchWithTimeout(`${BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, display_name: displayName || undefined }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Registration failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function logout() {
+  const res = await fetchWithTimeout(`${BASE}/auth/logout`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Logout failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchMe() {
+  const res = await fetchWithTimeout(`${BASE}/auth/me`);
+  if (res.status === 401) return null;
+  if (!res.ok) throw new Error(`Failed to fetch user: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchUsers() {
+  const res = await fetchWithTimeout(`${BASE}/admin/users`);
+  if (!res.ok) throw new Error(`Failed to fetch users: ${res.status}`);
+  return res.json();
+}
+
+export async function updateUserStatus(userId, status) {
+  const res = await fetchWithTimeout(`${BASE}/admin/users/${userId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+  return res.json();
+}
+
+export async function updateUserRole(userId, role) {
+  const res = await fetchWithTimeout(`${BASE}/admin/users/${userId}/role`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  });
+  if (!res.ok) throw new Error(`Failed to update user: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteUser(userId) {
+  const res = await fetchWithTimeout(`${BASE}/admin/users/${userId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete user: ${res.status}`);
+  return res.json();
 }
 
 export async function fetchSilos() {

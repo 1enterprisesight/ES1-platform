@@ -16,6 +16,19 @@ GCP_PROJECT = os.environ.get("GCP_PROJECT", "engine-prod-svc-msd0")
 GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
 
+# PostgreSQL (AIML instance, sentinel schema)
+PG_HOST = os.environ.get("AIML_POSTGRES_HOST", "localhost")
+PG_PORT = int(os.environ.get("AIML_POSTGRES_PORT", "5433"))
+PG_DB = os.environ.get("AIML_POSTGRES_DB", "aiml")
+PG_USER = os.environ.get("AIML_POSTGRES_USER", "aiml_user")
+PG_PASSWORD = os.environ.get("AIML_POSTGRES_PASSWORD", "aiml_dev_password")
+
+# Auth
+ADMIN_EMAIL = os.environ.get("SENTINEL_ADMIN_EMAIL", "admin@engine.local")
+ADMIN_PASSWORD = os.environ.get("SENTINEL_ADMIN_PASSWORD", "Sentinel1!")
+JWT_SECRET = os.environ.get("SENTINEL_JWT_SECRET", "sentinel-dev-jwt-secret")
+SESSION_EXPIRY_HOURS = int(os.environ.get("SENTINEL_SESSION_HOURS", "72"))
+
 # Agent settings
 AGENT_CYCLE_SECONDS = int(os.environ.get("AGENT_CYCLE_SECONDS", "15"))
 MAX_TILES = int(os.environ.get("MAX_TILES", "50"))
