@@ -24,14 +24,34 @@ class LangflowClient:
         self.base_url = settings.LANGFLOW_API_URL
         self.enabled = settings.LANGFLOW_ENABLED
         self._client: httpx.AsyncClient | None = None
+        self._access_token: str | None = None
+
+    async def _get_access_token(self) -> str | None:
+        """Get access token via auto_login endpoint."""
+        if self._access_token:
+            return self._access_token
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                response = await client.get(f"{self.base_url}/auto_login")
+                if response.status_code == 200:
+                    data = response.json()
+                    self._access_token = data.get("access_token")
+                    return self._access_token
+        except Exception as e:
+            logger.warning(f"Failed to get Langflow auto_login token: {e}")
+        return None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Get or create HTTP client."""
+        """Get or create HTTP client with auth."""
         if self._client is None:
+            headers = {"Content-Type": "application/json"}
+            token = await self._get_access_token()
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=60.0,  # Longer timeout for LLM operations
-                headers={"Content-Type": "application/json"},
+                headers=headers,
             )
         return self._client
 

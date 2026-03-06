@@ -295,9 +295,9 @@ class AirflowClient:
         self._token: str | None = None
         self._token_expiry: float = 0
 
-    async def _get_token(self) -> str:
+    async def _get_token(self, force_refresh: bool = False) -> str:
         """Get JWT token from Airflow 3 auth endpoint, refreshing if expired."""
-        if self._token and time.time() < self._token_expiry:
+        if not force_refresh and self._token and time.time() < self._token_expiry:
             return self._token
 
         token_url = f"{self.backend_host}/auth/token/cli"
@@ -313,6 +313,13 @@ class AirflowClient:
             # Refresh 5 minutes before expiry (tokens last 1 hour)
             self._token_expiry = time.time() + 3300
             return self._token
+
+    def _invalidate_token(self):
+        """Invalidate cached token (e.g. after Airflow restart changes signing key)."""
+        self._token = None
+        self._token_expiry = 0
+        if self._client:
+            self._client = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client with JWT authentication."""
@@ -331,6 +338,18 @@ class AirflowClient:
             self._client.headers["Authorization"] = f"Bearer {token}"
         return self._client
 
+    async def _request(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """Make an HTTP request with automatic token refresh on 403."""
+        client = await self._get_client()
+        response = await getattr(client, method)(url, **kwargs)
+        if response.status_code == 403:
+            logger.warning("Airflow returned 403, refreshing JWT token")
+            self._invalidate_token()
+            await self._get_token(force_refresh=True)
+            client = await self._get_client()
+            response = await getattr(client, method)(url, **kwargs)
+        return response
+
     async def close(self):
         """Close the HTTP client."""
         if self._client:
@@ -342,8 +361,7 @@ class AirflowClient:
     async def health_check(self) -> dict[str, Any]:
         """Check Airflow health status."""
         try:
-            client = await self._get_client()
-            response = await client.get("/monitor/health")
+            response = await self._request("get", "/monitor/health")
             if response.status_code == 200:
                 return {"status": "healthy", "data": response.json()}
             return {"status": "unhealthy", "error": f"HTTP {response.status_code}"}
@@ -368,13 +386,12 @@ class AirflowClient:
             dict with 'dags' list and 'total_entries' count
         """
         try:
-            client = await self._get_client()
             params = {
                 "limit": limit,
                 "offset": offset,
                 "only_active": str(only_active).lower(),
             }
-            response = await client.get("/dags", params=params)
+            response = await self._request("get", "/dags", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -395,8 +412,7 @@ class AirflowClient:
             DAG details dict
         """
         try:
-            client = await self._get_client()
-            response = await client.get(f"/dags/{dag_id}")
+            response = await self._request("get", f"/dags/{dag_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -426,7 +442,6 @@ class AirflowClient:
             DAG run details
         """
         try:
-            client = await self._get_client()
             # Airflow 3 v2 API requires logical_date
             payload: dict[str, Any] = {
                 "logical_date": logical_date or datetime.utcnow().isoformat() + "Z",
@@ -436,7 +451,7 @@ class AirflowClient:
             if note:
                 payload["note"] = note
 
-            response = await client.post(f"/dags/{dag_id}/dagRuns", json=payload)
+            response = await self._request("post", f"/dags/{dag_id}/dagRuns", json=payload)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -466,12 +481,11 @@ class AirflowClient:
             dict with 'dag_runs' list and 'total_entries' count
         """
         try:
-            client = await self._get_client()
             params: dict[str, Any] = {"limit": limit, "offset": offset}
             if state:
                 params["state"] = state
 
-            response = await client.get(f"/dags/{dag_id}/dagRuns", params=params)
+            response = await self._request("get", f"/dags/{dag_id}/dagRuns", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -501,7 +515,6 @@ class AirflowClient:
             dict with 'dag_runs' list and 'total_entries' count
         """
         try:
-            client = await self._get_client()
             params: dict[str, Any] = {
                 "limit": limit,
                 "offset": offset,
@@ -511,7 +524,7 @@ class AirflowClient:
                 params["state"] = state
 
             # Use the batch endpoint for all DAG runs
-            response = await client.get("/dags/~/dagRuns", params=params)
+            response = await self._request("get", "/dags/~/dagRuns", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -533,8 +546,7 @@ class AirflowClient:
             DAG run details
         """
         try:
-            client = await self._get_client()
-            response = await client.get(f"/dags/{dag_id}/dagRuns/{dag_run_id}")
+            response = await self._request("get", f"/dags/{dag_id}/dagRuns/{dag_run_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -560,9 +572,8 @@ class AirflowClient:
             dict with 'task_instances' list
         """
         try:
-            client = await self._get_client()
-            response = await client.get(
-                f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
+            response = await self._request(
+                "get", f"/dags/{dag_id}/dagRuns/{dag_run_id}/taskInstances"
             )
             response.raise_for_status()
             return response.json()
@@ -585,9 +596,8 @@ class AirflowClient:
             Updated DAG details
         """
         try:
-            client = await self._get_client()
-            response = await client.patch(
-                f"/dags/{dag_id}",
+            response = await self._request(
+                "patch", f"/dags/{dag_id}",
                 json={"is_paused": is_paused},
             )
             response.raise_for_status()
@@ -610,8 +620,7 @@ class AirflowClient:
             True if successful, False otherwise
         """
         try:
-            client = await self._get_client()
-            response = await client.delete(f"/dags/{dag_id}")
+            response = await self._request("delete", f"/dags/{dag_id}")
             if response.status_code in (200, 204, 404):
                 return True
             logger.warning(f"Unexpected status deleting DAG {dag_id}: {response.status_code}")
@@ -632,9 +641,8 @@ class AirflowClient:
             dict with 'connections' list and 'total_entries' count
         """
         try:
-            client = await self._get_client()
             params = {"limit": limit, "offset": offset}
-            response = await client.get("/connections", params=params)
+            response = await self._request("get", "/connections", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -655,8 +663,7 @@ class AirflowClient:
             Connection details dict
         """
         try:
-            client = await self._get_client()
-            response = await client.get(f"/connections/{connection_id}")
+            response = await self._request("get", f"/connections/{connection_id}")
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -677,8 +684,7 @@ class AirflowClient:
             Created connection details
         """
         try:
-            client = await self._get_client()
-            response = await client.post("/connections", json=data)
+            response = await self._request("post", "/connections", json=data)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -700,8 +706,7 @@ class AirflowClient:
             Updated connection details
         """
         try:
-            client = await self._get_client()
-            response = await client.patch(f"/connections/{connection_id}", json=data)
+            response = await self._request("patch", f"/connections/{connection_id}", json=data)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -722,8 +727,7 @@ class AirflowClient:
             True if successful
         """
         try:
-            client = await self._get_client()
-            response = await client.delete(f"/connections/{connection_id}")
+            response = await self._request("delete", f"/connections/{connection_id}")
             if response.status_code in (200, 204, 404):
                 return True
             logger.warning(f"Unexpected status deleting connection {connection_id}: {response.status_code}")
@@ -744,9 +748,8 @@ class AirflowClient:
             dict with 'variables' list and 'total_entries' count
         """
         try:
-            client = await self._get_client()
             params = {"limit": limit, "offset": offset}
-            response = await client.get("/variables", params=params)
+            response = await self._request("get", "/variables", params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
@@ -915,9 +918,8 @@ class AirflowClient:
         Airflow 3 v2 API uses dag_id directly: GET /dagSources/{dag_id}
         """
         try:
-            client = await self._get_client()
-            response = await client.get(
-                f"/dagSources/{dag_id}",
+            response = await self._request(
+                "get", f"/dagSources/{dag_id}",
                 headers={"Accept": "application/json"},
             )
             response.raise_for_status()

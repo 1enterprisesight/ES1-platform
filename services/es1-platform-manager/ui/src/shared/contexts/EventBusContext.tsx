@@ -21,6 +21,24 @@ export function EventBusProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false)
   const [handlers, setHandlers] = useState<Map<string, Set<(event: PlatformEvent) => void>>>(new Map())
 
+  // Load event history on mount
+  useEffect(() => {
+    fetch('/api/v1/events/history?limit=50')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.events && Array.isArray(data.events)) {
+          const historicalEvents: PlatformEvent[] = data.events.map((e: PlatformEvent) => ({
+            id: e.id,
+            type: e.type,
+            timestamp: e.timestamp,
+            data: e.data,
+          }))
+          setEvents(historicalEvents)
+        }
+      })
+      .catch((err) => console.error('Failed to load event history:', err))
+  }, [])
+
   useEffect(() => {
     const eventSource = new EventSource('/api/v1/events/stream')
 

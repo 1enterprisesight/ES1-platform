@@ -172,6 +172,12 @@ services:
       AUTH_MODE: ${AUTH_MODE:-none}
 
       # ==========================================================================
+      # Service credentials (displayed in UI for convenience)
+      # ==========================================================================
+      N8N_CREDENTIAL_EMAIL: ${N8N_DEFAULT_USER_EMAIL:-admin@engine.local}
+      N8N_CREDENTIAL_PASSWORD: ${N8N_DEFAULT_USER_PASSWORD:-Engineadmin1!}
+
+      # ==========================================================================
       # Feature flags
       # ==========================================================================
       ENABLE_N8N: "${ENABLE_N8N:-true}"
