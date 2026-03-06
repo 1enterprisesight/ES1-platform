@@ -97,7 +97,8 @@
                 "mlflow": "/api/v1/mlflow/*",
                 "knowledge": "/api/v1/knowledge/*",
                 "agents": "/api/v1/agents/*",
-                "n8n-webhooks": "/webhook/*"
+                "n8n-webhooks": "/webhook/*",
+                "sentinel": "/api/v1/sentinel/*"
               },
               "admin_ui": "http://localhost:3001"
             },
@@ -558,6 +559,60 @@
         {
           "host": ["http://n8n:5678"],
           "url_pattern": "/webhook-test/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+
+    {
+      "@comment": "=== SENTINEL API (AI Data Dashboard) ===",
+      "endpoint": "/api/v1/sentinel/{path}",
+      "method": "GET",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://sentinel-api:8010"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/sentinel/{path}",
+      "method": "POST",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://sentinel-api:8010"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/sentinel/{path}",
+      "method": "PATCH",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://sentinel-api:8010"],
+          "url_pattern": "/api/{path}",
+          "encoding": "no-op"
+        }
+      ]
+    },
+    {
+      "endpoint": "/api/v1/sentinel/{path}",
+      "method": "DELETE",
+      "output_encoding": "no-op",
+      "input_headers": ["*"],
+      "backend": [
+        {
+          "host": ["http://sentinel-api:8010"],
+          "url_pattern": "/api/{path}",
           "encoding": "no-op"
         }
       ]

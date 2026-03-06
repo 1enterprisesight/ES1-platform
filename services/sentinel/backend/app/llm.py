@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
+import time
 from concurrent.futures import ThreadPoolExecutor
 import vertexai
 from vertexai.generative_models import GenerativeModel, GenerationConfig
@@ -15,6 +17,23 @@ LLM_TIMEOUT = 45  # seconds — prevent hung LLM calls from blocking the server
 
 _model: GenerativeModel | None = None
 _executor = ThreadPoolExecutor(max_workers=3)
+
+# Langfuse tracing (optional — degrades gracefully)
+_langfuse = None
+try:
+    langfuse_url = os.environ.get("LANGFUSE_URL")
+    langfuse_pk = os.environ.get("LANGFUSE_PUBLIC_KEY")
+    langfuse_sk = os.environ.get("LANGFUSE_SECRET_KEY")
+    if langfuse_url and langfuse_pk and langfuse_sk:
+        from langfuse import Langfuse
+        _langfuse = Langfuse(
+            public_key=langfuse_pk,
+            secret_key=langfuse_sk,
+            host=langfuse_url,
+        )
+        logger.info(f"Langfuse tracing enabled: {langfuse_url}")
+except Exception as e:
+    logger.info(f"Langfuse tracing not available: {e}")
 
 
 def init_llm():
@@ -32,8 +51,13 @@ def get_model() -> GenerativeModel:
 
 
 def shutdown_llm():
-    """Shut down the thread pool executor. Called during app shutdown."""
+    """Shut down the thread pool executor and flush Langfuse. Called during app shutdown."""
     _executor.shutdown(wait=False)
+    if _langfuse:
+        try:
+            _langfuse.flush()
+        except Exception:
+            pass
     logger.info("LLM executor shut down")
 
 
@@ -60,18 +84,49 @@ async def generate(prompt: str, system: str = "", temperature: float = 0.7, json
     else:
         contents.append({"role": "user", "parts": [{"text": prompt}]})
 
+    # Langfuse trace
+    trace = None
+    generation = None
+    if _langfuse:
+        try:
+            trace = _langfuse.trace(name="sentinel-llm", metadata={"model": GEMINI_MODEL})
+            generation = trace.generation(
+                name="gemini-generate",
+                model=GEMINI_MODEL,
+                input=prompt[:500],
+                model_parameters={"temperature": temperature, "json_mode": json_mode},
+            )
+        except Exception:
+            pass
+
+    t0 = time.time()
     loop = asyncio.get_event_loop()
     try:
         result = await asyncio.wait_for(
             loop.run_in_executor(_executor, _sync_generate, model, contents, config),
             timeout=LLM_TIMEOUT,
         )
+        if generation:
+            try:
+                generation.end(output=result[:500], metadata={"duration_s": round(time.time() - t0, 2)})
+            except Exception:
+                pass
         return result
     except asyncio.TimeoutError:
         logger.error(f"Gemini generation timed out after {LLM_TIMEOUT}s")
+        if generation:
+            try:
+                generation.end(level="ERROR", status_message="timeout")
+            except Exception:
+                pass
         raise TimeoutError(f"LLM call timed out after {LLM_TIMEOUT}s")
     except Exception as e:
         logger.error(f"Gemini generation failed: {e}")
+        if generation:
+            try:
+                generation.end(level="ERROR", status_message=str(e))
+            except Exception:
+                pass
         raise
 
 

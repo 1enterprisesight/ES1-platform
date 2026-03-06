@@ -155,6 +155,34 @@ def readyz():
     return {"status": "ready", "silos": len(get_silos())}
 
 
+@app.get("/api/service-info")
+def service_info():
+    """Service descriptor for platform discovery and registration."""
+    return {
+        "name": "sentinel",
+        "display_name": "Sentinel",
+        "description": "AI-powered data dashboard — upload CSVs, get automated insights",
+        "version": version().get("tag", "dev"),
+        "type": "analytics",
+        "endpoints": {
+            "api": "/api",
+            "health": "/healthz",
+            "ready": "/readyz",
+            "stream": "/api/stream",
+        },
+        "capabilities": [
+            "csv_upload",
+            "automated_analysis",
+            "silo_discovery",
+            "interactive_questions",
+            "workspace_management",
+            "user_auth",
+        ],
+        "gateway_prefix": "/api/v1/sentinel",
+        "ui_url": "/sentinel",
+    }
+
+
 # Serve frontend static files in production (when frontend/dist exists)
 # In local dev, Vite handles this via proxy
 _frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
