@@ -72,10 +72,98 @@ async def login(body: LoginRequest, response: Response):
 @router.post("/auth/register")
 async def register(body: RegisterRequest):
     user = await register_user(body.email, body.password, body.display_name)
-    return {
-        "user": user.model_dump(),
-        "message": "Registration successful. An admin must approve your account before you can log in.",
-    }
+
+    # Send verification email if SMTP configured
+    from app.email import is_email_configured, send_verification_email
+    email_sent = False
+    if is_email_configured():
+        import secrets
+        from datetime import datetime, timezone, timedelta
+        token = secrets.token_urlsafe(32)
+        expires = datetime.now(timezone.utc) + timedelta(hours=24)
+        pool = __import__("app.database", fromlist=["get_pool"]).get_pool()
+        await pool.execute(
+            "UPDATE sentinel.users SET email_token = $1, email_token_expires_at = $2 WHERE id = $3",
+            token, expires, __import__("uuid").UUID(user.id),
+        )
+        email_sent = send_verification_email(user.email, token)
+
+    msg = "Registration successful. "
+    if email_sent:
+        msg += "Check your email to verify your account."
+    else:
+        msg += "An admin must approve your account before you can log in."
+
+    return {"user": user.model_dump(), "message": msg}
+
+
+class VerifyRequest(BaseModel):
+    token: str
+
+
+@router.post("/auth/verify")
+async def verify_email(body: VerifyRequest):
+    """Verify email address using token from verification email."""
+    pool = __import__("app.database", fromlist=["get_pool"]).get_pool()
+    row = await pool.fetchrow(
+        """UPDATE sentinel.users
+           SET status = 'verified', email_token = NULL, email_token_expires_at = NULL, updated_at = now()
+           WHERE email_token = $1 AND email_token_expires_at > now() AND status = 'pending'
+           RETURNING id, email""",
+        body.token,
+    )
+    if not row:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+    return {"ok": True, "email": row["email"]}
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+@router.post("/auth/forgot-password")
+async def forgot_password(body: ForgotPasswordRequest):
+    """Send password reset email (if SMTP configured)."""
+    from app.email import is_email_configured, send_password_reset_email
+    if not is_email_configured():
+        raise HTTPException(status_code=400, detail="Email not configured. Contact an admin to reset your password.")
+
+    pool = __import__("app.database", fromlist=["get_pool"]).get_pool()
+    row = await pool.fetchrow("SELECT id FROM sentinel.users WHERE email = $1", body.email)
+    # Always return success to prevent email enumeration
+    if row:
+        import secrets
+        from datetime import datetime, timezone, timedelta
+        token = secrets.token_urlsafe(32)
+        expires = datetime.now(timezone.utc) + timedelta(hours=1)
+        await pool.execute(
+            "UPDATE sentinel.users SET reset_token = $1, reset_token_expires_at = $2 WHERE id = $3",
+            token, expires, row["id"],
+        )
+        send_password_reset_email(body.email, token)
+    return {"ok": True, "message": "If that email exists, a reset link has been sent."}
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    password: str = Field(..., min_length=8)
+
+
+@router.post("/auth/reset-password")
+async def reset_password(body: ResetPasswordRequest):
+    """Reset password using token from email."""
+    from app.auth import hash_password
+    pool = __import__("app.database", fromlist=["get_pool"]).get_pool()
+    row = await pool.fetchrow(
+        """UPDATE sentinel.users
+           SET password_hash = $1, reset_token = NULL, reset_token_expires_at = NULL, updated_at = now()
+           WHERE reset_token = $2 AND reset_token_expires_at > now()
+           RETURNING id""",
+        hash_password(body.password), body.token,
+    )
+    if not row:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    return {"ok": True}
 
 
 @router.post("/auth/logout")

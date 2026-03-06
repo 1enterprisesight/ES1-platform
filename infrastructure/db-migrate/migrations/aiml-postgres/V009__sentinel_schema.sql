@@ -17,6 +17,8 @@ CREATE TABLE sentinel.users (
     status          TEXT NOT NULL DEFAULT 'pending',  -- 'pending' → 'verified' → 'active' → 'disabled'
     email_token     TEXT,
     email_token_expires_at TIMESTAMPTZ,
+    reset_token     TEXT,
+    reset_token_expires_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -36,6 +36,45 @@ export async function register(email, password, displayName) {
   return res.json();
 }
 
+export async function forgotPassword(email) {
+  const res = await fetchWithTimeout(`${BASE}/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function resetPassword(token, password) {
+  const res = await fetchWithTimeout(`${BASE}/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Reset failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function verifyEmail(token) {
+  const res = await fetchWithTimeout(`${BASE}/auth/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Verification failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function logout() {
   const res = await fetchWithTimeout(`${BASE}/auth/logout`, { method: 'POST' });
   if (!res.ok) throw new Error(`Logout failed: ${res.status}`);

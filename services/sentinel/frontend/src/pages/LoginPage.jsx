@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { login, register } from "../api.js";
+import { login, register, forgotPassword } from "../api.js";
 
 export default function LoginPage({ onLogin }) {
-  const [mode, setMode] = useState("login"); // "login" | "register"
+  const [mode, setMode] = useState("login"); // "login" | "register" | "forgot"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -20,11 +20,15 @@ export default function LoginPage({ onLogin }) {
       if (mode === "login") {
         const data = await login(email, password);
         onLogin(data.user, data.workspace);
-      } else {
-        await register(email, password, displayName);
-        setSuccess("Registration successful. An admin must approve your account.");
+      } else if (mode === "register") {
+        const data = await register(email, password, displayName);
+        setSuccess(data.message || "Registration successful.");
         setMode("login");
         setPassword("");
+      } else if (mode === "forgot") {
+        await forgotPassword(email);
+        setSuccess("If that email exists, a reset link has been sent.");
+        setMode("login");
       }
     } catch (err) {
       setError(err.message);
@@ -90,15 +94,17 @@ export default function LoginPage({ onLogin }) {
             style={inputStyle}
           />
 
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            required
-            minLength={mode === "register" ? 8 : 1}
-            style={inputStyle}
-          />
+          {mode !== "forgot" && (
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              required
+              minLength={mode === "register" ? 8 : 1}
+              style={inputStyle}
+            />
+          )}
 
           <button type="submit" disabled={loading} style={{
             width: "100%", padding: "10px 0", borderRadius: 6,
@@ -108,11 +114,22 @@ export default function LoginPage({ onLogin }) {
             cursor: loading ? "wait" : "pointer", fontFamily: "'DM Sans',sans-serif",
             transition: "all 0.15s", marginTop: 4,
           }}>
-            {loading ? "..." : mode === "login" ? "Sign In" : "Register"}
+            {loading ? "..." : mode === "login" ? "Sign In" : mode === "register" ? "Register" : "Send Reset Link"}
           </button>
         </form>
 
-        <div style={{ textAlign: "center", marginTop: 20 }}>
+        <div style={{ textAlign: "center", marginTop: 20, display: "flex", flexDirection: "column", gap: 8 }}>
+          {mode === "login" && (
+            <button
+              onClick={() => { setMode("forgot"); setError(null); setSuccess(null); }}
+              style={{
+                background: "none", border: "none", color: "rgba(255,255,255,0.2)",
+                fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
           <button
             onClick={() => { setMode(mode === "login" ? "register" : "login"); setError(null); setSuccess(null); }}
             style={{
