@@ -9,3 +9,5 @@ RUN pip install --no-cache-dir \
     pytest==9.0.2 \
     "testcontainers[postgres]==4.14.1" \
     "psycopg[binary]==3.3.3"
+
+COPY plugins/ /opt/airflow/plugins/

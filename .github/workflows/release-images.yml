@@ -7,8 +7,8 @@
 # Trigger: Manual only (workflow_dispatch)
 #
 # Image types:
-#   Custom (13) -- built from source when code changes, copied forward when not
-#   Upstream (13) -- pulled from public registries when source tag changes in
+#   Custom (14) -- built from source when code changes, copied forward when not
+#   Upstream (12) -- pulled from public registries when source tag changes in
 #                   .github/upstream-images.json, copied forward when not
 #
 # Result: 26 images on GHCR, each verified as clean single-arch amd64.
@@ -105,6 +105,7 @@ jobs:
             ["autogen"]="services/agents/autogen"
             ["crewai-studio"]="services/agents/crewai-studio"
             ["autogen-studio"]="services/agents/autogen-studio"
+            ["airflow"]="services/airflow"
           )
 
           CUSTOM_CHANGED="[]"
