@@ -64,12 +64,33 @@ jobs:
             exit 1
           fi
 
+      - name: Install crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
+
       - name: Configure versions
         id: config
         run: |
           VERSION="${{ inputs.version }}"
-          PREV=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1)
           REGISTRY="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
+
+          # Find the previous version from GHCR (not git tags).
+          # Query a reference image for all version tags, then pick the most
+          # recent one that isn't the current version.
+          REFERENCE="${REGISTRY}/platform-manager-api"
+          GHCR_TAGS=$(crane ls "$REFERENCE" 2>/dev/null | grep '^v' | sort -V || true)
+          PREV=""
+          for TAG in $GHCR_TAGS; do
+            if [[ "$TAG" != "$VERSION" ]]; then
+              PREV="$TAG"
+            fi
+          done
+
+          if [[ -z "$PREV" ]]; then
+            echo "::warning::No previous version found in GHCR. All images will be built/pulled fresh."
+          fi
 
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "prev_version=$PREV" >> $GITHUB_OUTPUT
@@ -79,7 +100,7 @@ jobs:
           echo "| | |" >> $GITHUB_STEP_SUMMARY
           echo "|---|---|" >> $GITHUB_STEP_SUMMARY
           echo "| Version | \`$VERSION\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Previous | \`$PREV\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Previous (GHCR) | \`${PREV:-none}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Registry | \`$REGISTRY\` |" >> $GITHUB_STEP_SUMMARY
           echo "| Force rebuild | ${{ inputs.force_rebuild_all }} |" >> $GITHUB_STEP_SUMMARY
 
@@ -90,7 +111,7 @@ jobs:
           PREV="${{ steps.config.outputs.prev_version }}"
           FORCE="${{ inputs.force_rebuild_all }}"
 
-          # --- Custom images: 13 services with build contexts ---
+          # --- Custom images: 14 services with build contexts ---
           declare -A CUSTOM_CONTEXTS=(
             ["platform-manager-api"]="services/es1-platform-manager/api"
             ["platform-manager-ui"]="services/es1-platform-manager/ui"
