@@ -53,6 +53,58 @@ def init_db() -> dict[str, int]:
     return counts
 
 
+def load_datasets(datasets: list[tuple[str, bytes]]) -> dict[str, int]:
+    """Load datasets (name, csv_bytes) into DuckDB, replacing existing tables.
+
+    Returns dict of table_name -> row_count.
+    """
+    import io
+    import tempfile
+    import os
+
+    conn = get_conn()
+    counts = {}
+
+    with _lock:
+        # Drop all existing tables first
+        for table in [r[0] for r in conn.execute("SHOW TABLES").fetchall()]:
+            conn.execute(f'DROP TABLE IF EXISTS "{table}"')
+
+        for name, csv_bytes in datasets:
+            # Sanitize table name: lowercase, replace non-alnum with underscore
+            table_name = re.sub(r'[^a-z0-9]', '_', name.lower()).strip('_')
+            if not table_name:
+                table_name = "dataset"
+
+            # Write to temp file for DuckDB to read
+            fd, tmp_path = tempfile.mkstemp(suffix=".csv")
+            try:
+                os.write(fd, csv_bytes)
+                os.close(fd)
+                conn.execute(f"""
+                    CREATE TABLE "{table_name}" AS
+                    SELECT * FROM read_csv_auto('{tmp_path}', header=true, ignore_errors=true)
+                """)
+                counts[table_name] = conn.execute(f'SELECT count(*) FROM "{table_name}"').fetchone()[0]
+            except Exception as e:
+                logger.error(f"Failed to load dataset '{name}' into DuckDB: {e}")
+                counts[table_name] = 0
+            finally:
+                try:
+                    os.unlink(tmp_path)
+                except OSError:
+                    pass
+
+    logger.info(f"Datasets loaded into DuckDB: {counts}")
+    return counts
+
+
+def invalidate_profile_cache():
+    """Clear the cached data profile so it gets rebuilt on next request."""
+    global _data_profile_cache
+    _data_profile_cache = None
+
+
 def run_query(sql: str) -> list[dict]:
     """Execute a SQL query and return results as list of dicts."""
     if _has_ddl(sql):

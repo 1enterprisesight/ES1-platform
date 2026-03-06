@@ -178,3 +178,40 @@ export async function askQuestion(question, tileContext = null, createTile = fal
   if (!res.ok) throw new Error(`Failed to ask: ${res.status}`);
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Datasets
+// ---------------------------------------------------------------------------
+
+export async function fetchDatasets() {
+  const res = await fetchWithTimeout(`${BASE}/datasets`);
+  if (!res.ok) throw new Error(`Failed to fetch datasets: ${res.status}`);
+  return res.json();
+}
+
+export async function uploadDataset(file, name) {
+  const form = new FormData();
+  form.append('file', file);
+  if (name) form.append('name', name);
+  const res = await fetchWithTimeout(`${BASE}/datasets/upload`, {
+    method: 'POST',
+    body: form,
+  }, 120000); // 2min for large uploads
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Upload failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function deleteDataset(datasetId) {
+  const res = await fetchWithTimeout(`${BASE}/datasets/${datasetId}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`Failed to delete dataset: ${res.status}`);
+  return res.json();
+}
+
+export async function reloadDatasets() {
+  const res = await fetchWithTimeout(`${BASE}/datasets/reload`, { method: 'POST' }, 120000);
+  if (!res.ok) throw new Error(`Failed to reload datasets: ${res.status}`);
+  return res.json();
+}

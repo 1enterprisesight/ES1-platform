@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback, Component } from "react";
 import useSSE from "./hooks/useSSE.js";
-import { fetchSilos, moveTile, fetchInteractions, fetchDatasources, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout } from "./api.js";
+import { fetchSilos, moveTile, fetchInteractions, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout } from "./api.js";
 import LoginPage from "./pages/LoginPage.jsx";
 import ScrollRow from "./components/ScrollRow.jsx";
 import FeedCard from "./components/FeedCard.jsx";
 import FeedLiveCard from "./components/FeedLiveCard.jsx";
 import ExpandedCard from "./components/ExpandedCard.jsx";
+import DataManager from "./components/DataManager.jsx";
 
 const MAX_CARDS = 200;
 
@@ -71,8 +72,8 @@ function SentinelApp({ user, onLogout }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [viewMode, setViewMode] = useState("compact");
   const [interactions, setInteractions] = useState({});
-  const [datasources, setDatasources] = useState(null);
-  const [dsDropdownOpen, setDsDropdownOpen] = useState(false);
+
+
   const [chatInput, setChatInput] = useState("");
   const [chatAsking, setChatAsking] = useState(false);
   const [hintsOpen, setHintsOpen] = useState(false);
@@ -105,9 +106,6 @@ function SentinelApp({ user, onLogout }) {
     fetchInteractions()
       .then((data) => setInteractions(data || {}))
       .catch((e) => console.error("Failed to fetch interactions:", e));
-    fetchDatasources()
-      .then((data) => setDatasources(data))
-      .catch((e) => console.error("Failed to fetch datasources:", e));
     fetchSiloHints()
       .then((data) => { if (data.hints?.length > 0) setHintsInput(data.hints.join(", ")); })
       .catch(() => {});
@@ -282,7 +280,7 @@ function SentinelApp({ user, onLogout }) {
   };
 
   return (
-    <div onClick={() => { setDsDropdownOpen(false); setHintsOpen(false); setRowEditorOpen(false); }} style={{ minHeight: "100vh", background: "#07080b", color: "#fff", fontFamily: "'DM Sans',sans-serif", opacity: on ? 1 : 0, transition: "opacity 0.4s" }}>
+    <div onClick={() => { setHintsOpen(false); setRowEditorOpen(false); }} style={{ minHeight: "100vh", background: "#07080b", color: "#fff", fontFamily: "'DM Sans',sans-serif", opacity: on ? 1 : 0, transition: "opacity 0.4s" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <style>{`html, body { background: #07080b !important; margin: 0; } @keyframes p{0%,100%{opacity:1}50%{opacity:.25}} @keyframes sentinelPulse{0%{opacity:0.4;transform:scale(0.8)}100%{opacity:1;transform:scale(1.2)}}`}</style>
 
@@ -318,68 +316,10 @@ function SentinelApp({ user, onLogout }) {
             </button>
           </div>
 
-          {/* Data Sources indicator */}
-          {datasources && datasources.sources?.length > 0 && (
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              <button onClick={(e) => { e.stopPropagation(); setDsDropdownOpen((p) => !p); }} style={{
-                display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 5,
-                border: `1px solid ${dsDropdownOpen ? "rgba(52,211,153,0.3)" : "rgba(255,255,255,0.06)"}`,
-                background: dsDropdownOpen ? "rgba(52,211,153,0.06)" : "rgba(255,255,255,0.02)",
-                color: dsDropdownOpen ? "rgba(52,211,153,0.8)" : "rgba(255,255,255,0.35)",
-                fontSize: 10, fontWeight: 600, cursor: "pointer", transition: "all .15s",
-                fontFamily: "'JetBrains Mono',monospace",
-              }}
-                onMouseEnter={e => { if (!dsDropdownOpen) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}}
-                onMouseLeave={e => { if (!dsDropdownOpen) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.35)"; }}}
-              >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
-                </svg>
-                {datasources.sources.length} sources
-                <svg width="8" height="8" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ transform: dsDropdownOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.15s" }}>
-                  <path d="M3 4.5L6 7.5L9 4.5" />
-                </svg>
-              </button>
-              {dsDropdownOpen && (
-                <div onClick={e => e.stopPropagation()} style={{
-                  position: "absolute", top: "100%", left: 0, marginTop: 6, zIndex: 100,
-                  background: "#0f1117", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8,
-                  padding: "14px 16px", minWidth: 280, boxShadow: "0 8px 32px rgba(0,0,0,0.6)",
-                }}>
-                  <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "rgba(255,255,255,0.3)", marginBottom: 12, fontFamily: "'JetBrains Mono',monospace" }}>Active Data Sources</div>
-                  {datasources.sources.map((src) => (
-                    <div key={src.table} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderBottom: "1px solid rgba(255,255,255,0.03)" }}>
-                      <div style={{
-                        width: 6, height: 6, borderRadius: "50%", marginTop: 4, flexShrink: 0,
-                        background: src.active ? "#34d399" : "rgba(255,255,255,0.1)",
-                        boxShadow: src.active ? "0 0 6px rgba(52,211,153,0.4)" : "none",
-                      }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", fontFamily: "'DM Sans',sans-serif" }}>{src.label}</span>
-                          <span style={{ fontSize: 9, color: "rgba(255,255,255,0.2)", fontFamily: "'JetBrains Mono',monospace" }}>{src.rows?.toLocaleString()} rows</span>
-                        </div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.25)", fontFamily: "'JetBrains Mono',monospace", marginTop: 2 }}>{src.file}</div>
-                        <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", fontFamily: "'DM Sans',sans-serif", marginTop: 3, lineHeight: 1.4 }}>{src.description}</div>
-                        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.15)", fontFamily: "'JetBrains Mono',monospace", marginTop: 2 }}>{src.columns} columns</div>
-                      </div>
-                    </div>
-                  ))}
-                  {datasources.join && (
-                    <div style={{ marginTop: 10, padding: "8px 10px", background: "rgba(52,211,153,0.04)", border: "1px solid rgba(52,211,153,0.1)", borderRadius: 6 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(52,211,153,0.5)" strokeWidth="2" strokeLinecap="round">
-                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                        </svg>
-                        <span style={{ fontSize: 9, color: "rgba(52,211,153,0.6)", fontFamily: "'JetBrains Mono',monospace" }}>{datasources.join.description}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Dataset Manager */}
+          <DataManager onReload={() => {
+            fetchSilos().then((data) => { if (data.length > 0) { setSilos(data); setActiveSilos(new Set(data.map((s) => s.id))); } }).catch(() => {});
+          }} />
 
           <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
             <div style={{

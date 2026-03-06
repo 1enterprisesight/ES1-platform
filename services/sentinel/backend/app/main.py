@@ -17,6 +17,7 @@ from app.agent import start_agent, stop_agent, is_agent_active
 from app.auth import bootstrap_admin
 from app.routes import silos, stream, tiles, ask, datasources
 from app.routes import auth as auth_routes
+from app.routes import datasets as dataset_routes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -51,7 +52,22 @@ async def lifespan(app: FastAPI):
 
     # DuckDB — fast (sync), do it inline
     counts = init_db()
-    logger.info(f"Data loaded: {counts}")
+    logger.info(f"Data loaded (CSV): {counts}")
+
+    # Load uploaded datasets from PostgreSQL into DuckDB
+    try:
+        from app.db import load_datasets
+        from app.database import get_pool
+        pool = get_pool()
+        ds_rows = await pool.fetch(
+            "SELECT name, csv_data FROM sentinel.datasets ORDER BY uploaded_at"
+        )
+        if ds_rows:
+            ds_counts = load_datasets([(r["name"], bytes(r["csv_data"])) for r in ds_rows])
+            counts.update(ds_counts)
+            logger.info(f"Data loaded (PG datasets): {ds_counts}")
+    except Exception as e:
+        logger.warning(f"Failed to load datasets from PG: {e}")
 
     # Recover any interacted tiles that were evicted from the tile store
     recover_interacted_tiles()
@@ -95,6 +111,7 @@ app.include_router(stream.router, prefix="/api")
 app.include_router(tiles.router, prefix="/api")
 app.include_router(ask.router, prefix="/api")
 app.include_router(datasources.router, prefix="/api")
+app.include_router(dataset_routes.router, prefix="/api")
 
 
 @app.get("/healthz")
