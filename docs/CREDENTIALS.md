@@ -61,21 +61,20 @@ n8n Community Edition does not support programmatic API key creation. This step 
 4. Copy the generated key
 5. Register the key with the Platform Manager:
 
-   **Option A — Via Settings API (no restart needed):**
+   **Set the environment variable and restart:**
    ```bash
-   curl -X PUT http://localhost:8000/api/v1/settings/n8n_api_key \
-     -H "X-API-Key: $DEFAULT_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"value": "YOUR_N8N_KEY", "category": "credentials", "description": "n8n API key", "is_secret": true}'
-   ```
+   # Add or update the key in .env
+   # N8N_API_KEY=YOUR_N8N_KEY
 
-   **Option B — Via environment variable (requires restart):**
-   ```bash
-   echo "N8N_API_KEY=YOUR_N8N_KEY" >> .env
-   docker compose restart platform-manager-api
+   # Restart Platform Manager to pick up the new key
+   docker compose -f docker-compose.yml -f docker-compose.es1-platform-manager.yml \
+     up -d platform-manager-api
    ```
 
    For Kubernetes, update the `n8n-secrets` Secret and restart the Platform Manager pod.
+
+   > **Note:** The Platform Manager reads `N8N_API_KEY` from its environment at startup.
+   > The UI container must also be restarted if the API container gets a new IP.
 
 > **Note:** Without this key, the platform functions normally but n8n workflow discovery and execution are unavailable.
 

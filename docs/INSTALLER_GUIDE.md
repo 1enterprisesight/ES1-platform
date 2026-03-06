@@ -49,7 +49,7 @@ The platform uses layered compose files for modularity:
 | `docker-compose.aiml.yml` | AI/ML stack (aiml-postgres, ollama, mlflow) | Yes |
 | `docker-compose.agents.yml` | Agent frameworks (crewai, autogen, router) | Yes |
 | `docker-compose.es1-platform-manager.yml` | Platform Manager (API + UI) | Yes |
-| `docker-compose.monitoring.yml` | Prometheus + Grafana | Recommended |
+| `docker-compose.monitoring.yml` | Prometheus + Grafana + exporters | Yes |
 | `docker-compose.airflow.yml` | Apache Airflow | Optional |
 | `docker-compose.n8n.yml` | n8n workflow automation | Optional |
 | `docker-compose.langflow.yml` | Langflow visual builder | Optional |
@@ -69,6 +69,7 @@ docker compose \
   -f docker-compose.monitoring.yml \
   -f docker-compose.airflow.yml \
   -f docker-compose.n8n.yml \
+  -f docker-compose.langflow.yml \
   -f docker-compose.langfuse.yml \
   -f docker-compose.crewai-studio.yml \
   -f docker-compose.autogen-studio.yml \
@@ -98,11 +99,12 @@ All credentials and URLs are configurable via environment variables for customer
 | `GRAFANA_ADMIN_PASSWORD` | `admin` | Grafana admin password |
 | `GRAFANA_ROOT_URL` | `http://localhost:3002` | Grafana public URL |
 | `N8N_DEFAULT_USER_EMAIL` | `admin@engine.local` | n8n default user email |
-| `N8N_DEFAULT_USER_PASSWORD` | `Engineadmin!` | n8n default user password (must contain uppercase) |
+| `N8N_DEFAULT_USER_PASSWORD` | `Engineadmin1!` | n8n default user password (8+ chars, uppercase, number) |
 | `N8N_DEFAULT_USER_FIRST_NAME` | `Engine` | n8n user first name (branding) |
 | `N8N_DEFAULT_USER_LAST_NAME` | `Admin` | n8n user last name |
-| `_AIRFLOW_WWW_USER_USERNAME` | `airflow` | Airflow admin username |
-| `_AIRFLOW_WWW_USER_PASSWORD` | `airflow` | Airflow admin password |
+| `AIRFLOW_ADMIN_USERNAME` | `airflow` | Airflow admin username |
+| `AIRFLOW_ADMIN_PASSWORD` | `airflow` | Airflow admin password |
+| `AIRFLOW_FERNET_KEY` | *(must generate)* | Encrypts connection passwords (`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`) |
 
 ### Langfuse Configuration
 
@@ -298,10 +300,10 @@ All services have configurable default credentials. Change these for production 
 
 | Service | Username Variable | Password Variable | Defaults |
 |---------|-------------------|-------------------|----------|
-| **n8n** | `N8N_DEFAULT_USER_EMAIL` | `N8N_DEFAULT_USER_PASSWORD` | `admin@engine.local` / `Engineadmin!` |
+| **n8n** | `N8N_DEFAULT_USER_EMAIL` | `N8N_DEFAULT_USER_PASSWORD` | `admin@engine.local` / `Engineadmin1!` |
 | **Langfuse** | `LANGFUSE_INIT_USER_EMAIL` | `LANGFUSE_INIT_USER_PASSWORD` | `admin@engine.local` / `Engineadmin!` |
 | **Grafana** | `GRAFANA_ADMIN_USER` | `GRAFANA_ADMIN_PASSWORD` | `admin` / `admin` |
-| **Airflow** | `_AIRFLOW_WWW_USER_USERNAME` | `_AIRFLOW_WWW_USER_PASSWORD` | `airflow` / `airflow` |
+| **Airflow** | `AIRFLOW_ADMIN_USERNAME` | `AIRFLOW_ADMIN_PASSWORD` | `airflow` / `airflow` |
 
 ### Verification Commands
 
@@ -352,7 +354,7 @@ For air-gapped deployments, these images must be pulled and pushed to a local re
 |-------|---------|---------|
 | `ollama/ollama` | latest | Local LLM inference |
 | `ghcr.io/open-webui/open-webui` | main | Ollama Web UI |
-| `apache/airflow` | 2.8.1-python3.11 | DAG orchestration |
+| `apache/airflow` | 3.1.7-python3.12 | DAG orchestration |
 | `langflowai/langflow` | latest | Visual LLM flows |
 | `langfuse/langfuse` | 2 | LLM observability |
 | `n8nio/n8n` | latest | Workflow automation |
