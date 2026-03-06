@@ -7,6 +7,7 @@ import FeedCard from "./components/FeedCard.jsx";
 import FeedLiveCard from "./components/FeedLiveCard.jsx";
 import ExpandedCard from "./components/ExpandedCard.jsx";
 import DataManager from "./components/DataManager.jsx";
+import WorkspaceSwitcher from "./components/WorkspaceSwitcher.jsx";
 
 const MAX_CARDS = 200;
 
@@ -59,7 +60,7 @@ class ErrorBoundary extends Component {
 }
 
 
-function SentinelApp({ user, onLogout }) {
+function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
   const [silos, setSilos] = useState([DEFAULT_ALPHA]);
   const [activeSilos, setActiveSilos] = useState(new Set(["alpha"]));
   const [cards, setCards] = useState([]);
@@ -319,6 +320,11 @@ function SentinelApp({ user, onLogout }) {
           {/* Dataset Manager */}
           <DataManager onReload={() => {
             fetchSilos().then((data) => { if (data.length > 0) { setSilos(data); setActiveSilos(new Set(data.map((s) => s.id))); } }).catch(() => {});
+          }} />
+
+          {/* Workspace Switcher */}
+          <WorkspaceSwitcher activeWorkspace={workspace} onSwitch={(data) => {
+            if (onWorkspaceSwitch) onWorkspaceSwitch(data);
           }} />
 
           <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
@@ -608,18 +614,36 @@ function SentinelApp({ user, onLogout }) {
 
 export default function App() {
   const [user, setUser] = useState(null);
+  const [workspace, setWorkspace] = useState(null);
   const [checking, setChecking] = useState(true);
+  // Key to force SentinelApp remount on workspace switch
+  const [wsKey, setWsKey] = useState(0);
 
   useEffect(() => {
     fetchMe()
-      .then((data) => { if (data?.user) setUser(data.user); })
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+        if (data?.workspace) setWorkspace(data.workspace);
+      })
       .catch(() => {})
       .finally(() => setChecking(false));
   }, []);
 
+  const handleLogin = (loginUser, loginWorkspace) => {
+    setUser(loginUser);
+    if (loginWorkspace) setWorkspace(loginWorkspace);
+  };
+
   const handleLogout = async () => {
     try { await logout(); } catch (e) { console.error("Logout failed:", e); }
     setUser(null);
+    setWorkspace(null);
+  };
+
+  const handleWorkspaceSwitch = (data) => {
+    if (data.workspace) setWorkspace(data.workspace);
+    // Force remount of SentinelApp to reload everything
+    setWsKey((k) => k + 1);
   };
 
   if (checking) {
@@ -632,12 +656,12 @@ export default function App() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={setUser} />;
+    return <LoginPage onLogin={handleLogin} />;
   }
 
   return (
     <ErrorBoundary>
-      <SentinelApp user={user} onLogout={handleLogout} />
+      <SentinelApp key={wsKey} user={user} onLogout={handleLogout} workspace={workspace} onWorkspaceSwitch={handleWorkspaceSwitch} />
     </ErrorBoundary>
   );
 }

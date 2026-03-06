@@ -18,6 +18,7 @@ from app.auth import bootstrap_admin
 from app.routes import silos, stream, tiles, ask, datasources
 from app.routes import auth as auth_routes
 from app.routes import datasets as dataset_routes
+from app.routes import workspaces as workspace_routes
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -112,6 +113,7 @@ app.include_router(tiles.router, prefix="/api")
 app.include_router(ask.router, prefix="/api")
 app.include_router(datasources.router, prefix="/api")
 app.include_router(dataset_routes.router, prefix="/api")
+app.include_router(workspace_routes.router, prefix="/api")
 
 
 @app.get("/healthz")

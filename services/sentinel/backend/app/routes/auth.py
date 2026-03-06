@@ -51,6 +51,12 @@ async def login(body: LoginRequest, response: Response):
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     token = await create_session(user.id)
+
+    # Ensure user has a default workspace and link it to the session
+    from app.routes.workspaces import ensure_default_workspace, set_session_workspace
+    ws = await ensure_default_workspace(user.id)
+    await set_session_workspace(token, ws["id"])
+
     response.set_cookie(
         key="sentinel_session",
         value=token,
@@ -60,7 +66,7 @@ async def login(body: LoginRequest, response: Response):
         max_age=72 * 3600,
         path="/",
     )
-    return {"user": user.model_dump(), "token": token}
+    return {"user": user.model_dump(), "token": token, "workspace": ws}
 
 
 @router.post("/auth/register")
@@ -83,7 +89,21 @@ async def logout(request: Request, response: Response):
 
 @router.get("/auth/me")
 async def me(session: SessionInfo = Depends(require_user)):
-    return {"user": session.user.model_dump()}
+    # Ensure workspace exists and return it
+    from app.routes.workspaces import ensure_default_workspace
+    ws = None
+    if session.workspace_id:
+        pool = __import__("app.database", fromlist=["get_pool"]).get_pool()
+        row = await pool.fetchrow(
+            "SELECT * FROM sentinel.workspaces WHERE id = $1",
+            __import__("uuid").UUID(session.workspace_id),
+        )
+        if row:
+            from app.routes.workspaces import _row_to_dict
+            ws = _row_to_dict(row)
+    if not ws:
+        ws = await ensure_default_workspace(session.user.id)
+    return {"user": session.user.model_dump(), "workspace": ws}
 
 
 # ---------------------------------------------------------------------------

@@ -19,7 +19,7 @@ export default function LoginPage({ onLogin }) {
     try {
       if (mode === "login") {
         const data = await login(email, password);
-        onLogin(data.user);
+        onLogin(data.user, data.workspace);
       } else {
         await register(email, password, displayName);
         setSuccess("Registration successful. An admin must approve your account.");

@@ -66,6 +66,7 @@ class User(BaseModel):
 class SessionInfo(BaseModel):
     user: User
     session_id: str
+    workspace_id: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +134,7 @@ async def validate_session(token: str) -> Optional[SessionInfo]:
         return None
     pool = get_pool()
     row = await pool.fetchrow(
-        """SELECT s.id as session_id, u.id, u.email, u.display_name, u.role, u.status
+        """SELECT s.id as session_id, s.workspace_id, u.id, u.email, u.display_name, u.role, u.status
            FROM sentinel.sessions s
            JOIN sentinel.users u ON u.id = s.user_id
            WHERE s.token = $1 AND s.expires_at > now()""",
@@ -150,6 +151,7 @@ async def validate_session(token: str) -> Optional[SessionInfo]:
             status=row["status"],
         ),
         session_id=str(row["session_id"]),
+        workspace_id=str(row["workspace_id"]) if row["workspace_id"] else None,
     )
 
 

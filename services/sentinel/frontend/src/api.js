@@ -215,3 +215,48 @@ export async function reloadDatasets() {
   if (!res.ok) throw new Error(`Failed to reload datasets: ${res.status}`);
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Workspaces
+// ---------------------------------------------------------------------------
+
+export async function fetchWorkspaces() {
+  const res = await fetchWithTimeout(`${BASE}/workspaces`);
+  if (!res.ok) throw new Error(`Failed to fetch workspaces: ${res.status}`);
+  return res.json();
+}
+
+export async function createWorkspace(name) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) throw new Error(`Failed to create workspace: ${res.status}`);
+  return res.json();
+}
+
+export async function deleteWorkspace(workspaceId) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Failed to delete workspace: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function activateWorkspace(workspaceId) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}/activate`, { method: 'POST' });
+  if (!res.ok) throw new Error(`Failed to activate workspace: ${res.status}`);
+  return res.json();
+}
+
+export async function saveWorkspaceState(workspaceId, state) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(state),
+  });
+  if (!res.ok) throw new Error(`Failed to save workspace: ${res.status}`);
+  return res.json();
+}
