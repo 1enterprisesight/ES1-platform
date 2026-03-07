@@ -8,6 +8,7 @@ import FeedLiveCard from "./components/FeedLiveCard.jsx";
 import ExpandedCard from "./components/ExpandedCard.jsx";
 import DataManager from "./components/DataManager.jsx";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.jsx";
+import AdminPanel from "./components/AdminPanel.jsx";
 
 const MAX_CARDS = 200;
 
@@ -75,6 +76,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
   const [interactions, setInteractions] = useState({});
 
 
+  const [adminOpen, setAdminOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatAsking, setChatAsking] = useState(false);
   const [hintsOpen, setHintsOpen] = useState(false);
@@ -490,6 +492,25 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
             </svg>
           </button>
 
+          {/* Admin panel (admin only) */}
+          {user?.role === "admin" && (
+            <button onClick={() => setAdminOpen(true)} style={{
+              display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5,
+              border: "1px solid rgba(192,132,252,0.15)", background: "rgba(192,132,252,0.05)",
+              color: "rgba(192,132,252,0.5)", fontSize: 10, fontWeight: 500,
+              cursor: "pointer", transition: "all .15s", fontFamily: "'DM Sans',sans-serif", flexShrink: 0,
+            }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(192,132,252,0.3)"; e.currentTarget.style.color = "rgba(192,132,252,0.8)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(192,132,252,0.15)"; e.currentTarget.style.color = "rgba(192,132,252,0.5)"; }}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+              Admin
+            </button>
+          )}
+
           {/* User / Logout */}
           <button onClick={onLogout} title={user?.email} style={{
             display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5,
@@ -607,6 +628,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
       )}
 
       {sel && <ExpandedCard card={sel} silos={silos} getSilo={getSilo} onClose={() => setSel(null)} onMove={move} interaction={interactions[String(sel.id)]} onInteract={handleInteract} onRemoveTile={(id) => setCards(prev => prev.filter(c => c.id !== id))} rows={dynamicRows} />}
+      {adminOpen && <AdminPanel onClose={() => setAdminOpen(false)} />}
     </div>
   );
 }

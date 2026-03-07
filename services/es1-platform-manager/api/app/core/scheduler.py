@@ -27,6 +27,7 @@ class DiscoveryScheduler:
             "airflow": None,
             "langflow": None,
             "gateway": None,
+            "sentinel": None,
         }
 
     @property
@@ -94,7 +95,7 @@ class DiscoveryScheduler:
             services: List of services to discover. If None, discover all.
         """
         if services is None:
-            services = ["airflow", "langflow", "gateway"]
+            services = ["airflow", "langflow", "gateway", "sentinel"]
 
         logger.info("Running immediate discovery", services=services)
 
@@ -159,7 +160,7 @@ class DiscoveryScheduler:
             },
         )
 
-        services = ["airflow", "langflow"]
+        services = ["airflow", "langflow", "sentinel"]
         total_discovered = 0
 
         for service in services:
@@ -203,6 +204,8 @@ class DiscoveryScheduler:
             return await self._discover_langflow()
         elif service == "gateway":
             return await self._discover_gateway()
+        elif service == "sentinel":
+            return await self._discover_sentinel()
         else:
             raise ValueError(f"Unknown service: {service}")
 
@@ -262,6 +265,82 @@ class DiscoveryScheduler:
         except Exception as e:
             logger.error(f"Langflow discovery error: {e}")
             raise
+
+    async def _discover_sentinel(self) -> dict[str, Any]:
+        """Discover Sentinel service and register as a platform resource."""
+        from app.core.database import async_session_factory
+        from app.modules.gateway.models import DiscoveredResource
+        from sqlalchemy import select
+
+        if not settings.SENTINEL_ENABLED:
+            return {"count": 0, "message": "Sentinel integration disabled"}
+
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(f"{settings.SENTINEL_URL}/api/service-info")
+                resp.raise_for_status()
+                info = resp.json()
+
+            async with async_session_factory() as db:
+                # Check if already registered
+                existing = await db.execute(
+                    select(DiscoveredResource).where(
+                        DiscoveredResource.source == "sentinel",
+                        DiscoveredResource.source_id == "sentinel-api",
+                    )
+                )
+                resource = existing.scalars().first()
+
+                metadata = {
+                    "name": info.get("display_name", "Sentinel"),
+                    "description": info.get("description", ""),
+                    "version": info.get("version", "unknown"),
+                    "type": "application",
+                    "capabilities": info.get("capabilities", []),
+                    "endpoints": info.get("endpoints", {}),
+                    "gateway_prefix": info.get("gateway_prefix", "/api/v1/sentinel"),
+                    "ui_url": info.get("ui_url", ""),
+                    "host": settings.SENTINEL_URL,
+                }
+
+                if resource:
+                    resource.resource_metadata = metadata
+                    resource.status = "active"
+                else:
+                    resource = DiscoveredResource(
+                        type="service",
+                        source="sentinel",
+                        source_id="sentinel-api",
+                        resource_metadata=metadata,
+                        status="active",
+                    )
+                    db.add(resource)
+
+                await db.commit()
+
+            return {
+                "count": 1,
+                "message": f"Sentinel service registered (v{info.get('version', 'unknown')})",
+            }
+        except Exception as e:
+            logger.warning(f"Sentinel discovery failed: {e}")
+            # Mark as inactive if previously registered
+            try:
+                async with async_session_factory() as db:
+                    existing = await db.execute(
+                        select(DiscoveredResource).where(
+                            DiscoveredResource.source == "sentinel",
+                            DiscoveredResource.source_id == "sentinel-api",
+                        )
+                    )
+                    resource = existing.scalars().first()
+                    if resource:
+                        resource.status = "inactive"
+                        await db.commit()
+            except Exception:
+                pass
+            return {"count": 0, "message": f"Sentinel not available: {e}"}
 
     async def _discover_gateway(self) -> dict[str, Any]:
         """Discover resources for gateway exposure."""

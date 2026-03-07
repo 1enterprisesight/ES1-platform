@@ -146,7 +146,7 @@ async def root():
         "name": settings.PROJECT_NAME,
         "version": "1.0.0",
         "status": "running",
-        "modules": ["gateway", "airflow", "langflow", "observability", "automation", "knowledge", "agents", "traffic", "mlflow", "ollama", "models"],
+        "modules": ["gateway", "airflow", "langflow", "observability", "automation", "knowledge", "agents", "traffic", "mlflow", "ollama", "models", "sentinel"],
     }
 
 
