@@ -30,7 +30,7 @@ class WorkflowTriggerGenerator(ConfigGenerator):
             method="POST",
             backend=[
                 {
-                    "url_pattern": f"/api/v1/dags/{dag_id}/dagRuns",
+                    "url_pattern": f"/api/v2/dags/{dag_id}/dagRuns",
                     "host": [airflow_host],
                     "timeout": self._get_timeout(settings),
                     "encoding": "json",
