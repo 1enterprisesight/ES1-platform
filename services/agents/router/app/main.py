@@ -41,12 +41,15 @@ http_client: Optional[httpx.AsyncClient] = None
 websocket_connections: List[WebSocket] = []
 
 
+SENTINEL_URL = os.getenv("SENTINEL_URL", "http://sentinel-api:8010")
+
 class AgentFramework(str, Enum):
     """Supported agent frameworks"""
     CREWAI = "crewai"
     AUTOGEN = "autogen"
     LANGFLOW = "langflow"
     N8N = "n8n"
+    CUSTOM = "custom"  # Internally-built agents (Sentinel, Profiler, etc.)
 
 
 FRAMEWORK_URLS = {
@@ -54,6 +57,7 @@ FRAMEWORK_URLS = {
     AgentFramework.AUTOGEN: AUTOGEN_URL,
     AgentFramework.LANGFLOW: LANGFLOW_URL,
     AgentFramework.N8N: N8N_URL,
+    AgentFramework.CUSTOM: SENTINEL_URL,  # Default custom agent host
 }
 
 
@@ -160,6 +164,7 @@ FRAMEWORK_HEALTH_PATHS = {
     AgentFramework.AUTOGEN: "/health",
     AgentFramework.LANGFLOW: "/health",
     AgentFramework.N8N: "/healthz",  # n8n uses /healthz not /health
+    AgentFramework.CUSTOM: "/healthz",
 }
 
 
@@ -575,6 +580,17 @@ async def list_framework_agents(framework: AgentFramework):
         elif framework == AgentFramework.N8N:
             # n8n requires authentication, return placeholder
             return {"workflows": [], "note": "n8n requires API key configuration"}
+        elif framework == AgentFramework.CUSTOM:
+            # Custom agents register individually — list from registry
+            agents = []
+            keys = await redis_client.hkeys("agents:registry")
+            for key in keys:
+                data = await redis_client.hget("agents:registry", key)
+                if data:
+                    agent_data = json.loads(data)
+                    if agent_data.get("framework") == "custom":
+                        agents.append(agent_data)
+            return {"agents": agents}
     except httpx.RequestError as e:
         raise HTTPException(status_code=503, detail=f"Framework {framework.value} unavailable: {e}")
 

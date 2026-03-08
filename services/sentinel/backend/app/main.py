@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+import os
 from app.config import CORS_ORIGINS
 from app.db import init_db
 from app.database import init_pool, close_pool
@@ -37,6 +38,42 @@ async def _background_init():
         logger.info("Agent started")
     except Exception as e:
         logger.error(f"Background init failed: {e}", exc_info=True)
+
+
+async def _register_with_agent_router():
+    """Register Sentinel as an agent in the Agent Router."""
+    agent_router_url = os.environ.get("AGENT_ROUTER_URL", "http://agent-router:8102")
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(f"{agent_router_url}/agents/register", json={
+                "name": "sentinel-analyst",
+                "framework": "custom",
+                "description": "AI-powered data analyst — ingests CSV datasets, discovers patterns, generates insight cards using Gemini LLM",
+                "capabilities": [
+                    "csv_analysis",
+                    "anomaly_detection",
+                    "trend_discovery",
+                    "cross_dataset_correlation",
+                    "natural_language_questions",
+                    "automated_insight_generation",
+                ],
+                "metadata": {
+                    "service_url": "http://sentinel-api:8010",
+                    "ui_url": "http://sentinel-ui:80",
+                    "gateway_prefix": "/api/v1/sentinel",
+                    "llm_provider": "google_vertex_ai",
+                    "llm_model": "gemini-2.5-flash",
+                    "data_engine": "duckdb",
+                    "storage": "postgresql",
+                },
+            })
+            if resp.status_code in (200, 201):
+                logger.info(f"Registered with Agent Router: {resp.json()}")
+            else:
+                logger.warning(f"Agent Router registration returned {resp.status_code}: {resp.text}")
+    except Exception as e:
+        logger.info(f"Agent Router not available (will retry on next restart): {e}")
 
 
 @asynccontextmanager
@@ -80,6 +117,9 @@ async def lifespan(app: FastAPI):
         logger.info("Background init scheduled (data loaded)")
     else:
         logger.info("No data loaded — skipping agent/silo discovery")
+
+    # Register with Agent Router (non-blocking)
+    asyncio.create_task(_register_with_agent_router())
 
     yield
 

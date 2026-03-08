@@ -1,5 +1,6 @@
 """Background scheduler for periodic resource discovery."""
 import asyncio
+import json
 from datetime import datetime
 from typing import Callable, Any
 
@@ -319,6 +320,12 @@ class DiscoveryScheduler:
 
                 await db.commit()
 
+            # Also register Sentinel's data store as a knowledge source
+            try:
+                await self._register_sentinel_knowledge(info)
+            except Exception as e:
+                logger.debug(f"Sentinel knowledge registration skipped: {e}")
+
             return {
                 "count": 1,
                 "message": f"Sentinel service registered (v{info.get('version', 'unknown')})",
@@ -341,6 +348,63 @@ class DiscoveryScheduler:
             except Exception:
                 pass
             return {"count": 0, "message": f"Sentinel not available: {e}"}
+
+    async def _register_sentinel_knowledge(self, service_info: dict):
+        """Register Sentinel's database tables as a knowledge source in the KB system."""
+        from app.modules.knowledge.client import AIMLSessionLocal
+        from sqlalchemy import text
+
+        async with AIMLSessionLocal() as db:
+            # Check if sentinel KB already exists
+            row = await db.execute(
+                text("SELECT id FROM rag.knowledge_bases WHERE name = 'sentinel-data'")
+            )
+            kb = row.scalar()
+
+            if not kb:
+                # Create a knowledge base for Sentinel's analytical data
+                result = await db.execute(
+                    text("""
+                        INSERT INTO rag.knowledge_bases (name, description, embedding_model, metadata, is_active)
+                        VALUES (
+                            'sentinel-data',
+                            'Sentinel AI dashboard — uploaded datasets, workspaces, and analytical insights',
+                            'nomic-embed-text',
+                            :metadata,
+                            true
+                        )
+                        RETURNING id
+                    """),
+                    {"metadata": json.dumps({
+                        "service": "sentinel",
+                        "source_type": "database",
+                        "schema": "sentinel",
+                        "tables": ["datasets", "workspaces", "workspace_tiles", "workspace_interactions", "users"],
+                        "storage": {"primary": "postgresql", "analytical": "duckdb"},
+                        "capabilities": service_info.get("capabilities", []),
+                    })},
+                )
+                kb = result.scalar()
+                await db.commit()
+                logger.info(f"Created sentinel-data knowledge base: {kb}")
+            else:
+                # Update metadata with latest info
+                await db.execute(
+                    text("""
+                        UPDATE rag.knowledge_bases
+                        SET metadata = :metadata, updated_at = now()
+                        WHERE name = 'sentinel-data'
+                    """),
+                    {"metadata": json.dumps({
+                        "service": "sentinel",
+                        "source_type": "database",
+                        "schema": "sentinel",
+                        "tables": ["datasets", "workspaces", "workspace_tiles", "workspace_interactions", "users"],
+                        "storage": {"primary": "postgresql", "analytical": "duckdb"},
+                        "capabilities": service_info.get("capabilities", []),
+                    })},
+                )
+                await db.commit()
 
     async def _discover_gateway(self) -> dict[str, Any]:
         """Discover resources for gateway exposure."""
