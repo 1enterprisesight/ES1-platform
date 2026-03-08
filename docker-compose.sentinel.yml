@@ -23,10 +23,12 @@ services:
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_INIT_PROJECT_PUBLIC_KEY:-pk-lf-engine-dev-public-key}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_INIT_PROJECT_SECRET_KEY:-sk-lf-engine-dev-secret-key}
 
-      # Gemini / Vertex AI
-      GCP_PROJECT: ${GCP_PROJECT:-engine-prod-svc-msd0}
+      # Gemini LLM — set GEMINI_API_KEY for simple API key mode,
+      # or GCP_PROJECT for Vertex AI with service account
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GCP_PROJECT: ${GCP_PROJECT:-}
       GCP_LOCATION: ${GCP_LOCATION:-us-central1}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-pro}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
 
       # Sentinel settings
       SENTINEL_ADMIN_EMAIL: ${SENTINEL_ADMIN_EMAIL:-admin@engine.local}

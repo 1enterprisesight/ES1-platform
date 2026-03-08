@@ -7,14 +7,11 @@ from typing import Optional, List
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 DATA_DIR = Path(os.environ.get("SENTINEL_DATA_DIR", str(PROJECT_ROOT / "data")))
 
-# CSV file paths
-FEATURE_USAGE_CSV = DATA_DIR / "inv-feature-usage.csv"
-PERFORMANCE_CSV = DATA_DIR / "inv-performacne.csv"
-
-# GCP / Vertex AI
-GCP_PROJECT = os.environ.get("GCP_PROJECT", "engine-prod-svc-msd0")
+# Gemini LLM — supports API key (simple) or Vertex AI (service account)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GCP_PROJECT = os.environ.get("GCP_PROJECT", "")
 GCP_LOCATION = os.environ.get("GCP_LOCATION", "us-central1")
-GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-pro")
+GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 # PostgreSQL (AIML instance, sentinel schema)
 PG_HOST = os.environ.get("AIML_POSTGRES_HOST", "localhost")

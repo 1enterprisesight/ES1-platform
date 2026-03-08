@@ -4,7 +4,7 @@ import re
 import threading
 import duckdb
 import logging
-from app.config import FEATURE_USAGE_CSV, PERFORMANCE_CSV
+from app.config import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -33,21 +33,30 @@ def get_conn() -> duckdb.DuckDBPyConnection:
 
 
 def init_db() -> dict[str, int]:
-    """Initialize DuckDB in-memory and load CSVs if available. Returns row counts."""
+    """Initialize DuckDB in-memory and auto-load any CSVs from DATA_DIR. Returns row counts."""
     global _conn
     _conn = duckdb.connect(":memory:")
 
     counts = {}
-    for table, csv_path in [("feature_usage", FEATURE_USAGE_CSV), ("performance", PERFORMANCE_CSV)]:
-        if csv_path.exists():
+    csv_files = sorted(DATA_DIR.glob("*.csv")) if DATA_DIR.exists() else []
+
+    for csv_path in csv_files:
+        # Derive table name from filename: "my-data.csv" -> "my_data"
+        table_name = re.sub(r'[^a-z0-9]', '_', csv_path.stem.lower()).strip('_')
+        if not table_name:
+            table_name = "dataset"
+        try:
             _conn.execute(f"""
-                CREATE TABLE {table} AS
+                CREATE TABLE "{table_name}" AS
                 SELECT * FROM read_csv_auto('{csv_path}', header=true, ignore_errors=true)
             """)
-            counts[table] = _conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
-        else:
-            logger.warning(f"CSV not found: {csv_path} — skipping {table}")
-            counts[table] = 0
+            counts[table_name] = _conn.execute(f'SELECT count(*) FROM "{table_name}"').fetchone()[0]
+        except Exception as e:
+            logger.error(f"Failed to load CSV {csv_path.name}: {e}")
+            counts[table_name] = 0
+
+    if not csv_files:
+        logger.info("No CSV files found in data directory — datasets will come from PostgreSQL uploads")
 
     logger.info(f"DuckDB loaded: {counts}")
     return counts
@@ -121,12 +130,17 @@ def run_query(sql: str) -> list[dict]:
             raise
 
 
+def _get_tables_unlocked(conn) -> list[str]:
+    """Return table names — caller must hold _lock."""
+    rows = conn.execute("SHOW TABLES").fetchall()
+    return [r[0] for r in rows]
+
+
 def get_tables() -> list[str]:
     """Return list of loaded tables."""
     conn = get_conn()
     with _lock:
-        rows = conn.execute("SHOW TABLES").fetchall()
-    return [r[0] for r in rows]
+        return _get_tables_unlocked(conn)
 
 
 def get_table_info() -> dict[str, list[dict]]:
@@ -134,8 +148,8 @@ def get_table_info() -> dict[str, list[dict]]:
     conn = get_conn()
     info = {}
     with _lock:
-        for table in get_tables():
-            cols = conn.execute(f"DESCRIBE {table}").fetchall()
+        for table in _get_tables_unlocked(conn):
+            cols = conn.execute(f'DESCRIBE "{table}"').fetchall()
             info[table] = [{"name": c[0], "type": c[1]} for c in cols]
     return info
 
@@ -192,9 +206,10 @@ def get_data_profile() -> str:
                 row_str = ", ".join(f'{col_names[i]}={row[i]}' for i in range(len(col_names)))
                 lines.append(f"    {row_str}")
 
-    # Join key hint
-    lines.append("\n## Join hint")
-    lines.append('  Tables can be joined on: feature_usage."Doctor ID" = performance."Doctor ID"')
+    # Join key hint (only when multiple tables)
+    if len(tables) > 1:
+        lines.append("\n## Join hint")
+        lines.append("  Look for common column names across tables to identify join keys.")
 
     _data_profile_cache = "\n".join(lines)
     logger.info(f"Data profile built: {len(_data_profile_cache)} chars")

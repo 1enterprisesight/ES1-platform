@@ -25,6 +25,25 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname
 logger = logging.getLogger(__name__)
 
 
+async def _profile_unprofilesd_datasets():
+    """Generate LLM profiles for any datasets that don't have one yet."""
+    import re
+    try:
+        from app.database import get_pool
+        from app.dataset_profiler import profile_and_store
+        pool = get_pool()
+        rows = await pool.fetch(
+            "SELECT name FROM sentinel.datasets WHERE profile IS NULL"
+        )
+        for row in rows:
+            name = row["name"]
+            table_name = re.sub(r'[^a-z0-9]', '_', name.lower()).strip('_') or "dataset"
+            logger.info(f"Generating profile for unprofiled dataset: {name}")
+            await profile_and_store(table_name, name)
+    except Exception as e:
+        logger.warning(f"Dataset profiling on startup failed: {e}")
+
+
 async def _background_init():
     """Run silo discovery + agent start in the background so the server can accept requests immediately."""
     try:
@@ -109,6 +128,10 @@ async def lifespan(app: FastAPI):
 
     # Recover any interacted tiles that were evicted from the tile store
     recover_interacted_tiles()
+
+    # Profile any datasets that don't have a profile yet
+    if any(v > 0 for v in counts.values()):
+        asyncio.create_task(_profile_unprofilesd_datasets())
 
     # Only start background LLM init if we have data loaded
     init_task = None

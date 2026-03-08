@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import Optional
@@ -120,6 +121,12 @@ async def discover_silos():
     conn = get_conn()
     table_info = get_table_info()
 
+    if not table_info:
+        logger.warning("No tables loaded in DuckDB — skipping silo discovery")
+        _silos = [ALPHA_SILO]
+        silo_discovery_done = True
+        return
+
     # Build column profiles
     profiles = {}
     for table, cols in table_info.items():
@@ -128,9 +135,9 @@ async def discover_silos():
             name = col["name"]
             dtype = col["type"]
             try:
-                card = conn.execute(f'SELECT count(DISTINCT "{name}") FROM {table}').fetchone()[0]
+                card = conn.execute(f'SELECT count(DISTINCT "{name}") FROM "{table}"').fetchone()[0]
                 sample = conn.execute(
-                    f'SELECT "{name}", count(*) as cnt FROM {table} '
+                    f'SELECT "{name}", count(*) as cnt FROM "{table}" '
                     f'GROUP BY "{name}" ORDER BY cnt DESC LIMIT 8'
                 ).fetchall()
                 top_values = [{"value": str(r[0]), "count": r[1]} for r in sample if r[0] is not None]
@@ -155,16 +162,31 @@ If a theme doesn't map cleanly to a single column, pick the closest match or der
 You MUST include all requested themes. You may add 1-2 additional data-driven silos if they are clearly valuable.
 """
 
-    prompt = f"""You are analyzing two Invisalign dental datasets to find the best categorical dimensions for a data dashboard.
+    # Build table profiles section dynamically
+    table_sections = []
+    for table, cols in profiles.items():
+        table_sections.append(f"## {table} table\n{_format_profiles(cols)}")
+    tables_text = "\n\n".join(table_sections)
+
+    # Include stored semantic profiles if available
+    semantic_block = ""
+    try:
+        from app.dataset_profiler import get_stored_profiles, format_profiles_for_prompt
+        stored = await get_stored_profiles()
+        if stored:
+            semantic_block = f"""
+Dataset context (LLM-generated semantic understanding):
+{format_profiles_for_prompt(stored)}
+"""
+    except Exception:
+        pass
+
+    prompt = f"""You are analyzing datasets to find the best categorical dimensions for a data dashboard.
 
 Here are column profiles for each table:
 
-## feature_usage table
-{_format_profiles(profiles['feature_usage'])}
-
-## performance table
-{_format_profiles(profiles['performance'])}
-{hints_block}
+{tables_text}
+{semantic_block}{hints_block}
 Pick 4-6 columns that would make the best "silo" filters for a dashboard. Good silos are:
 - Categorical with 3-20 distinct values (not too many, not too few)
 - Meaningful business dimensions (Region, Product type, Channel, etc.)
@@ -200,14 +222,25 @@ Return ONLY the JSON array, no other text."""
         logger.info(f"Discovered {len(discovered)} silos: {[s['label'] for s in discovered]}")
 
     except Exception as e:
-        logger.error(f"Silo discovery failed, using defaults: {e}")
-        _silos = [
-            ALPHA_SILO,
-            {"id": "region", "label": "Region", "source_column": "Region", "source_table": "feature_usage", **SILO_PALETTE[0]},
-            {"id": "product", "label": "Product", "source_column": "Product Name", "source_table": "feature_usage", **SILO_PALETTE[1]},
-            {"id": "channel", "label": "Channel", "source_column": "Channel", "source_table": "performance", **SILO_PALETTE[2]},
-            {"id": "segment", "label": "Segment", "source_column": "Cur. Segment", "source_table": "performance", **SILO_PALETTE[3]},
-        ]
+        logger.error(f"Silo discovery failed, using generic defaults: {e}")
+        # Build generic fallback from first table's low-cardinality columns
+        fallback = []
+        first_table = next(iter(profiles), None)
+        if first_table:
+            candidates = sorted(
+                [p for p in profiles[first_table] if p["cardinality"] and 2 <= p["cardinality"] <= 30],
+                key=lambda p: p["cardinality"],
+            )
+            for i, p in enumerate(candidates[:4]):
+                slug = re.sub(r'[^a-z0-9]', '_', p["column"].lower()).strip('_')
+                fallback.append({
+                    "id": slug,
+                    "label": p["column"],
+                    "source_column": p["column"],
+                    "source_table": first_table,
+                    **SILO_PALETTE[i % len(SILO_PALETTE)],
+                })
+        _silos = [ALPHA_SILO] + fallback
         _save_silos_to_disk()
         await _remap_orphaned_tiles()
 

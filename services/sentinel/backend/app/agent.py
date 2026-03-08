@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 import time
-from pathlib import Path
 
 from app.config import AGENT_CYCLE_SECONDS
 from app.db import run_query, get_table_info, get_data_profile
@@ -17,13 +16,6 @@ logger = logging.getLogger(__name__)
 
 _task: asyncio.Task | None = None
 _running = False
-
-# Load prompt templates
-_prompts_dir = Path(__file__).parent / "prompts"
-
-
-def _load_prompt(name: str) -> str:
-    return (_prompts_dir / name).read_text()
 
 
 def _normalize_column(col: str) -> str:
@@ -63,12 +55,33 @@ def is_agent_active() -> bool:
 async def _agent_loop():
     cycle = 0
     past_titles: list[str] = []
+    dataset_context = ""
 
     # Wait a moment for startup to complete
     await asyncio.sleep(3)
 
+    # Load stored dataset profiles for rich context
+    from app.dataset_profiler import get_stored_profiles, format_profiles_for_prompt
+    try:
+        profiles = await get_stored_profiles()
+        dataset_context = format_profiles_for_prompt(profiles)
+        if profiles:
+            logger.info(f"Loaded {len(profiles)} dataset profile(s) for agent context")
+    except Exception as e:
+        logger.warning(f"Could not load dataset profiles: {e}")
+
     while _running:
         try:
+            # Retry loading profiles if we didn't get any on first try (profiling may still be running)
+            if not dataset_context and cycle in (2, 5):
+                try:
+                    profiles = await get_stored_profiles()
+                    dataset_context = format_profiles_for_prompt(profiles)
+                    if profiles:
+                        logger.info(f"Loaded {len(profiles)} dataset profile(s) for agent context (retry)")
+                except Exception:
+                    pass
+
             # Pause when no browsers are connected — avoids burning Vertex AI calls
             if not tile_store.has_subscribers():
                 if cycle > 0:
@@ -105,7 +118,7 @@ async def _agent_loop():
             # Step 1: Generate an analytical question (with interest signals)
             table_info = get_table_info()
             interest_context = _build_interest_context()
-            question = await _generate_question(current_silo, table_info, past_titles, interest_context)
+            question = await _generate_question(current_silo, table_info, past_titles, interest_context, dataset_context)
             logger.info(f"Question: {question}")
 
             # Step 2: Generate SQL
@@ -270,15 +283,45 @@ Return ONLY the question text, nothing else."""
         logger.error(f"Drill-down failed: {e}", exc_info=True)
 
 
-async def _generate_question(silo: dict, table_info: dict, past_titles: list[str], interest_context: str = "") -> str:
-    system = _load_prompt("agent_system.txt")
+def _build_system_prompt(table_info: dict, dataset_context: str = "") -> str:
+    """Build system prompt dynamically from actual loaded tables and stored profiles."""
+    tables_desc = []
+    for i, (table, cols) in enumerate(table_info.items(), 1):
+        col_names = ", ".join(c["name"] for c in cols)
+        tables_desc.append(f"{i}. {table} — Columns: {col_names}")
+    tables_text = "\n".join(tables_desc)
+
+    profile_block = ""
+    if dataset_context:
+        profile_block = f"""
+
+Dataset context (semantic understanding of the data):
+{dataset_context}
+"""
+
+    return f"""You are SENTINEL, an AI analyst monitoring data loaded into a dashboard.
+You generate insights by querying these datasets:
+
+{tables_text}
+{profile_block}
+Your job: find non-obvious patterns, anomalies, trends, and correlations.
+Write DuckDB-compatible SQL. Use double quotes for column names with spaces/special chars.
+Be specific — cite actual numbers and values from the data."""
+
+
+async def _generate_question(silo: dict, table_info: dict, past_titles: list[str], interest_context: str = "", dataset_context: str = "") -> str:
+    system = _build_system_prompt(table_info, dataset_context)
     data_profile = get_data_profile()
 
     past = "\n".join(f"- {t}" for t in past_titles[-10:]) if past_titles else "None yet"
 
     silo_context = ""
+    tables = list(table_info.keys())
     if silo["id"] == "alpha":
-        silo_context = "Generate a CROSS-SILO question that correlates data from BOTH tables (feature_usage and performance). Use the join key: feature_usage.\"Doctor ID\" = performance.\"Doctor ID\"."
+        if len(tables) > 1:
+            silo_context = f"Generate a CROSS-SILO question that correlates data across multiple tables ({', '.join(tables)}). Look for common columns to join on."
+        else:
+            silo_context = f"Generate a broad, cross-cutting question that looks at overall patterns across all dimensions in the {tables[0]} table."
     else:
         col = silo.get("source_column", "")
         tbl = silo.get("source_table", "")
@@ -302,7 +345,7 @@ Here is a detailed profile of the data (column types, distinct values, distribut
 Previously generated findings (avoid repeating):
 {past}
 
-Generate ONE specific analytical question about the Invisalign data that could reveal an interesting insight. The question should be answerable with a single SQL query. Use actual column names and values from the profile above.
+Generate ONE specific analytical question about the data that could reveal an interesting insight. The question should be answerable with a single SQL query. Use actual column names and values from the profile above.
 
 Return ONLY the question text, nothing else."""
 

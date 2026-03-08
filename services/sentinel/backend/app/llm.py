@@ -6,16 +6,15 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
-import vertexai
-from vertexai.generative_models import GenerativeModel, GenerationConfig
 
-from app.config import GCP_PROJECT, GCP_LOCATION, GEMINI_MODEL
+from app.config import GEMINI_API_KEY, GCP_PROJECT, GCP_LOCATION, GEMINI_MODEL
 
 logger = logging.getLogger(__name__)
 
 LLM_TIMEOUT = 45  # seconds — prevent hung LLM calls from blocking the server
 
-_model: GenerativeModel | None = None
+_model = None
+_backend = None  # "genai" or "vertexai"
 _executor = ThreadPoolExecutor(max_workers=3)
 
 # Langfuse tracing (optional — degrades gracefully)
@@ -37,13 +36,28 @@ except Exception as e:
 
 
 def init_llm():
-    global _model
-    vertexai.init(project=GCP_PROJECT, location=GCP_LOCATION)
-    _model = GenerativeModel(GEMINI_MODEL)
-    logger.info(f"Vertex AI initialized: project={GCP_PROJECT}, model={GEMINI_MODEL}")
+    global _model, _backend
+
+    if GEMINI_API_KEY:
+        # Simple API key mode — uses google-genai SDK
+        from google import genai
+        client = genai.Client(api_key=GEMINI_API_KEY)
+        _model = client
+        _backend = "genai"
+        logger.info(f"Gemini initialized via API key, model={GEMINI_MODEL}")
+    elif GCP_PROJECT:
+        # Vertex AI mode — requires service account or gcloud auth
+        import vertexai
+        from vertexai.generative_models import GenerativeModel
+        vertexai.init(project=GCP_PROJECT, location=GCP_LOCATION)
+        _model = GenerativeModel(GEMINI_MODEL)
+        _backend = "vertexai"
+        logger.info(f"Vertex AI initialized: project={GCP_PROJECT}, model={GEMINI_MODEL}")
+    else:
+        raise RuntimeError("Set GEMINI_API_KEY or GCP_PROJECT to enable LLM")
 
 
-def get_model() -> GenerativeModel:
+def get_model():
     global _model
     if _model is None:
         init_llm()
@@ -61,28 +75,48 @@ def shutdown_llm():
     logger.info("LLM executor shut down")
 
 
-def _sync_generate(model, contents, config):
-    """Run the LLM call synchronously (used in thread pool to avoid blocking event loop
-    when the SDK does synchronous credential refresh)."""
-    response = model.generate_content(contents, generation_config=config)
-    return response.text
+def _sync_generate(model, prompt, system, temperature, json_mode):
+    """Run the LLM call synchronously in thread pool."""
+    if _backend == "genai":
+        from google.genai import types
+        config_kwargs = {
+            "temperature": temperature,
+            "max_output_tokens": 8192,
+        }
+        if json_mode:
+            config_kwargs["response_mime_type"] = "application/json"
+
+        config = types.GenerateContentConfig(
+            system_instruction=system if system else None,
+            **config_kwargs,
+        )
+        response = model.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt,
+            config=config,
+        )
+        return response.text
+    else:
+        # Vertex AI
+        from vertexai.generative_models import GenerationConfig
+        config_kwargs = {"temperature": temperature, "max_output_tokens": 8192}
+        if json_mode:
+            config_kwargs["response_mime_type"] = "application/json"
+        config = GenerationConfig(**config_kwargs)
+
+        contents = []
+        if system:
+            contents.append({"role": "user", "parts": [{"text": f"System instructions:\n{system}\n\n{prompt}"}]})
+        else:
+            contents.append({"role": "user", "parts": [{"text": prompt}]})
+
+        response = model.generate_content(contents, generation_config=config)
+        return response.text
 
 
 async def generate(prompt: str, system: str = "", temperature: float = 0.7, json_mode: bool = False) -> str:
     """Generate text from Gemini. Returns raw text response."""
     model = get_model()
-
-    config_kwargs = {"temperature": temperature, "max_output_tokens": 8192}
-    if json_mode:
-        config_kwargs["response_mime_type"] = "application/json"
-
-    config = GenerationConfig(**config_kwargs)
-
-    contents = []
-    if system:
-        contents.append({"role": "user", "parts": [{"text": f"System instructions:\n{system}\n\n{prompt}"}]})
-    else:
-        contents.append({"role": "user", "parts": [{"text": prompt}]})
 
     # Langfuse trace
     trace = None
@@ -103,7 +137,7 @@ async def generate(prompt: str, system: str = "", temperature: float = 0.7, json
     loop = asyncio.get_event_loop()
     try:
         result = await asyncio.wait_for(
-            loop.run_in_executor(_executor, _sync_generate, model, contents, config),
+            loop.run_in_executor(_executor, _sync_generate, model, prompt, system, temperature, json_mode),
             timeout=LLM_TIMEOUT,
         )
         if generation:
