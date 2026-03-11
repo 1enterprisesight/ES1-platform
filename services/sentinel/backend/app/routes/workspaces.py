@@ -92,6 +92,160 @@ async def set_session_workspace(session_id: str, workspace_id: str):
     )
 
 
+MAX_DATASETS_PER_WORKSPACE = 3
+
+
+async def is_workspace_data_ready(workspace_id: str) -> dict:
+    """Check if a workspace's data is ready for activation and the agent.
+
+    Returns a status dict the frontend can use to show the correct UI state
+    (data setup flow vs dashboard).
+    """
+    from app.db import get_workspace_tables
+
+    pool = get_pool()
+    ws_uuid = uuid.UUID(workspace_id)
+
+    tables = get_workspace_tables(workspace_id)
+    table_count = len(tables)
+
+    # Load settings for join_config and data_activated flag
+    settings_raw = await pool.fetchval(
+        "SELECT settings FROM sentinel.workspaces WHERE id = $1", ws_uuid,
+    )
+    settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
+    join_config = settings.get("join_config", [])
+    # Normalize legacy single-link format to list
+    if isinstance(join_config, dict):
+        join_config = [join_config] if join_config else []
+    data_activated = settings.get("data_activated", False)
+
+    if table_count == 0:
+        return {
+            "ready": False,
+            "reason": "no_data",
+            "table_count": 0,
+            "tables": [],
+            "links": [],
+            "links_needed": 0,
+            "can_activate": False,
+            "data_activated": False,
+        }
+
+    if table_count == 1:
+        return {
+            "ready": data_activated,
+            "reason": None if data_activated else "not_activated",
+            "table_count": 1,
+            "tables": tables,
+            "links": [],
+            "links_needed": 0,
+            "can_activate": True,
+            "data_activated": data_activated,
+        }
+
+    # 2-3 tables — check connectivity through confirmed links
+    links_needed = table_count - 1
+    confirmed_links = len(join_config)
+
+    # Build adjacency to check all tables are connected
+    connected = set()
+    if join_config:
+        # Start from the first table mentioned in any link
+        adj: dict[str, set] = {t: set() for t in tables}
+        for link in join_config:
+            lt = link.get("left_table", "")
+            rt = link.get("right_table", "")
+            if lt in adj and rt in adj:
+                adj[lt].add(rt)
+                adj[rt].add(lt)
+        # BFS from first table
+        start = next(iter(adj))
+        queue = [start]
+        connected.add(start)
+        while queue:
+            node = queue.pop(0)
+            for neighbor in adj[node]:
+                if neighbor not in connected:
+                    connected.add(neighbor)
+                    queue.append(neighbor)
+
+    all_connected = connected == set(tables) and confirmed_links >= links_needed
+    can_activate = all_connected
+
+    reason = None
+    if not can_activate:
+        reason = "join_required"
+    elif not data_activated:
+        reason = "not_activated"
+
+    return {
+        "ready": data_activated and can_activate,
+        "reason": reason,
+        "table_count": table_count,
+        "tables": tables,
+        "links": join_config,
+        "links_needed": max(0, links_needed - confirmed_links),
+        "can_activate": can_activate,
+        "data_activated": data_activated,
+    }
+
+
+@router.post("/workspaces/{workspace_id}/activate-data")
+async def activate_data(
+    workspace_id: str,
+    session: SessionInfo = Depends(require_user),
+):
+    """Activate a workspace's data so the agent can run.
+
+    Only succeeds if the data is ready: 1 table, or 2+ tables with all
+    links confirmed and all tables connected.
+    """
+    await _check_membership(workspace_id, session.user.id)
+
+    status = await is_workspace_data_ready(workspace_id)
+    if not status["can_activate"]:
+        reason = status.get("reason", "unknown")
+        if reason == "no_data":
+            detail = "No data uploaded. Upload at least one CSV file."
+        elif reason == "join_required":
+            detail = (f"Tables are not fully linked. "
+                      f"{status['links_needed']} more link(s) needed.")
+        else:
+            detail = "Workspace data is not ready for activation."
+        raise HTTPException(status_code=400, detail=detail)
+
+    # Set data_activated flag
+    pool = get_pool()
+    ws_uuid = uuid.UUID(workspace_id)
+    settings_raw = await pool.fetchval(
+        "SELECT settings FROM sentinel.workspaces WHERE id = $1", ws_uuid,
+    )
+    settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
+    settings["data_activated"] = True
+    await pool.execute(
+        "UPDATE sentinel.workspaces SET settings = $1 WHERE id = $2",
+        json.dumps(settings), ws_uuid,
+    )
+
+    logger.info(f"Workspace {workspace_id} data activated by {session.user.email}")
+
+    # Return updated status
+    status = await is_workspace_data_ready(workspace_id)
+    return {"ok": True, "data_status": status}
+
+
+@router.get("/workspaces/{workspace_id}/data-status")
+async def get_data_status(
+    workspace_id: str,
+    session: SessionInfo = Depends(require_user),
+):
+    """Get the current data readiness status for a workspace."""
+    await _check_membership(workspace_id, session.user.id)
+    status = await is_workspace_data_ready(workspace_id)
+    return status
+
+
 @router.get("/workspaces")
 async def list_workspaces(session: SessionInfo = Depends(require_user)):
     """List all workspaces the user is a member of."""
@@ -259,6 +413,9 @@ async def activate_workspace(
         for r in silo_rows
     ]
 
+    # Include data readiness status so frontend knows which view to show
+    data_status = await is_workspace_data_ready(workspace_id)
+
     return {
         "workspace": _row_to_dict(ws),
         "tiles": [t.model_dump() for t in tiles],
@@ -266,6 +423,7 @@ async def activate_workspace(
             str(tid): inter.model_dump() for tid, inter in interactions.items()
         },
         "silos": silos,
+        "data_status": data_status,
     }
 
 

@@ -128,27 +128,43 @@ Return ONLY the JSON object."""
 async def profile_and_store(table_name: str, dataset_name: str, workspace_id: str = "") -> dict:
     """Generate a profile and store it in PostgreSQL."""
     from app.database import get_pool
+    import uuid as _uuid
 
     profile = await generate_dataset_profile(table_name, workspace_id=workspace_id)
 
     pool = get_pool()
-    await pool.execute(
-        "UPDATE sentinel.datasets SET profile = $1 WHERE name = $2",
-        json.dumps(profile),
-        dataset_name,
-    )
-    logger.info(f"Stored profile for dataset '{dataset_name}'")
+    if workspace_id:
+        await pool.execute(
+            "UPDATE sentinel.datasets SET profile = $1 WHERE name = $2 AND workspace_id = $3",
+            json.dumps(profile), dataset_name, _uuid.UUID(workspace_id),
+        )
+    else:
+        await pool.execute(
+            "UPDATE sentinel.datasets SET profile = $1 WHERE name = $2",
+            json.dumps(profile), dataset_name,
+        )
+    logger.info(f"Stored profile for dataset '{dataset_name}' (workspace={workspace_id or 'global'})")
     return profile
 
 
-async def get_stored_profiles() -> dict[str, dict]:
-    """Load all dataset profiles from PostgreSQL. Returns {dataset_name: profile}."""
+async def get_stored_profiles(workspace_id: str = "") -> dict[str, dict]:
+    """Load dataset profiles from PostgreSQL. Returns {dataset_name: profile}.
+
+    When workspace_id is provided, only returns profiles for that workspace's datasets.
+    """
     from app.database import get_pool
+    import uuid as _uuid
 
     pool = get_pool()
-    rows = await pool.fetch(
-        "SELECT name, profile FROM sentinel.datasets WHERE profile IS NOT NULL"
-    )
+    if workspace_id:
+        rows = await pool.fetch(
+            "SELECT name, profile FROM sentinel.datasets WHERE workspace_id = $1 AND profile IS NOT NULL",
+            _uuid.UUID(workspace_id),
+        )
+    else:
+        rows = await pool.fetch(
+            "SELECT name, profile FROM sentinel.datasets WHERE profile IS NOT NULL"
+        )
     return {r["name"]: json.loads(r["profile"]) if isinstance(r["profile"], str) else r["profile"] for r in rows}
 
 

@@ -70,19 +70,55 @@ def is_agent_active(workspace_id: str = "") -> bool:
     return any(_running.values())
 
 
+async def _check_data_activated(workspace_id: str) -> tuple[bool, list]:
+    """Check if workspace data is activated and return join config.
+
+    Returns (is_activated, join_links).
+    """
+    from app.database import get_pool
+    import uuid as _uuid
+    pool = get_pool()
+    settings_raw = await pool.fetchval(
+        "SELECT settings FROM sentinel.workspaces WHERE id = $1",
+        _uuid.UUID(workspace_id),
+    )
+    if not settings_raw:
+        return False, []
+    settings = json.loads(settings_raw) if isinstance(settings_raw, str) else settings_raw
+    activated = settings.get("data_activated", False)
+    join_config = settings.get("join_config", [])
+    if isinstance(join_config, dict):
+        join_config = [join_config] if join_config else []
+    return activated, join_config
+
+
+def _build_join_context(join_links: list) -> str:
+    """Build a prompt section describing the table join relationships."""
+    if not join_links:
+        return ""
+    lines = ["Table relationships (use these for JOINs):"]
+    for link in join_links:
+        lines.append(
+            f'  {link["left_table"]}."{link["left_column"]}" = '
+            f'{link["right_table"]}."{link["right_column"]}"'
+        )
+    return "\n".join(lines)
+
+
 async def _agent_loop(workspace_id: str):
     tile_store = get_tile_store(workspace_id)
     interaction_store = get_interaction_store(workspace_id)
     cycle = 0
     past_titles: list[str] = []
     dataset_context = ""
+    join_context = ""
 
     await asyncio.sleep(3)
 
-    # Load stored dataset profiles
+    # Load stored dataset profiles (workspace-scoped)
     from app.dataset_profiler import get_stored_profiles, format_profiles_for_prompt
     try:
-        profiles = await get_stored_profiles()
+        profiles = await get_stored_profiles(workspace_id=workspace_id)
         dataset_context = format_profiles_for_prompt(profiles)
         if profiles:
             logger.info(f"Loaded {len(profiles)} dataset profile(s) for workspace {workspace_id}")
@@ -93,7 +129,7 @@ async def _agent_loop(workspace_id: str):
         try:
             if not dataset_context and cycle in (2, 5):
                 try:
-                    profiles = await get_stored_profiles()
+                    profiles = await get_stored_profiles(workspace_id=workspace_id)
                     dataset_context = format_profiles_for_prompt(profiles)
                 except Exception:
                     pass
@@ -104,6 +140,14 @@ async def _agent_loop(workspace_id: str):
                     logger.info(f"No clients for workspace {workspace_id}, pausing agent")
                 await asyncio.sleep(5)
                 continue
+
+            # Pause until workspace data is activated
+            activated, join_links = await _check_data_activated(workspace_id)
+            if not activated:
+                tile_store.broadcast_status("data_not_ready")
+                await asyncio.sleep(5)
+                continue
+            join_context = _build_join_context(join_links)
 
             silos = get_silos(workspace_id)
             if len(silos) < 2:
@@ -128,10 +172,10 @@ async def _agent_loop(workspace_id: str):
 
             table_info = get_workspace_table_info(workspace_id)
             interest_context = _build_interest_context(interaction_store)
-            question = await _generate_question(current_silo, table_info, past_titles, interest_context, dataset_context)
+            question = await _generate_question(current_silo, table_info, past_titles, interest_context, dataset_context, join_context)
             logger.info(f"Question: {question}")
 
-            sql = await _generate_sql(question, table_info, workspace_id)
+            sql = await _generate_sql(question, table_info, workspace_id, join_context)
             logger.info(f"SQL: {sql[:200]}")
 
             try:
@@ -282,7 +326,7 @@ Return ONLY the question text, nothing else."""
         logger.error(f"Drill-down failed: {e}", exc_info=True)
 
 
-def _build_system_prompt(table_info: dict, dataset_context: str = "") -> str:
+def _build_system_prompt(table_info: dict, dataset_context: str = "", join_context: str = "") -> str:
     tables_desc = []
     for i, (table, cols) in enumerate(table_info.items(), 1):
         col_names = ", ".join(c["name"] for c in cols)
@@ -297,19 +341,28 @@ Dataset context (semantic understanding of the data):
 {dataset_context}
 """
 
+    join_block = ""
+    if join_context:
+        join_block = f"""
+
+{join_context}
+When querying across tables, always use these defined join keys.
+"""
+
     return f"""You are SENTINEL, an AI analyst monitoring data loaded into a dashboard.
 You generate insights by querying these datasets:
 
 {tables_text}
-{profile_block}
+{profile_block}{join_block}
 Your job: find non-obvious patterns, anomalies, trends, and correlations.
 Write DuckDB-compatible SQL. Use double quotes for column names with spaces/special chars.
 Be specific — cite actual numbers and values from the data."""
 
 
 async def _generate_question(silo: dict, table_info: dict, past_titles: list[str],
-                              interest_context: str = "", dataset_context: str = "") -> str:
-    system = _build_system_prompt(table_info, dataset_context)
+                              interest_context: str = "", dataset_context: str = "",
+                              join_context: str = "") -> str:
+    system = _build_system_prompt(table_info, dataset_context, join_context)
     # Note: get_data_profile needs workspace_id but we don't have it here
     # The table_info is already workspace-scoped, so the profile is implicit
     data_profile = ""
@@ -351,11 +404,19 @@ Generate ONE specific analytical question about the data. Return ONLY the questi
     return await generate(prompt, temperature=0.8)
 
 
-async def _generate_sql(question: str, table_info: dict, workspace_id: str = "") -> str:
+async def _generate_sql(question: str, table_info: dict, workspace_id: str = "",
+                         join_context: str = "") -> str:
     tables_desc = ""
     for table, cols in table_info.items():
         col_names = ", ".join(f'"{c["name"]}" ({c["type"]})' for c in cols)
         tables_desc += f"\n{table}: {col_names}\n"
+
+    join_block = ""
+    if join_context:
+        join_block = f"""
+{join_context}
+- When querying across tables, use ONLY these defined join keys
+"""
 
     prompt = f"""Write a DuckDB SQL query to answer this question:
 
@@ -363,7 +424,7 @@ async def _generate_sql(question: str, table_info: dict, workspace_id: str = "")
 
 Available tables:
 {tables_desc}
-
+{join_block}
 Rules:
 - Use double quotes for column names with spaces or special characters
 - Use DuckDB syntax

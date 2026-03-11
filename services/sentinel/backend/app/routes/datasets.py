@@ -70,20 +70,19 @@ async def list_datasets(session: SessionInfo = Depends(require_user)):
             for r in rows
         ]
     }
-    # Include join suggestion if 2+ datasets and no confirmed join yet
+    # Include data readiness status and join candidates
+    from app.routes.workspaces import is_workspace_data_ready
+    data_status = await is_workspace_data_ready(workspace_id)
+    result["data_status"] = data_status
+
+    # Include join candidates if 2+ datasets (for the linking UI)
     if len(rows) >= 2:
-        settings_raw = await pool.fetchval(
-            "SELECT settings FROM sentinel.workspaces WHERE id = $1",
-            uuid.UUID(workspace_id),
-        )
-        settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
-        if not settings.get("join_config"):
-            # Ensure DuckDB tables are loaded so _suggest_join can inspect them
-            if not is_workspace_loaded(workspace_id):
-                await _reload_workspace_duckdb(workspace_id)
-            suggestion = await _suggest_join(workspace_id)
-            if suggestion:
-                result["join_suggestion"] = suggestion
+        # Ensure DuckDB tables are loaded so _suggest_join can inspect them
+        if not is_workspace_loaded(workspace_id):
+            await _reload_workspace_duckdb(workspace_id)
+        candidates = await _suggest_join(workspace_id)
+        if candidates:
+            result["join_candidates"] = candidates
     return result
 
 
@@ -95,6 +94,20 @@ async def upload_dataset(
 ):
     """Upload a CSV dataset to the active workspace."""
     workspace_id = await _get_active_workspace_id(session)
+
+    # Enforce max datasets per workspace
+    from app.routes.workspaces import MAX_DATASETS_PER_WORKSPACE
+    pool_check = get_pool()
+    current_count = await pool_check.fetchval(
+        "SELECT count(*) FROM sentinel.datasets WHERE workspace_id = $1",
+        uuid.UUID(workspace_id),
+    )
+    if current_count >= MAX_DATASETS_PER_WORKSPACE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Maximum {MAX_DATASETS_PER_WORKSPACE} files per workspace. "
+                   "Delete a file before uploading another.",
+        )
 
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only CSV files are supported")
@@ -222,55 +235,108 @@ class JoinConfigRequest(BaseModel):
     right_column: str
 
 
+class JoinConfigListRequest(BaseModel):
+    links: list[JoinConfigRequest]
+
+
 @router.post("/workspaces/{workspace_id}/join-config")
 async def save_join_config(
     workspace_id: str,
-    body: JoinConfigRequest,
+    body: JoinConfigListRequest,
     session: SessionInfo = Depends(require_user),
 ):
-    """Save confirmed join configuration for a workspace."""
+    """Save confirmed join configuration for a workspace.
+
+    Accepts a list of links. Each link is validated (must produce matched rows).
+    All workspace tables must be connected through the links.
+    Saving new links clears data_activated — user must re-activate.
+    """
     from app.routes.workspaces import _check_membership
     await _check_membership(workspace_id, session.user.id)
 
-    # Validate the join actually works
+    if not body.links:
+        raise HTTPException(status_code=400, detail="At least one link is required")
+
+    # Validate each link
     from app.db import run_query
-    try:
-        test_sql = (
-            f'SELECT count(*) as matched FROM "{body.left_table}" '
-            f'JOIN "{body.right_table}" ON "{body.left_table}"."{body.left_column}" = '
-            f'"{body.right_table}"."{body.right_column}" LIMIT 1'
-        )
-        result = run_query(test_sql, workspace_id=workspace_id)
-        matched = result[0]["matched"] if result else 0
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Join validation failed: {e}")
+    validated_links = []
+    for link in body.links:
+        try:
+            test_sql = (
+                f'SELECT count(*) as matched FROM "{link.left_table}" '
+                f'JOIN "{link.right_table}" ON "{link.left_table}"."{link.left_column}" = '
+                f'"{link.right_table}"."{link.right_column}" LIMIT 1'
+            )
+            result = run_query(test_sql, workspace_id=workspace_id)
+            matched = result[0]["matched"] if result else 0
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Join validation failed for {link.left_table}.{link.left_column} = "
+                       f"{link.right_table}.{link.right_column}: {e}",
+            )
 
-    if matched == 0:
-        raise HTTPException(status_code=400, detail="Join produced no matching rows — check your column selection")
+        if matched == 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"No matching rows for {link.left_table}.{link.left_column} = "
+                       f"{link.right_table}.{link.right_column}",
+            )
 
-    # Store in workspace settings
+        validated_links.append({
+            "left_table": link.left_table,
+            "right_table": link.right_table,
+            "left_column": link.left_column,
+            "right_column": link.right_column,
+            "matched_rows": matched,
+        })
+
+    # Check connectivity — all workspace tables must be reachable
+    tables = get_workspace_tables(workspace_id)
+    if len(tables) >= 2:
+        adj: dict[str, set] = {t: set() for t in tables}
+        for link in validated_links:
+            lt, rt = link["left_table"], link["right_table"]
+            if lt in adj and rt in adj:
+                adj[lt].add(rt)
+                adj[rt].add(lt)
+        visited = set()
+        queue = [next(iter(adj))]
+        visited.add(queue[0])
+        while queue:
+            node = queue.pop(0)
+            for neighbor in adj[node]:
+                if neighbor not in visited:
+                    visited.add(neighbor)
+                    queue.append(neighbor)
+        if visited != set(tables):
+            unlinked = set(tables) - visited
+            raise HTTPException(
+                status_code=400,
+                detail=f"Not all tables are connected. Unlinked: {', '.join(sorted(unlinked))}",
+            )
+
+    # Store in workspace settings — clear data_activated since links changed
     pool = get_pool()
     settings_raw = await pool.fetchval(
         "SELECT settings FROM sentinel.workspaces WHERE id = $1",
         uuid.UUID(workspace_id),
     )
     settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
-    settings["join_config"] = {
-        "left_table": body.left_table,
-        "right_table": body.right_table,
-        "left_column": body.left_column,
-        "right_column": body.right_column,
-        "matched_rows": matched,
-    }
+    settings["join_config"] = validated_links
+    settings["data_activated"] = False
     await pool.execute(
         "UPDATE sentinel.workspaces SET settings = $1 WHERE id = $2",
         json.dumps(settings), uuid.UUID(workspace_id),
     )
 
-    logger.info(f"Join config saved for workspace {workspace_id}: "
-                f"{body.left_table}.{body.left_column} = {body.right_table}.{body.right_column} "
-                f"({matched} rows matched)")
-    return {"ok": True, "matched_rows": matched}
+    link_descs = [f"{l['left_table']}.{l['left_column']}={l['right_table']}.{l['right_column']}"
+                  for l in validated_links]
+    logger.info(f"Join config saved for workspace {workspace_id}: {', '.join(link_descs)}")
+
+    from app.routes.workspaces import is_workspace_data_ready
+    status = await is_workspace_data_ready(workspace_id)
+    return {"ok": True, "links": validated_links, "data_status": status}
 
 
 @router.post("/workspaces/{workspace_id}/validate-join")

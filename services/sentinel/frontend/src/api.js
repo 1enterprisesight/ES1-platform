@@ -317,15 +317,39 @@ export async function validateJoin(workspaceId, config) {
   return res.json();
 }
 
-export async function saveJoinConfig(workspaceId, config) {
+export async function saveJoinConfig(workspaceId, links) {
   const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}/join-config`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(config),
+    body: JSON.stringify({ links }),
   });
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data.detail || `Failed to save join config: ${res.status}`);
+  }
+  return res.json();
+}
+
+// ---------------------------------------------------------------------------
+// Data Activation
+// ---------------------------------------------------------------------------
+
+export async function activateData(workspaceId) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}/activate-data`, {
+    method: 'POST',
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Failed to activate data: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function getDataStatus(workspaceId) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}/data-status`);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Failed to get data status: ${res.status}`);
   }
   return res.json();
 }
