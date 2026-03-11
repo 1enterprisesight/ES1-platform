@@ -8,30 +8,39 @@ from __future__ import annotations
 
 import json
 import logging
-from app.db import get_conn, get_table_info
+from app.db import get_conn, get_workspace_table_info, _prefixed_name
 
 logger = logging.getLogger(__name__)
 
 
-def build_statistical_summary(table_name: str) -> str:
+def build_statistical_summary(table_name: str, workspace_id: str = "") -> str:
     """Build a statistical summary of a single DuckDB table for the LLM."""
     conn = get_conn()
-    info = get_table_info()
+
+    if workspace_id:
+        info = get_workspace_table_info(workspace_id)
+        full_table = _prefixed_name(workspace_id, table_name)
+    else:
+        # Fallback to querying all tables
+        from app.db import get_table_info
+        info = get_table_info()
+        full_table = table_name
+
     cols = info.get(table_name, [])
     if not cols:
         return f"Table '{table_name}' not found in DuckDB."
 
-    row_count = conn.execute(f'SELECT count(*) FROM "{table_name}"').fetchone()[0]
+    row_count = conn.execute(f'SELECT count(*) FROM "{full_table}"').fetchone()[0]
     lines = [f"Table: {table_name} ({row_count:,} rows)", ""]
 
     for col in cols:
         name = col["name"]
         dtype = col["type"]
         try:
-            distinct = conn.execute(f'SELECT count(DISTINCT "{name}") FROM "{table_name}"').fetchone()[0]
-            nulls = conn.execute(f'SELECT count(*) FROM "{table_name}" WHERE "{name}" IS NULL').fetchone()[0]
+            distinct = conn.execute(f'SELECT count(DISTINCT "{name}") FROM "{full_table}"').fetchone()[0]
+            nulls = conn.execute(f'SELECT count(*) FROM "{full_table}" WHERE "{name}" IS NULL').fetchone()[0]
             top = conn.execute(
-                f'SELECT "{name}", count(*) as n FROM "{table_name}" '
+                f'SELECT "{name}", count(*) as n FROM "{full_table}" '
                 f'WHERE "{name}" IS NOT NULL '
                 f'GROUP BY "{name}" ORDER BY n DESC LIMIT 8'
             ).fetchall()
@@ -43,7 +52,7 @@ def build_statistical_summary(table_name: str) -> str:
                 try:
                     stats = conn.execute(
                         f'SELECT MIN("{name}"), MAX("{name}"), AVG("{name}")::DECIMAL(18,2) '
-                        f'FROM "{table_name}" WHERE "{name}" IS NOT NULL'
+                        f'FROM "{full_table}" WHERE "{name}" IS NOT NULL'
                     ).fetchone()
                     if stats[0] is not None:
                         stats_str = f" | range=[{stats[0]}, {stats[1]}], avg={stats[2]}"
@@ -58,7 +67,7 @@ def build_statistical_summary(table_name: str) -> str:
             lines.append(f'  "{name}" ({dtype})')
 
     # Sample rows
-    sample = conn.execute(f'SELECT * FROM "{table_name}" LIMIT 3').fetchall()
+    sample = conn.execute(f'SELECT * FROM "{full_table}" LIMIT 3').fetchall()
     col_names = [c["name"] for c in cols]
     lines.append("\nSample rows:")
     for row in sample:
@@ -68,7 +77,7 @@ def build_statistical_summary(table_name: str) -> str:
     return "\n".join(lines)
 
 
-async def generate_dataset_profile(table_name: str) -> dict:
+async def generate_dataset_profile(table_name: str, workspace_id: str = "") -> dict:
     """Use the LLM to generate a semantic profile of a dataset.
 
     Returns a dict with:
@@ -83,7 +92,7 @@ async def generate_dataset_profile(table_name: str) -> dict:
     """
     from app.llm import generate_json
 
-    summary = build_statistical_summary(table_name)
+    summary = build_statistical_summary(table_name, workspace_id=workspace_id)
 
     prompt = f"""Analyze this dataset and produce a semantic profile. Your goal is to understand
 what this data represents, what domain it belongs to, and what makes it analytically interesting.
@@ -116,11 +125,11 @@ Return ONLY the JSON object."""
         return {"domain": "unknown", "description": f"Dataset '{table_name}' (profile generation failed)", "entity": "record"}
 
 
-async def profile_and_store(table_name: str, dataset_name: str) -> dict:
+async def profile_and_store(table_name: str, dataset_name: str, workspace_id: str = "") -> dict:
     """Generate a profile and store it in PostgreSQL."""
     from app.database import get_pool
 
-    profile = await generate_dataset_profile(table_name)
+    profile = await generate_dataset_profile(table_name, workspace_id=workspace_id)
 
     pool = get_pool()
     await pool.execute(

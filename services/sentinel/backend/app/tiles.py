@@ -1,36 +1,22 @@
+"""Workspace-scoped tile and interaction stores.
+
+Each workspace gets its own TileStore and InteractionStore, keyed by
+workspace_id. The global singletons are replaced by factory functions
+that return the correct store for a given workspace.
+"""
 import asyncio
 import itertools
 import json
 import logging
-import os
-import tempfile
 import time
-from pathlib import Path
 from typing import Optional, List
+
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
-# Persistence file — lives outside app/ so uvicorn --reload doesn't trigger on writes
-_TILES_FILE = Path(__file__).resolve().parent.parent / ".tiles_cache.json"
-
 # Atomic counter for tile IDs — seeded from current time, increments monotonically
 _id_counter = itertools.count(int(time.time() * 1000))
-
-
-def _atomic_write(path: Path, data_str: str):
-    """Write data atomically: write to tempfile then os.replace()."""
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            f.write(data_str)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
 
 
 class BarData(BaseModel):
@@ -64,37 +50,22 @@ class Tile(BaseModel):
 
 
 class TileStore:
-    """In-memory tile store with file-based persistence and SSE broadcast."""
+    """In-memory tile store with SSE broadcast, scoped to a workspace."""
 
-    def __init__(self):
+    def __init__(self, workspace_id: str):
+        self.workspace_id = workspace_id
         self._tiles: List[Tile] = []
         self._subscribers: List[asyncio.Queue] = []
         self._lock: Optional[asyncio.Lock] = None
-        self._load_from_disk()
 
     def _get_lock(self) -> asyncio.Lock:
         if self._lock is None:
             self._lock = asyncio.Lock()
         return self._lock
 
-    def _load_from_disk(self):
-        """Load tiles from disk cache on startup."""
-        try:
-            if _TILES_FILE.exists():
-                data = json.loads(_TILES_FILE.read_text())
-                self._tiles = [Tile(**t) for t in data]
-                logger.info(f"Loaded {len(self._tiles)} tiles from disk cache")
-        except Exception as e:
-            logger.warning(f"Failed to load tiles cache: {e}")
-            self._tiles = []
-
-    def _save_to_disk(self):
-        """Persist tiles to disk atomically."""
-        try:
-            data = [t.model_dump() for t in self._tiles]
-            _atomic_write(_TILES_FILE, json.dumps(data, default=str))
-        except Exception as e:
-            logger.warning(f"Failed to save tiles cache: {e}")
+    def load_tiles(self, tiles: List[Tile]):
+        """Load tiles from database (called on workspace activate)."""
+        self._tiles = list(tiles)
 
     @property
     def tiles(self) -> List[Tile]:
@@ -108,25 +79,21 @@ class TileStore:
                 # Protect tiles that have user interactions from eviction
                 protected_ids = set()
                 try:
-                    for inter in interaction_store.get_all():
+                    istore = get_interaction_store(self.workspace_id)
+                    for inter in istore.get_all():
                         if abs(inter.interest_score) >= 0.5:
                             protected_ids.add(inter.tile_id)
                 except Exception:
                     pass
-                # Split into protected and unprotected
                 protected = [t for t in self._tiles if t.id in protected_ids]
                 unprotected = [t for t in self._tiles if t.id not in protected_ids]
-                # Trim unprotected tiles to make room, keeping newest first
                 max_unprotected = MAX_TILES - len(protected)
                 if max_unprotected > 0:
                     self._tiles = protected + unprotected[:max_unprotected]
                 else:
-                    # More protected than MAX_TILES — keep all protected, trim oldest
                     self._tiles = protected[:MAX_TILES]
-                # Sort back: newest first
                 self._tiles.sort(key=lambda t: t.created_at, reverse=True)
-            self._save_to_disk()
-        # Broadcast to all subscribers
+        # Broadcast to all subscribers of this workspace
         event = {"type": "new_tile", "tile": tile.model_dump()}
         for q in self._subscribers:
             try:
@@ -138,17 +105,13 @@ class TileStore:
         async with self._get_lock():
             before = len(self._tiles)
             self._tiles = [t for t in self._tiles if t.id != tile_id]
-            if len(self._tiles) < before:
-                self._save_to_disk()
-                return True
-        return False
+            return len(self._tiles) < before
 
     async def move_tile(self, tile_id: int, new_column: str) -> Optional[Tile]:
         async with self._get_lock():
             for t in self._tiles:
                 if t.id == tile_id:
                     t.column = new_column
-                    self._save_to_disk()
                     return t
         return None
 
@@ -173,37 +136,7 @@ class TileStore:
                 pass
 
 
-tile_store = TileStore()
-
-
-def recover_interacted_tiles():
-    """Recreate tiles from interaction metadata for any that were evicted."""
-    existing_ids = {t.id for t in tile_store._tiles}
-    recovered = 0
-    for inter in interaction_store.get_all():
-        if inter.tile_id not in existing_ids and abs(inter.interest_score) >= 0.5:
-            tile = Tile(
-                id=inter.tile_id,
-                silo=inter.tile_silo or "alpha",
-                column="resolved",
-                title=inter.tile_title or "Saved interaction",
-                summary=inter.tile_summary or "",
-                detail="",
-                sources=[inter.tile_silo or "alpha"],
-                created_at=inter.tile_id / 1000.0,  # ID is timestamp-based
-            )
-            tile_store._tiles.append(tile)
-            recovered += 1
-    if recovered:
-        tile_store._tiles.sort(key=lambda t: t.created_at, reverse=True)
-        tile_store._save_to_disk()
-        logger.info(f"Recovered {recovered} tiles from interaction data")
-
-
 # --- Interaction tracking ---
-
-_INTERACTIONS_FILE = Path(__file__).resolve().parent.parent / ".interactions_cache.json"
-
 
 class TileInteraction(BaseModel):
     tile_id: int
@@ -229,42 +162,26 @@ class TileInteraction(BaseModel):
 
 
 class InteractionStore:
-    """In-memory interaction store with file-based persistence."""
+    """In-memory interaction store, scoped to a workspace + user."""
 
-    def __init__(self):
+    def __init__(self, workspace_id: str):
+        self.workspace_id = workspace_id
         self._interactions: dict[int, TileInteraction] = {}
         self._lock: Optional[asyncio.Lock] = None
-        self._load_from_disk()
 
     def _get_lock(self) -> asyncio.Lock:
         if self._lock is None:
             self._lock = asyncio.Lock()
         return self._lock
 
-    def _load_from_disk(self):
-        try:
-            if _INTERACTIONS_FILE.exists():
-                data = json.loads(_INTERACTIONS_FILE.read_text())
-                for item in data:
-                    inter = TileInteraction(**item)
-                    self._interactions[inter.tile_id] = inter
-                logger.info(f"Loaded {len(self._interactions)} interactions from disk cache")
-        except Exception as e:
-            logger.warning(f"Failed to load interactions cache: {e}")
-            self._interactions = {}
-
-    def _save_to_disk(self):
-        try:
-            data = [i.model_dump() for i in self._interactions.values()]
-            _atomic_write(_INTERACTIONS_FILE, json.dumps(data, default=str))
-        except Exception as e:
-            logger.warning(f"Failed to save interactions cache: {e}")
+    def load_interactions(self, interactions: dict[int, TileInteraction]):
+        """Load interactions from database (called on workspace activate)."""
+        self._interactions = dict(interactions)
 
     async def record(self, tile_id: int, data: dict) -> TileInteraction:
         async with self._get_lock():
             existing = self._interactions.get(tile_id)
             if existing:
-                # Merge signals
                 existing.thumbs_up += data.get("thumbs_up", 0)
                 existing.thumbs_down += data.get("thumbs_down", 0)
                 if data.get("expanded"):
@@ -273,7 +190,6 @@ class InteractionStore:
                 for q in data.get("followup_questions", []):
                     if q and q not in existing.followup_questions:
                         existing.followup_questions.append(q)
-                # Update metadata if provided
                 if data.get("tile_title"):
                     existing.tile_title = data["tile_title"]
                 if data.get("tile_silo"):
@@ -298,7 +214,7 @@ class InteractionStore:
                 self._interactions[tile_id] = inter
                 result = inter
 
-            # Cap at 200 interactions — drop lowest scores
+            # Cap at 200 interactions
             if len(self._interactions) > 200:
                 sorted_ids = sorted(
                     self._interactions,
@@ -307,25 +223,20 @@ class InteractionStore:
                 while len(self._interactions) > 200:
                     self._interactions.pop(sorted_ids.pop(0))
 
-            self._save_to_disk()
             return result
 
     async def reset(self):
         async with self._get_lock():
             self._interactions = {}
-            self._save_to_disk()
 
     async def reset_one(self, tile_id: int):
         async with self._get_lock():
-            if tile_id in self._interactions:
-                del self._interactions[tile_id]
-                self._save_to_disk()
+            self._interactions.pop(tile_id, None)
 
     def get_all(self) -> List[TileInteraction]:
         return list(self._interactions.values())
 
     def get_silo_scores(self) -> dict[str, float]:
-        """Cumulative interest score per silo."""
         scores: dict[str, float] = {}
         for inter in self._interactions.values():
             if inter.tile_silo:
@@ -333,17 +244,39 @@ class InteractionStore:
         return scores
 
     def get_top_liked(self, n: int = 5) -> List[TileInteraction]:
-        """Top-n interactions by positive score."""
         positive = [i for i in self._interactions.values() if i.interest_score > 0]
         return sorted(positive, key=lambda i: i.interest_score, reverse=True)[:n]
 
     def get_disliked(self) -> List[TileInteraction]:
-        """Interactions with net negative score."""
         return [i for i in self._interactions.values() if i.interest_score < 0]
 
     def get_drilldown_candidates(self, threshold: float = 3.0) -> List[TileInteraction]:
-        """Interactions with score >= threshold, suitable for drill-down."""
         return [i for i in self._interactions.values() if i.interest_score >= threshold]
 
 
-interaction_store = InteractionStore()
+# ---------------------------------------------------------------------------
+# Workspace-keyed registries
+# ---------------------------------------------------------------------------
+
+_tile_stores: dict[str, TileStore] = {}
+_interaction_stores: dict[str, InteractionStore] = {}
+
+
+def get_tile_store(workspace_id: str) -> TileStore:
+    """Get or create the TileStore for a workspace."""
+    if workspace_id not in _tile_stores:
+        _tile_stores[workspace_id] = TileStore(workspace_id)
+    return _tile_stores[workspace_id]
+
+
+def get_interaction_store(workspace_id: str) -> InteractionStore:
+    """Get or create the InteractionStore for a workspace."""
+    if workspace_id not in _interaction_stores:
+        _interaction_stores[workspace_id] = InteractionStore(workspace_id)
+    return _interaction_stores[workspace_id]
+
+
+def remove_workspace_stores(workspace_id: str):
+    """Clean up stores when a workspace is deleted."""
+    _tile_stores.pop(workspace_id, None)
+    _interaction_stores.pop(workspace_id, None)

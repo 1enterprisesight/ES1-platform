@@ -1,20 +1,31 @@
+"""Silo routes — workspace-scoped."""
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
-from app.profiler import get_silos, get_hints, rediscover_silos
+
+from app.auth import require_user, SessionInfo
+from app.profiler import get_silos, rediscover_silos
 from app.row_config import get_row_config, update_row_config
 
 router = APIRouter()
 
 
+def _get_workspace_id(session: SessionInfo) -> str:
+    if not session.workspace_id:
+        raise HTTPException(status_code=400, detail="No active workspace")
+    return session.workspace_id
+
+
 @router.get("/silos")
-def list_silos():
-    return get_silos()
+def list_silos(session: SessionInfo = Depends(require_user)):
+    workspace_id = _get_workspace_id(session)
+    return get_silos(workspace_id)
 
 
 @router.get("/silos/hints")
-def list_hints():
-    return {"hints": get_hints() or []}
+def list_hints(session: SessionInfo = Depends(require_user)):
+    # Hints are now stored in workspace settings
+    return {"hints": []}
 
 
 class HintsRequest(BaseModel):
@@ -29,10 +40,11 @@ class HintsRequest(BaseModel):
 
 
 @router.post("/silos/rediscover")
-async def rediscover(body: HintsRequest):
+async def rediscover(body: HintsRequest, session: SessionInfo = Depends(require_user)):
+    workspace_id = _get_workspace_id(session)
     hints = body.hints if body.hints else None
-    await rediscover_silos(hints)
-    return {"silos": get_silos(), "hints": hints or []}
+    await rediscover_silos(workspace_id=workspace_id, hints=hints)
+    return {"silos": get_silos(workspace_id), "hints": hints or []}
 
 
 @router.get("/rows/config")
