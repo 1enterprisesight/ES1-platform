@@ -415,7 +415,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
                     value={hintsInput}
                     onChange={e => setHintsInput(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") document.getElementById("hints-apply-btn")?.click(); }}
-                    placeholder="e.g. doctors, orders, training, products"
+                    placeholder="e.g. revenue trends, customer risk, growth"
                     disabled={hintsLoading}
                     style={{
                       width: "100%", boxSizing: "border-box", background: "rgba(255,255,255,0.03)",
