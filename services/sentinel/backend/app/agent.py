@@ -11,7 +11,7 @@ import logging
 import time
 
 from app.config import AGENT_CYCLE_SECONDS
-from app.db import run_query, get_workspace_table_info, get_data_profile
+from app.db import run_query, get_workspace_table_info, get_data_profile, is_workspace_loaded, load_workspace_datasets
 from app.llm import generate, generate_json
 from app.profiler import get_silos
 from app.tiles import Tile, get_tile_store, get_all_workspace_interactions
@@ -148,10 +148,33 @@ async def _agent_loop(workspace_id: str):
                 continue
             join_context = _build_join_context(join_links)
 
+            # Ensure workspace data is loaded into DuckDB
+            if not is_workspace_loaded(workspace_id):
+                from app.database import get_pool
+                import uuid as _uuid
+                pool = get_pool()
+                ds_rows = await pool.fetch(
+                    "SELECT name, csv_data FROM sentinel.datasets WHERE workspace_id = $1 ORDER BY uploaded_at",
+                    _uuid.UUID(workspace_id),
+                )
+                if ds_rows:
+                    load_workspace_datasets(workspace_id, [(r["name"], bytes(r["csv_data"])) for r in ds_rows])
+                    logger.info(f"Agent loaded {len(ds_rows)} dataset(s) into DuckDB for workspace {workspace_id}")
+
             silos = get_silos(workspace_id)
             if len(silos) < 2:
-                await asyncio.sleep(5)
-                continue
+                # Silos missing — trigger discovery if we have data
+                from app.profiler import discover_silos, is_discovery_done
+                if not is_discovery_done(workspace_id):
+                    logger.info(f"No silos for workspace {workspace_id}, triggering discovery")
+                    try:
+                        await discover_silos(workspace_id)
+                        silos = get_silos(workspace_id)
+                    except Exception as e:
+                        logger.warning(f"Agent silo discovery failed: {e}")
+                if len(silos) < 2:
+                    await asyncio.sleep(5)
+                    continue
 
             non_alpha = [s for s in silos if s["id"] != "alpha"]
             all_interactions = get_all_workspace_interactions(workspace_id)
@@ -381,13 +404,16 @@ async def _generate_question(silo: dict, table_info: dict, past_titles: list[str
     tables = list(table_info.keys())
     if silo["id"] == "alpha":
         if len(tables) > 1:
-            silo_context = f"Generate a CROSS-SILO question that correlates data across multiple tables ({', '.join(tables)})."
+            silo_context = f"Generate a CROSS-THEME question that correlates data across multiple tables ({', '.join(tables)})."
         else:
             silo_context = f"Generate a broad question about overall patterns in the {tables[0]} table."
     else:
-        col = silo.get("source_column", "")
-        tbl = silo.get("source_table", "")
-        silo_context = f'Focus on the "{col}" dimension from the {tbl} table.'
+        description = silo.get("description", "")
+        label = silo.get("label", silo["id"])
+        if description:
+            silo_context = f'Analytical theme: "{label}" — {description}'
+        else:
+            silo_context = f'Focus on the analytical theme: "{label}".'
 
     interest_block = ""
     if interest_context:

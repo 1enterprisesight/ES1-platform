@@ -59,7 +59,12 @@ async def rediscover_silos(workspace_id: str = "", hints: Optional[list] = None)
 
 
 async def discover_silos(workspace_id: str = "", hints: Optional[list] = None):
-    """Profile columns and ask LLM to pick the best categorical dimensions as silos."""
+    """Analyze data and ask LLM to identify analytical themes as silos.
+
+    Silos are high-level analytical themes (e.g. "Revenue Performance",
+    "Customer Risk", "Operational Efficiency") — NOT column names.
+    The agent uses these themes to guide its question generation.
+    """
     if not workspace_id:
         return
 
@@ -79,7 +84,7 @@ async def discover_silos(workspace_id: str = "", hints: Optional[list] = None):
         _workspace_discovery_done[workspace_id] = True
         return
 
-    # Build column profiles
+    # Build column profiles for context
     profiles = {}
     for table, cols in table_info.items():
         full_name = _prefixed_name(workspace_id, table)
@@ -109,9 +114,7 @@ async def discover_silos(workspace_id: str = "", hints: Optional[list] = None):
         hints_list = ", ".join(f'"{h}"' for h in hints)
         hints_block = f"""
 IMPORTANT: The user wants the dashboard organized around these themes: {hints_list}
-Map each theme to the most relevant column(s) in the data. Use the theme names as silo IDs/labels.
-If a theme doesn't map cleanly to a single column, pick the closest match or derive it from the data.
-You MUST include all requested themes. You may add 1-2 additional data-driven silos if they are clearly valuable.
+You MUST include all requested themes. You may add 1-2 additional data-driven themes if clearly valuable.
 """
 
     table_sections = []
@@ -123,7 +126,7 @@ You MUST include all requested themes. You may add 1-2 additional data-driven si
     semantic_block = ""
     try:
         from app.dataset_profiler import get_stored_profiles, format_profiles_for_prompt
-        stored = await get_stored_profiles()
+        stored = await get_stored_profiles(workspace_id=workspace_id)
         if stored:
             semantic_block = f"""
 Dataset context (LLM-generated semantic understanding):
@@ -132,29 +135,37 @@ Dataset context (LLM-generated semantic understanding):
     except Exception:
         pass
 
-    prompt = f"""You are analyzing datasets to find the best categorical dimensions for a data dashboard.
+    prompt = f"""You are analyzing datasets to identify the most interesting analytical themes for an AI-powered data dashboard.
 
 Here are column profiles for each table:
 
 {tables_text}
 {semantic_block}{hints_block}
-Pick 4-6 columns that would make the best "silo" filters for a dashboard. Good silos are:
-- Categorical with 3-20 distinct values (not too many, not too few)
-- Meaningful business dimensions (Region, Product type, Channel, etc.)
-- Useful for grouping and comparing data
+Identify 4-6 analytical THEMES that an AI analyst should investigate in this data.
+Each theme is a high-level area of inquiry — NOT a column name.
 
-Return JSON array of objects with:
-- "id": short lowercase slug (e.g. "region", "product", "channel")
-- "label": human-readable label (e.g. "Region", "Product")
-- "source_column": exact column name from the data
-- "source_table": which table it comes from
+Good themes are:
+- Business-relevant analytical dimensions (e.g. "Revenue Performance", "Customer Risk", "Operational Efficiency")
+- Areas where interesting patterns, anomalies, or trends are likely to exist
+- Broad enough to generate multiple questions, but specific enough to be meaningful
+- Driven by what the data actually contains and what would be valuable to analyze
+
+BAD themes are:
+- Raw column names (e.g. "Region", "Product Name") — these are NOT themes
+- Generic labels (e.g. "Data Analysis", "Statistics") — too vague
+- Single-metric themes (e.g. "Count of Orders") — too narrow
+
+Return a JSON array of objects with:
+- "id": short lowercase slug (e.g. "revenue", "customer_risk", "operations")
+- "label": human-readable theme name (e.g. "Revenue Performance", "Customer Risk")
+- "description": 1-2 sentence description of what this theme covers and what kinds of questions to ask about it
 
 Return ONLY the JSON array, no other text."""
 
     try:
-        result = await generate_json(prompt, temperature=0.3)
+        result = await generate_json(prompt, temperature=0.4)
         if not isinstance(result, list):
-            result = result.get("silos", result.get("dimensions", []))
+            result = result.get("silos", result.get("themes", result.get("dimensions", [])))
 
         discovered = []
         for i, silo in enumerate(result[:6]):
@@ -162,36 +173,71 @@ Return ONLY the JSON array, no other text."""
             discovered.append({
                 "id": silo["id"],
                 "label": silo["label"],
-                "source_column": silo.get("source_column", ""),
-                "source_table": silo.get("source_table", ""),
+                "description": silo.get("description", ""),
                 **palette,
             })
 
         _workspace_silos[workspace_id] = [ALPHA_SILO] + discovered
-        logger.info(f"Discovered {len(discovered)} silos for workspace {workspace_id}: "
+        logger.info(f"Discovered {len(discovered)} thematic silos for workspace {workspace_id}: "
                      f"{[s['label'] for s in discovered]}")
 
     except Exception as e:
         logger.error(f"Silo discovery failed for workspace {workspace_id}, using fallback: {e}")
-        fallback = []
-        first_table = next(iter(profiles), None)
-        if first_table:
-            candidates = sorted(
-                [p for p in profiles[first_table] if p["cardinality"] and 2 <= p["cardinality"] <= 30],
-                key=lambda p: p["cardinality"],
-            )
-            for i, p in enumerate(candidates[:4]):
-                slug = re.sub(r'[^a-z0-9]', '_', p["column"].lower()).strip('_')
-                fallback.append({
-                    "id": slug,
-                    "label": p["column"],
-                    "source_column": p["column"],
-                    "source_table": first_table,
-                    **SILO_PALETTE[i % len(SILO_PALETTE)],
-                })
-        _workspace_silos[workspace_id] = [ALPHA_SILO] + fallback
+        # Fallback: derive broad themes from table names and column types
+        fallback_themes = _derive_fallback_themes(profiles)
+        _workspace_silos[workspace_id] = [ALPHA_SILO] + fallback_themes
 
     _workspace_discovery_done[workspace_id] = True
+
+
+def _derive_fallback_themes(profiles: dict) -> list[dict]:
+    """Derive basic analytical themes from table structure when LLM fails."""
+    themes = []
+    all_cols = []
+    for table, cols in profiles.items():
+        for col in cols:
+            all_cols.append((table, col))
+
+    # Look for numeric columns → "Performance Metrics"
+    numeric = [c for _, c in all_cols if c["type"] in ("BIGINT", "INTEGER", "DOUBLE", "FLOAT", "DECIMAL")]
+    if numeric:
+        themes.append({
+            "id": "performance",
+            "label": "Performance Metrics",
+            "description": "Trends, aggregations, and anomalies in numerical measures.",
+            **SILO_PALETTE[0],
+        })
+
+    # Look for date/time columns → "Temporal Patterns"
+    temporal = [c for _, c in all_cols if any(t in c["type"] for t in ("DATE", "TIME", "TIMESTAMP"))]
+    if temporal:
+        themes.append({
+            "id": "temporal",
+            "label": "Temporal Patterns",
+            "description": "Time-based trends, seasonality, and period-over-period changes.",
+            **SILO_PALETTE[1],
+        })
+
+    # Look for categorical columns → "Segment Analysis"
+    categorical = [c for _, c in all_cols if c.get("cardinality") and 2 <= c["cardinality"] <= 30]
+    if categorical:
+        themes.append({
+            "id": "segments",
+            "label": "Segment Analysis",
+            "description": "Comparisons and breakdowns across categorical groupings.",
+            **SILO_PALETTE[2],
+        })
+
+    # Always add a distribution/outlier theme if we have data
+    if all_cols:
+        themes.append({
+            "id": "anomalies",
+            "label": "Anomalies & Outliers",
+            "description": "Unusual values, statistical outliers, and unexpected patterns.",
+            **SILO_PALETTE[3 % len(SILO_PALETTE)],
+        })
+
+    return themes
 
 
 def _format_profiles(profiles: list[dict]) -> str:

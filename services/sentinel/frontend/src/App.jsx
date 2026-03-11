@@ -20,7 +20,7 @@ const DEFAULT_ROWS = [
 ];
 
 const DEFAULT_ALPHA = {
-  id: "alpha", label: "Cross-Silo", color: "#ffffff",
+  id: "alpha", label: "Cross-Theme", color: "#ffffff",
   bg: "rgba(255,255,255,0.08)", border: "rgba(255,255,255,0.45)",
 };
 

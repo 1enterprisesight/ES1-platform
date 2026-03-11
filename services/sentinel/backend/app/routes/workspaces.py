@@ -230,6 +230,16 @@ async def activate_data(
 
     logger.info(f"Workspace {workspace_id} data activated by {session.user.email}")
 
+    # Discover silos so the agent can start generating tiles immediately
+    from app.profiler import discover_silos, get_silos
+    existing_silos = get_silos(workspace_id)
+    if len(existing_silos) < 2:
+        try:
+            await discover_silos(workspace_id)
+            logger.info(f"Silo discovery triggered on activation for workspace {workspace_id}")
+        except Exception as e:
+            logger.warning(f"Silo discovery on activation failed: {e}")
+
     # Return updated status
     status = await is_workspace_data_ready(workspace_id)
     return {"ok": True, "data_status": status}
@@ -419,8 +429,8 @@ async def activate_workspace(
             "SELECT * FROM sentinel.workspace_silos WHERE workspace_id = $1", ws_uuid,
         )
         silos = [
-            {"id": r["silo_id"], "label": r["label"], "color": r["color"],
-             "bg": r["bg"], "border": r["border"]}
+            {"id": r["silo_id"], "label": r["label"], "description": r["description"] or "",
+             "color": r["color"], "bg": r["bg"], "border": r["border"]}
             for r in silo_rows
         ]
         if silos:
@@ -501,9 +511,10 @@ async def save_workspace_state(
     for silo in silos:
         await pool.execute(
             """INSERT INTO sentinel.workspace_silos
-               (workspace_id, silo_id, label, color, bg, border)
-               VALUES ($1, $2, $3, $4, $5, $6)""",
+               (workspace_id, silo_id, label, description, color, bg, border)
+               VALUES ($1, $2, $3, $4, $5, $6, $7)""",
             ws_uuid, silo.get("id", ""), silo.get("label", ""),
+            silo.get("description", ""),
             silo.get("color"), silo.get("bg"), silo.get("border"),
         )
 
