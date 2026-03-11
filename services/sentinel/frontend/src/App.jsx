@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, Component } from "react";
 import useSSE from "./hooks/useSSE.js";
-import { fetchSilos, moveTile, fetchInteractions, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout, getDataStatus } from "./api.js";
+import { fetchSilos, moveTile, fetchInteractions, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout, getDataStatus, activateWorkspace } from "./api.js";
 import LoginPage from "./pages/LoginPage.jsx";
 import ScrollRow from "./components/ScrollRow.jsx";
 import FeedCard from "./components/FeedCard.jsx";
@@ -680,12 +680,19 @@ export default function App() {
         if (data?.user) setUser(data.user);
         if (data?.workspace) {
           setWorkspace(data.workspace);
-          // Fetch data status for the active workspace
+          // Activate workspace to load tiles/silos from PG into memory
           try {
-            const status = await getDataStatus(data.workspace.id);
-            setDataStatus(status);
+            const wsData = await activateWorkspace(data.workspace.id);
+            if (wsData.data_status) setDataStatus(wsData.data_status);
+            if (wsData.silos?.length > 0) setInitialSilos(wsData.silos);
+            if (wsData.tiles?.length > 0) setInitialTiles(wsData.tiles);
           } catch (e) {
-            console.error("Failed to fetch data status:", e);
+            console.error("Failed to activate workspace:", e);
+            // Fallback: at least get data status
+            try {
+              const status = await getDataStatus(data.workspace.id);
+              setDataStatus(status);
+            } catch {} // eslint-disable-line no-empty
           }
         }
       })
@@ -698,10 +705,12 @@ export default function App() {
     if (loginWorkspace) {
       setWorkspace(loginWorkspace);
       try {
-        const status = await getDataStatus(loginWorkspace.id);
-        setDataStatus(status);
+        const wsData = await activateWorkspace(loginWorkspace.id);
+        if (wsData.data_status) setDataStatus(wsData.data_status);
+        if (wsData.silos?.length > 0) setInitialSilos(wsData.silos);
+        if (wsData.tiles?.length > 0) setInitialTiles(wsData.tiles);
       } catch (e) {
-        console.error("Failed to fetch data status:", e);
+        console.error("Failed to activate workspace on login:", e);
       }
     }
   };
