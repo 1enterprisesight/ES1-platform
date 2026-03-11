@@ -1,8 +1,8 @@
 # Sentinel: Data Linking & Workspace Activation Plan
 
 **Branch:** `feature/sentinel-workspace-scoped-data`
-**Status:** In progress
-**Last commit:** `3db3b08` fix(sentinel): login crash
+**Status:** In progress — Steps 1-10 complete, frontend remaining
+**Last commit:** `77f7dd5` fix(sentinel): shared state protection and per-user interactions
 
 ## Context
 
@@ -66,7 +66,7 @@ is connected (A-B + B-C, or A-B + A-C, etc.).
 
 ## Implementation Steps
 
-### Step 1: Backend — Data Readiness Function ✅ TODO
+### Step 1: Backend — Data Readiness Function ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/routes/workspaces.py`
 
 Add `is_workspace_data_ready(workspace_id) -> dict` that returns:
@@ -83,13 +83,13 @@ Add `is_workspace_data_ready(workspace_id) -> dict` that returns:
 }
 ```
 
-### Step 2: Backend — Upload Enforces 3-File Limit ✅ TODO
+### Step 2: Backend — Upload Enforces 3-File Limit ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/routes/datasets.py`
 
 In `upload_dataset()`: check current dataset count for workspace.
 Reject with 400 if already at 3.
 
-### Step 3: Backend — Join Config Becomes a List ✅ TODO
+### Step 3: Backend — Join Config Becomes a List ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/routes/datasets.py`
 
 - `save_join_config` accepts and stores a list of links
@@ -97,7 +97,7 @@ Reject with 400 if already at 3.
 - Connectivity check: all tables reachable through links
 - Existing single-link config migrated to list format on read
 
-### Step 4: Backend — Activate-Data Endpoint ✅ TODO
+### Step 4: Backend — Activate-Data Endpoint ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/routes/workspaces.py`
 
 New `POST /workspaces/{id}/activate-data`:
@@ -105,7 +105,7 @@ New `POST /workspaces/{id}/activate-data`:
 - Sets `data_activated: true` in workspace settings
 - Returns workspace readiness status
 
-### Step 5: Backend — Agent Checks Activation ✅ TODO
+### Step 5: Backend — Agent Checks Activation ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/agent.py`
 
 In `_agent_loop`, after subscriber check and silo check:
@@ -113,7 +113,7 @@ In `_agent_loop`, after subscriber check and silo check:
 - If not activated, broadcast `data_not_ready` status, sleep, continue
 - Don't run any queries until workspace is activated
 
-### Step 6: Backend — Agent Uses Join Config in Prompts ✅ TODO
+### Step 6: Backend — Agent Uses Join Config in Prompts ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/agent.py`
 
 - Load join config from workspace settings on agent start
@@ -121,13 +121,13 @@ In `_agent_loop`, after subscriber check and silo check:
 - e.g. "Tables are linked: orders.customer_id = customers.customer_id"
 - Agent uses these known links instead of guessing join keys
 
-### Step 7: Backend — Activate Response Includes Readiness ✅ TODO
+### Step 7: Backend — Activate Response Includes Readiness ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/routes/workspaces.py`
 
 `activate_workspace` response includes `data_ready` status so frontend
 knows whether to show the dashboard or the data setup flow.
 
-### Step 8: Backend — Fix Activate Clobber of Shared State ✅ TODO
+### Step 8: Backend — Fix Activate Clobber of Shared State ✅ DONE (77f7dd5)
 **File:** `services/sentinel/backend/app/routes/workspaces.py`
 
 `activate_workspace` currently calls `tile_store.load_tiles()` every time,
@@ -140,7 +140,7 @@ replacing live in-memory tiles with PG snapshot. Fix:
 Interactions are per-user so always load the requesting user's from PG,
 but don't clobber the store (merge, don't replace).
 
-### Step 9: Backend — InteractionStore Per-User ✅ TODO
+### Step 9: Backend — InteractionStore Per-User ✅ DONE (77f7dd5)
 **File:** `services/sentinel/backend/app/tiles.py`
 
 Current InteractionStore is one dict per workspace keyed by tile_id.
@@ -150,7 +150,7 @@ This supports:
 - Per-user interest tracking for future agent personalization
 - Correct persist/load on workspace switch
 
-### Step 10: Backend — get_stored_profiles Workspace Scoped ✅ TODO
+### Step 10: Backend — get_stored_profiles Workspace Scoped ✅ DONE (f0ecfde)
 **File:** `services/sentinel/backend/app/dataset_profiler.py`
 
 `get_stored_profiles()` currently queries ALL datasets globally.
@@ -184,6 +184,8 @@ On workspace switch, check `data_activated`:
 ## Existing Bugs Fixed Before This Work
 
 - [x] `3db3b08` Login crash — session_id vs token in set_session_workspace
+- [x] `f0ecfde` Data linking & activation backend (Steps 1-7, 10)
+- [x] `77f7dd5` Shared state protection and per-user interactions (Steps 8-9)
 
 ## Notes
 
