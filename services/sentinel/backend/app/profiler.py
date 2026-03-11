@@ -145,19 +145,19 @@ Identify 4-6 analytical THEMES that an AI analyst should investigate in this dat
 Each theme is a high-level area of inquiry — NOT a column name.
 
 Good themes are:
-- Business-relevant analytical dimensions (e.g. "Revenue Performance", "Customer Risk", "Operational Efficiency")
+- SHORT labels: 1-2 words max (e.g. "Revenue", "Churn", "Risk", "Growth", "Operations")
+- Business-relevant analytical dimensions
 - Areas where interesting patterns, anomalies, or trends are likely to exist
 - Broad enough to generate multiple questions, but specific enough to be meaningful
-- Driven by what the data actually contains and what would be valuable to analyze
 
 BAD themes are:
+- Verbose labels (e.g. "Financial Transaction Analysis", "Customer Segmentation & Profiling") — TOO LONG
 - Raw column names (e.g. "Region", "Product Name") — these are NOT themes
 - Generic labels (e.g. "Data Analysis", "Statistics") — too vague
-- Single-metric themes (e.g. "Count of Orders") — too narrow
 
 Return a JSON array of objects with:
-- "id": short lowercase slug (e.g. "revenue", "customer_risk", "operations")
-- "label": human-readable theme name (e.g. "Revenue Performance", "Customer Risk")
+- "id": short lowercase slug (e.g. "revenue", "churn", "risk")
+- "label": SHORT human-readable name, 1-2 words (e.g. "Revenue", "Churn", "Risk")
 - "description": 1-2 sentence description of what this theme covers and what kinds of questions to ask about it
 
 Return ONLY the JSON array, no other text."""
@@ -170,9 +170,13 @@ Return ONLY the JSON array, no other text."""
         discovered = []
         for i, silo in enumerate(result[:6]):
             palette = SILO_PALETTE[i % len(SILO_PALETTE)]
+            label = silo["label"]
+            # Enforce short labels — take first 2 words if too long
+            if len(label) > 20:
+                label = " ".join(label.split()[:2])
             discovered.append({
                 "id": silo["id"],
-                "label": silo["label"],
+                "label": label,
                 "description": silo.get("description", ""),
                 **palette,
             })
