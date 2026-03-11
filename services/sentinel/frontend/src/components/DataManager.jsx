@@ -16,7 +16,8 @@ export default function DataManager({ onReload, workspaceId }) {
       fetchDatasets()
         .then((d) => {
           setDatasets(d.datasets || []);
-          if (d.join_suggestion) setJoinSuggestion(d.join_suggestion);
+          if (d.join_candidates) setJoinSuggestion(d.join_candidates);
+          else if (d.join_suggestion) setJoinSuggestion(d.join_suggestion);
         })
         .catch((e) => console.error("Failed to fetch datasets:", e));
     }

@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback, Component } from "react";
 import useSSE from "./hooks/useSSE.js";
-import { fetchSilos, moveTile, fetchInteractions, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout } from "./api.js";
+import { fetchSilos, moveTile, fetchInteractions, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout, getDataStatus } from "./api.js";
 import LoginPage from "./pages/LoginPage.jsx";
 import ScrollRow from "./components/ScrollRow.jsx";
 import FeedCard from "./components/FeedCard.jsx";
 import FeedLiveCard from "./components/FeedLiveCard.jsx";
 import ExpandedCard from "./components/ExpandedCard.jsx";
 import DataManager from "./components/DataManager.jsx";
+import DataSetupView from "./components/DataSetupView.jsx";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.jsx";
 import AdminPanel from "./components/AdminPanel.jsx";
 
@@ -61,7 +62,7 @@ class ErrorBoundary extends Component {
 }
 
 
-function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
+function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialDataStatus }) {
   const [silos, setSilos] = useState([DEFAULT_ALPHA]);
   const [activeSilos, setActiveSilos] = useState(new Set(["alpha"]));
   const [cards, setCards] = useState([]);
@@ -74,7 +75,8 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
   const [chatOpen, setChatOpen] = useState(false);
   const [viewMode, setViewMode] = useState("compact");
   const [interactions, setInteractions] = useState({});
-
+  const [dataActivated, setDataActivated] = useState(initialDataStatus?.data_activated ?? true);
+  const [dataStatus, setDataStatus] = useState(initialDataStatus || null);
 
   const [adminOpen, setAdminOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
@@ -311,7 +313,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
             <button onClick={() => setChatOpen((p) => !p)} style={{
               background: "transparent", border: "none", borderRadius: 7,
               width: 24, height: 24, cursor: "pointer",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              display: dataActivated ? "flex" : "none", alignItems: "center", justifyContent: "center",
               transition: "all 0.2s ease", flexShrink: 0, padding: 0,
             }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={chatOpen ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.2)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "stroke 0.2s" }}>
@@ -330,7 +332,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
             if (onWorkspaceSwitch) onWorkspaceSwitch(data);
           }} />
 
-          <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
+          <div style={{ flex: 1, display: "flex", alignItems: "center", visibility: dataActivated ? "visible" : "hidden" }}>
             <div style={{
               overflow: "hidden",
               width: chatOpen ? "100%" : 0,
@@ -356,7 +358,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 4, flexShrink: 0, alignItems: "center" }}>
+          <div style={{ display: dataActivated ? "flex" : "none", gap: 4, flexShrink: 0, alignItems: "center" }}>
             {silos.map((si) => {
               const a = activeSilos.has(si.id);
               const al = si.id === "alpha";
@@ -474,7 +476,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
           </div>
 
           <button onClick={() => setViewMode((m) => m === "compact" ? "classic" : m === "classic" ? "feed" : "compact")} style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
+            display: dataActivated ? "flex" : "none", alignItems: "center", justifyContent: "center",
             width: 28, height: 28, borderRadius: 5, flexShrink: 0,
             border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)",
             color: "rgba(255,255,255,0.35)", cursor: "pointer", transition: "all .15s", marginLeft: 4,
@@ -529,7 +531,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
           </button>
 
           {/* Row config editor */}
-          <div style={{ position: "relative" }}>
+          {dataActivated && <div style={{ position: "relative" }}>
             <button onClick={(e) => { e.stopPropagation(); setRowEditorOpen(p => !p); if (!rowEditing) setRowEditing(dynamicRows.map(r => ({ label: r.label, description: r.description }))); }} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 28, height: 28, borderRadius: 5, flexShrink: 0,
@@ -595,11 +597,24 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
                 >{rowSaving ? "Saving..." : "Save"}</button>
               </div>
             )}
-          </div>
+          </div>}
         </div>
       </div>
 
-      {viewMode === "feed" ? (
+      {!dataActivated ? (
+        <DataSetupView
+          workspaceId={workspace?.id}
+          initialDataStatus={dataStatus}
+          onActivated={() => {
+            setDataActivated(true);
+            // Trigger full remount with updated data_status
+            if (onWorkspaceSwitch) onWorkspaceSwitch({
+              workspace,
+              data_status: { ...dataStatus, data_activated: true, ready: true },
+            });
+          }}
+        />
+      ) : viewMode === "feed" ? (
         <div style={{ paddingTop: 20, paddingBottom: 40, maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12, padding: "20px 24px 40px" }}>
           {liveCard && <FeedLiveCard card={liveCard} silo={getSilo(liveCard.silo)} onComplete={onLiveComplete} rows={dynamicRows} />}
           {ROWS.map((r) => {
@@ -638,33 +653,53 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [workspace, setWorkspace] = useState(null);
+  const [dataStatus, setDataStatus] = useState(null);
   const [checking, setChecking] = useState(true);
   // Key to force SentinelApp remount on workspace switch
   const [wsKey, setWsKey] = useState(0);
 
   useEffect(() => {
     fetchMe()
-      .then((data) => {
+      .then(async (data) => {
         if (data?.user) setUser(data.user);
-        if (data?.workspace) setWorkspace(data.workspace);
+        if (data?.workspace) {
+          setWorkspace(data.workspace);
+          // Fetch data status for the active workspace
+          try {
+            const status = await getDataStatus(data.workspace.id);
+            setDataStatus(status);
+          } catch (e) {
+            console.error("Failed to fetch data status:", e);
+          }
+        }
       })
       .catch(() => {})
       .finally(() => setChecking(false));
   }, []);
 
-  const handleLogin = (loginUser, loginWorkspace) => {
+  const handleLogin = async (loginUser, loginWorkspace) => {
     setUser(loginUser);
-    if (loginWorkspace) setWorkspace(loginWorkspace);
+    if (loginWorkspace) {
+      setWorkspace(loginWorkspace);
+      try {
+        const status = await getDataStatus(loginWorkspace.id);
+        setDataStatus(status);
+      } catch (e) {
+        console.error("Failed to fetch data status:", e);
+      }
+    }
   };
 
   const handleLogout = async () => {
     try { await logout(); } catch (e) { console.error("Logout failed:", e); }
     setUser(null);
     setWorkspace(null);
+    setDataStatus(null);
   };
 
   const handleWorkspaceSwitch = (data) => {
     if (data.workspace) setWorkspace(data.workspace);
+    if (data.data_status) setDataStatus(data.data_status);
     // Force remount of SentinelApp to reload everything
     setWsKey((k) => k + 1);
   };
@@ -684,7 +719,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <SentinelApp key={wsKey} user={user} onLogout={handleLogout} workspace={workspace} onWorkspaceSwitch={handleWorkspaceSwitch} />
+      <SentinelApp key={wsKey} user={user} onLogout={handleLogout} workspace={workspace} onWorkspaceSwitch={handleWorkspaceSwitch} initialDataStatus={dataStatus} />
     </ErrorBoundary>
   );
 }

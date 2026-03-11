@@ -30,9 +30,9 @@ export default function JoinConfigPanel({ workspaceId, suggestion, onConfirmed, 
     setSaving(true);
     setError(null);
     try {
-      await saveJoinConfig(workspaceId, {
-        left_table, right_table, left_column, right_column,
-      });
+      await saveJoinConfig(workspaceId, [
+        { left_table, right_table, left_column, right_column },
+      ]);
       if (onConfirmed) onConfirmed();
     } catch (e) {
       setError(e.message);

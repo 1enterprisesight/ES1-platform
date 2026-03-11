@@ -59,6 +59,7 @@ async def list_datasets(session: SessionInfo = Depends(require_user)):
             {
                 "id": str(r["id"]),
                 "name": r["name"],
+                "table_name": re.sub(r'[^a-z0-9]', '_', r["name"].lower()).strip('_') or "dataset",
                 "filename": r["filename"],
                 "row_count": r["row_count"],
                 "columns": r["columns"],
