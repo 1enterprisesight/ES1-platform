@@ -82,7 +82,7 @@ Keep it to 2-3 sentences."""
         tile_data = None
         if body.create_tile:
             tile_store = get_tile_store(workspace_id)
-            interaction_store = get_interaction_store(workspace_id)
+            interaction_store = get_interaction_store(workspace_id, session.user.id)
 
             # Build bar chart from query results if data has a label+numeric pattern
             bar_charts = None

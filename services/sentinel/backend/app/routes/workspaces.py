@@ -359,68 +359,81 @@ async def activate_workspace(
         if ds_rows:
             load_workspace_datasets(workspace_id, [(r["name"], bytes(r["csv_data"])) for r in ds_rows])
 
-    # Load tiles into workspace tile store
+    # Load tiles — only from PG if tile store is empty (first activation).
+    # If the store already has tiles (agent running, other users viewing),
+    # use the live in-memory state to avoid clobbering shared state.
     tile_store = get_tile_store(workspace_id)
-    tile_rows = await pool.fetch(
-        "SELECT * FROM sentinel.workspace_tiles WHERE workspace_id = $1 ORDER BY created_at DESC",
-        ws_uuid,
-    )
-    tiles = [
-        Tile(
-            id=r["id"], silo=r["silo"], column=r["col"],
-            title=r["title"], summary=r["summary"], detail=r["detail"] or "",
-            sources=r["sources"] or [],
-            chartData=(r["chart_data"] or {}).get("points"),
-            chartLabel=(r["chart_data"] or {}).get("label"),
-            metric=r["metric"], metricSub=r["metric_sub"],
-            suggestedQuestions=r["suggested_questions"],
-            created_at=r["created_at"].timestamp() if r["created_at"] else 0,
+    if not tile_store.tiles:
+        tile_rows = await pool.fetch(
+            "SELECT * FROM sentinel.workspace_tiles WHERE workspace_id = $1 ORDER BY created_at DESC",
+            ws_uuid,
         )
-        for r in tile_rows
-    ]
-    tile_store.load_tiles(tiles)
+        pg_tiles = [
+            Tile(
+                id=r["id"], silo=r["silo"], column=r["col"],
+                title=r["title"], summary=r["summary"], detail=r["detail"] or "",
+                sources=r["sources"] or [],
+                chartData=(r["chart_data"] or {}).get("points"),
+                chartLabel=(r["chart_data"] or {}).get("label"),
+                metric=r["metric"], metricSub=r["metric_sub"],
+                suggestedQuestions=r["suggested_questions"],
+                created_at=r["created_at"].timestamp() if r["created_at"] else 0,
+            )
+            for r in tile_rows
+        ]
+        if pg_tiles:
+            tile_store.load_tiles(pg_tiles)
+    live_tiles = tile_store.tiles
 
-    # Load interactions for this user
-    interaction_store = get_interaction_store(workspace_id)
-    inter_rows = await pool.fetch(
-        "SELECT * FROM sentinel.workspace_interactions WHERE workspace_id = $1 AND user_id = $2",
-        ws_uuid, uuid.UUID(session.user.id),
-    )
-    interactions = {}
-    for r in inter_rows:
-        inter = TileInteraction(
-            tile_id=r["tile_id"],
-            tile_title=r["tile_title"] or "",
-            tile_silo=r["tile_silo"] or "",
-            tile_summary=r["tile_summary"] or "",
-            thumbs_up=r["thumbs_up"],
-            thumbs_down=r["thumbs_down"],
-            expanded=r["expanded"],
-            expand_duration_s=r["expand_duration_s"],
-            followup_questions=r["followup_questions"] or [],
-            interest_score=r["interest_score"],
+    # Load interactions for this user — only from PG if their store is empty.
+    interaction_store = get_interaction_store(workspace_id, session.user.id)
+    if not interaction_store.get_all():
+        inter_rows = await pool.fetch(
+            "SELECT * FROM sentinel.workspace_interactions WHERE workspace_id = $1 AND user_id = $2",
+            ws_uuid, uuid.UUID(session.user.id),
         )
-        interactions[r["tile_id"]] = inter
-    interaction_store.load_interactions(interactions)
+        interactions = {}
+        for r in inter_rows:
+            inter = TileInteraction(
+                tile_id=r["tile_id"],
+                tile_title=r["tile_title"] or "",
+                tile_silo=r["tile_silo"] or "",
+                tile_summary=r["tile_summary"] or "",
+                thumbs_up=r["thumbs_up"],
+                thumbs_down=r["thumbs_down"],
+                expanded=r["expanded"],
+                expand_duration_s=r["expand_duration_s"],
+                followup_questions=r["followup_questions"] or [],
+                interest_score=r["interest_score"],
+            )
+            interactions[r["tile_id"]] = inter
+        if interactions:
+            interaction_store.load_interactions(interactions)
+    live_interactions = {i.tile_id: i for i in interaction_store.get_all()}
 
-    # Load silos
-    silo_rows = await pool.fetch(
-        "SELECT * FROM sentinel.workspace_silos WHERE workspace_id = $1", ws_uuid,
-    )
-    silos = [
-        {"id": r["silo_id"], "label": r["label"], "color": r["color"],
-         "bg": r["bg"], "border": r["border"]}
-        for r in silo_rows
-    ]
+    # Load silos — prefer in-memory (set by agent's discover_silos), fall back to PG
+    from app.profiler import get_silos, set_silos
+    silos = get_silos(workspace_id)
+    if not silos:
+        silo_rows = await pool.fetch(
+            "SELECT * FROM sentinel.workspace_silos WHERE workspace_id = $1", ws_uuid,
+        )
+        silos = [
+            {"id": r["silo_id"], "label": r["label"], "color": r["color"],
+             "bg": r["bg"], "border": r["border"]}
+            for r in silo_rows
+        ]
+        if silos:
+            set_silos(workspace_id, silos)
 
     # Include data readiness status so frontend knows which view to show
     data_status = await is_workspace_data_ready(workspace_id)
 
     return {
         "workspace": _row_to_dict(ws),
-        "tiles": [t.model_dump() for t in tiles],
+        "tiles": [t.model_dump() for t in live_tiles],
         "interactions": {
-            str(tid): inter.model_dump() for tid, inter in interactions.items()
+            str(tid): inter.model_dump() for tid, inter in live_interactions.items()
         },
         "silos": silos,
         "data_status": data_status,

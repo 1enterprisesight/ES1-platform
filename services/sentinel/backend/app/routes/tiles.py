@@ -61,7 +61,7 @@ class InteractionRequest(BaseModel):
 @router.post("/tiles/{tile_id}/interact")
 async def interact_tile(tile_id: int, body: InteractionRequest, session: SessionInfo = Depends(require_user)):
     workspace_id = _get_workspace_id(session)
-    interaction_store = get_interaction_store(workspace_id)
+    interaction_store = get_interaction_store(workspace_id, session.user.id)
     interaction = await interaction_store.record(tile_id, body.model_dump())
     return interaction.model_dump()
 
@@ -69,14 +69,14 @@ async def interact_tile(tile_id: int, body: InteractionRequest, session: Session
 @router.get("/interactions")
 def list_interactions(session: SessionInfo = Depends(require_user)):
     workspace_id = _get_workspace_id(session)
-    interaction_store = get_interaction_store(workspace_id)
+    interaction_store = get_interaction_store(workspace_id, session.user.id)
     return {str(i.tile_id): i.model_dump() for i in interaction_store.get_all()}
 
 
 @router.post("/interactions/reset")
 async def reset_interactions(session: SessionInfo = Depends(require_user)):
     workspace_id = _get_workspace_id(session)
-    interaction_store = get_interaction_store(workspace_id)
+    interaction_store = get_interaction_store(workspace_id, session.user.id)
     await interaction_store.reset()
     return {"status": "ok"}
 
@@ -85,7 +85,7 @@ async def reset_interactions(session: SessionInfo = Depends(require_user)):
 async def reset_tile_interaction(tile_id: int, session: SessionInfo = Depends(require_user)):
     workspace_id = _get_workspace_id(session)
     tile_store = get_tile_store(workspace_id)
-    interaction_store = get_interaction_store(workspace_id)
+    interaction_store = get_interaction_store(workspace_id, session.user.id)
 
     await interaction_store.reset_one(tile_id)
     tile_removed = False

@@ -79,8 +79,8 @@ class TileStore:
                 # Protect tiles that have user interactions from eviction
                 protected_ids = set()
                 try:
-                    istore = get_interaction_store(self.workspace_id)
-                    for inter in istore.get_all():
+                    all_inters = get_all_workspace_interactions(self.workspace_id)
+                    for inter in all_inters:
                         if abs(inter.interest_score) >= 0.5:
                             protected_ids.add(inter.tile_id)
                 except Exception:
@@ -259,7 +259,7 @@ class InteractionStore:
 # ---------------------------------------------------------------------------
 
 _tile_stores: dict[str, TileStore] = {}
-_interaction_stores: dict[str, InteractionStore] = {}
+_interaction_stores: dict[tuple[str, str], InteractionStore] = {}
 
 
 def get_tile_store(workspace_id: str) -> TileStore:
@@ -269,14 +269,59 @@ def get_tile_store(workspace_id: str) -> TileStore:
     return _tile_stores[workspace_id]
 
 
-def get_interaction_store(workspace_id: str) -> InteractionStore:
-    """Get or create the InteractionStore for a workspace."""
-    if workspace_id not in _interaction_stores:
-        _interaction_stores[workspace_id] = InteractionStore(workspace_id)
-    return _interaction_stores[workspace_id]
+def get_interaction_store(workspace_id: str, user_id: str = "") -> InteractionStore:
+    """Get or create the InteractionStore for a workspace + user.
+
+    Each user gets their own interaction store per workspace so that
+    interactions are tracked independently (thumbs, expansions, etc.).
+    """
+    key = (workspace_id, user_id)
+    if key not in _interaction_stores:
+        _interaction_stores[key] = InteractionStore(workspace_id)
+    return _interaction_stores[key]
+
+
+def get_all_workspace_interactions(workspace_id: str) -> List[TileInteraction]:
+    """Aggregate interactions across all users for a workspace.
+
+    Used by the agent to understand overall interest signals.
+    When multiple users interact with the same tile, scores are summed.
+    """
+    aggregated: dict[int, TileInteraction] = {}
+    for (ws_id, _user_id), store in _interaction_stores.items():
+        if ws_id != workspace_id:
+            continue
+        for inter in store.get_all():
+            if inter.tile_id in aggregated:
+                existing = aggregated[inter.tile_id]
+                existing.thumbs_up += inter.thumbs_up
+                existing.thumbs_down += inter.thumbs_down
+                if inter.expanded:
+                    existing.expanded = True
+                existing.expand_duration_s += inter.expand_duration_s
+                for q in inter.followup_questions:
+                    if q and q not in existing.followup_questions:
+                        existing.followup_questions.append(q)
+                existing.interest_score = existing.compute_score()
+            else:
+                aggregated[inter.tile_id] = TileInteraction(
+                    tile_id=inter.tile_id,
+                    tile_title=inter.tile_title,
+                    tile_silo=inter.tile_silo,
+                    tile_summary=inter.tile_summary,
+                    thumbs_up=inter.thumbs_up,
+                    thumbs_down=inter.thumbs_down,
+                    expanded=inter.expanded,
+                    expand_duration_s=inter.expand_duration_s,
+                    followup_questions=list(inter.followup_questions),
+                    interest_score=inter.interest_score,
+                )
+    return list(aggregated.values())
 
 
 def remove_workspace_stores(workspace_id: str):
     """Clean up stores when a workspace is deleted."""
     _tile_stores.pop(workspace_id, None)
-    _interaction_stores.pop(workspace_id, None)
+    keys_to_remove = [k for k in _interaction_stores if k[0] == workspace_id]
+    for k in keys_to_remove:
+        _interaction_stores.pop(k, None)

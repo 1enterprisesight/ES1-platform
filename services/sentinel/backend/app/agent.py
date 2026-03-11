@@ -14,7 +14,7 @@ from app.config import AGENT_CYCLE_SECONDS
 from app.db import run_query, get_workspace_table_info, get_data_profile
 from app.llm import generate, generate_json
 from app.profiler import get_silos
-from app.tiles import Tile, get_tile_store, get_interaction_store
+from app.tiles import Tile, get_tile_store, get_all_workspace_interactions
 from app.row_config import get_row_config, get_row_prompt_context
 
 logger = logging.getLogger(__name__)
@@ -107,7 +107,6 @@ def _build_join_context(join_links: list) -> str:
 
 async def _agent_loop(workspace_id: str):
     tile_store = get_tile_store(workspace_id)
-    interaction_store = get_interaction_store(workspace_id)
     cycle = 0
     past_titles: list[str] = []
     dataset_context = ""
@@ -155,7 +154,11 @@ async def _agent_loop(workspace_id: str):
                 continue
 
             non_alpha = [s for s in silos if s["id"] != "alpha"]
-            silo_scores = interaction_store.get_silo_scores()
+            all_interactions = get_all_workspace_interactions(workspace_id)
+            silo_scores: dict[str, float] = {}
+            for inter in all_interactions:
+                if inter.tile_silo:
+                    silo_scores[inter.tile_silo] = silo_scores.get(inter.tile_silo, 0.0) + inter.interest_score
 
             if cycle % 3 == 0 and cycle > 0:
                 current_silo = silos[0]
@@ -171,7 +174,7 @@ async def _agent_loop(workspace_id: str):
             tile_store.broadcast_status("agent_thinking", silo=current_silo["id"])
 
             table_info = get_workspace_table_info(workspace_id)
-            interest_context = _build_interest_context(interaction_store)
+            interest_context = _build_interest_context(all_interactions)
             question = await _generate_question(current_silo, table_info, past_titles, interest_context, dataset_context, join_context)
             logger.info(f"Question: {question}")
 
@@ -218,10 +221,10 @@ async def _agent_loop(workspace_id: str):
 
             logger.info(f"Tile created: {tile.title}")
 
-            # Drill-down for high-interest tiles
+            # Drill-down for high-interest tiles (aggregated across all users)
             drilldown = [
-                d for d in interaction_store.get_drilldown_candidates()
-                if d.tile_silo == current_silo["id"]
+                d for d in all_interactions
+                if d.interest_score >= 3.0 and d.tile_silo == current_silo["id"]
             ]
             if drilldown:
                 top = max(drilldown, key=lambda d: d.interest_score)
@@ -241,9 +244,10 @@ async def _agent_loop(workspace_id: str):
         await asyncio.sleep(AGENT_CYCLE_SECONDS)
 
 
-def _build_interest_context(interaction_store) -> str:
-    liked = interaction_store.get_top_liked(5)
-    disliked = interaction_store.get_disliked()
+def _build_interest_context(interactions: list) -> str:
+    positive = [i for i in interactions if i.interest_score > 0]
+    liked = sorted(positive, key=lambda i: i.interest_score, reverse=True)[:5]
+    disliked = [i for i in interactions if i.interest_score < 0]
 
     lines = []
     if liked:
