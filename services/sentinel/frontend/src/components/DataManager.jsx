@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { fetchDatasets, uploadDataset, deleteDataset, reloadDatasets } from "../api.js";
+import JoinConfigPanel from "./JoinConfigPanel.jsx";
 
-export default function DataManager({ onReload }) {
+export default function DataManager({ onReload, workspaceId }) {
   const [open, setOpen] = useState(false);
   const [datasets, setDatasets] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [reloading, setReloading] = useState(false);
   const [error, setError] = useState(null);
+  const [joinSuggestion, setJoinSuggestion] = useState(null);
   const fileRef = useRef(null);
 
   useEffect(() => {
@@ -24,7 +26,13 @@ export default function DataManager({ onReload }) {
     setError(null);
     try {
       const result = await uploadDataset(file);
-      setDatasets((prev) => [result, ...prev]);
+      // result may contain { dataset: {...}, join_suggestion: {...} } or just the dataset
+      const ds = result.dataset || result;
+      setDatasets((prev) => [ds, ...prev]);
+      // Show join suggestion if the backend detected linkable columns
+      if (result.join_suggestion) {
+        setJoinSuggestion(result.join_suggestion);
+      }
     } catch (err) {
       setError(err.message);
       setTimeout(() => setError(null), 4000);
@@ -169,6 +177,16 @@ export default function DataManager({ onReload }) {
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Join config panel — shown when a join suggestion is available */}
+          {joinSuggestion && workspaceId && (
+            <JoinConfigPanel
+              workspaceId={workspaceId}
+              suggestion={joinSuggestion}
+              onConfirmed={() => { setJoinSuggestion(null); if (onReload) onReload(); }}
+              onDismiss={() => setJoinSuggestion(null)}
+            />
           )}
         </div>
       )}

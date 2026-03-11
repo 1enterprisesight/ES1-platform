@@ -6,6 +6,7 @@ export default function WorkspaceSwitcher({ activeWorkspace, onSwitch }) {
   const [workspaces, setWorkspaces] = useState([]);
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [switching, setSwitching] = useState(null); // id of workspace being activated
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -44,6 +45,7 @@ export default function WorkspaceSwitcher({ activeWorkspace, onSwitch }) {
 
   const handleSwitch = async (ws) => {
     if (ws.id === activeWorkspace?.id) { setOpen(false); return; }
+    setSwitching(ws.id);
     try {
       const data = await activateWorkspace(ws.id);
       setOpen(false);
@@ -51,6 +53,7 @@ export default function WorkspaceSwitcher({ activeWorkspace, onSwitch }) {
     } catch (e) {
       console.error("Failed to switch workspace:", e);
     }
+    setSwitching(null);
   };
 
   const label = activeWorkspace?.name || "Workspace";
@@ -123,27 +126,29 @@ export default function WorkspaceSwitcher({ activeWorkspace, onSwitch }) {
             {workspaces.map((ws) => {
               const isActive = ws.id === activeWorkspace?.id;
               return (
-                <div key={ws.id} onClick={() => handleSwitch(ws)} style={{
+                <div key={ws.id} onClick={() => !switching && handleSwitch(ws)} style={{
                   display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
                   background: isActive ? "rgba(129,140,248,0.08)" : "rgba(255,255,255,0.02)",
                   border: `1px solid ${isActive ? "rgba(129,140,248,0.2)" : "rgba(255,255,255,0.04)"}`,
-                  borderRadius: 6, cursor: "pointer", transition: "all 0.15s",
+                  borderRadius: 6, cursor: switching ? "wait" : "pointer", transition: "all 0.15s",
+                  opacity: switching && switching !== ws.id ? 0.4 : 1,
                 }}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                  onMouseEnter={(e) => { if (!isActive && !switching) e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
                   onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
                 >
                   <div style={{
                     width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
-                    background: isActive ? "#818cf8" : "rgba(255,255,255,0.1)",
+                    background: switching === ws.id ? "#34d399" : isActive ? "#818cf8" : "rgba(255,255,255,0.1)",
                     boxShadow: isActive ? "0 0 6px rgba(129,140,248,0.4)" : "none",
+                    animation: switching === ws.id ? "p 0.8s infinite" : "none",
                   }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{
                       fontSize: 11, fontWeight: isActive ? 600 : 500,
-                      color: isActive ? "rgba(129,140,248,0.9)" : "rgba(255,255,255,0.6)",
+                      color: switching === ws.id ? "rgba(52,211,153,0.8)" : isActive ? "rgba(129,140,248,0.9)" : "rgba(255,255,255,0.6)",
                       fontFamily: "'DM Sans',sans-serif",
                       overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                    }}>{ws.name}</div>
+                    }}>{switching === ws.id ? "Loading..." : ws.name}</div>
                   </div>
                   {!isActive && workspaces.length > 1 && (
                     <button onClick={(e) => { e.stopPropagation(); handleDelete(ws.id); }} style={{

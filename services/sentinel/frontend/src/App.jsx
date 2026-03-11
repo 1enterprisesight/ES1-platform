@@ -172,6 +172,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
   }, []);
 
   useSSE({
+    workspaceId: workspace?.id,
     onInitialTiles: handleInitialTiles,
     onNewTile: handleNewTile,
     onStatus: handleStatus,
@@ -320,7 +321,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch }) {
           </div>
 
           {/* Dataset Manager */}
-          <DataManager onReload={() => {
+          <DataManager workspaceId={workspace?.id} onReload={() => {
             fetchSilos().then((data) => { if (data.length > 0) { setSilos(data); setActiveSilos(new Set(data.map((s) => s.id))); } }).catch(() => {});
           }} />
 

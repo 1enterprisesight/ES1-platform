@@ -299,3 +299,33 @@ export async function saveWorkspaceState(workspaceId, state) {
   if (!res.ok) throw new Error(`Failed to save workspace: ${res.status}`);
   return res.json();
 }
+
+// ---------------------------------------------------------------------------
+// Join Configuration
+// ---------------------------------------------------------------------------
+
+export async function validateJoin(workspaceId, config) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}/validate-join`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  }, 30000);
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Validation failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function saveJoinConfig(workspaceId, config) {
+  const res = await fetchWithTimeout(`${BASE}/workspaces/${workspaceId}/join-config`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || `Failed to save join config: ${res.status}`);
+  }
+  return res.json();
+}

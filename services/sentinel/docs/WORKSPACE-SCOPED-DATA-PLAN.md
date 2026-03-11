@@ -32,7 +32,7 @@ analysis, and UI state. No more global datasets or views.
 
 ## Implementation Phases
 
-### Phase 1: Database Migration [ ]
+### Phase 1: Database Migration [x] ✓ commit 3f996ff
 - [ ] New migration `V011__workspace_scoped_datasets.sql`
 - [ ] Workspaces: drop `user_id`, add `created_by` (audit only)
 - [ ] Add `workspace_members` table: `(workspace_id, user_id, role)`
@@ -40,7 +40,7 @@ analysis, and UI state. No more global datasets or views.
 - [ ] Add `user_id` to `workspace_interactions`
 - [ ] Store `join_config` in workspace `settings` JSONB
 
-### Phase 2: DuckDB Namespace Isolation [ ]
+### Phase 2: DuckDB Namespace Isolation [x] ✓ commit 3db38f2
 - [ ] Prefix tables as `ws_{workspace_id}_{tablename}`
 - [ ] New: `load_workspace_datasets(workspace_id, datasets)`
 - [ ] New: `unload_workspace(workspace_id)`
@@ -49,7 +49,7 @@ analysis, and UI state. No more global datasets or views.
 - [ ] `run_query` workspace_id param, validate table prefix
 - [ ] Startup: init empty DuckDB, load lazily on workspace activate
 
-### Phase 3: Backend API Changes [ ]
+### Phase 3: Backend API Changes [x] ✓ commit a9c5975
 - [ ] Datasets: all CRUD scoped to active workspace
 - [ ] New: `POST /workspaces/{id}/join-config` (save confirmed join)
 - [ ] New: `POST /workspaces/{id}/validate-join` (test before saving)
@@ -60,13 +60,13 @@ analysis, and UI state. No more global datasets or views.
 - [ ] Ask route: scoped to active workspace's DuckDB tables
 - [ ] Interactions: add user_id to all interaction writes/reads
 
-### Phase 4: Frontend Changes [ ]
-- [ ] DataManager.jsx: workspace-scoped dataset list, empty state
-- [ ] WorkspaceSwitcher.jsx: show all accessible workspaces, loading overlay
-- [ ] New JoinConfigPanel.jsx: suggest/validate/confirm join columns
-- [ ] SSE: reconnect with workspace context on switch
-- [ ] api.js: workspace-aware API calls
-- [ ] Clear workspace indicator in UI
+### Phase 4: Frontend Changes [x]
+- [x] DataManager.jsx: workspace-scoped dataset list, join suggestion after upload
+- [x] WorkspaceSwitcher.jsx: loading overlay during workspace switch
+- [x] New JoinConfigPanel.jsx: suggest/validate/confirm join columns
+- [x] SSE: reconnect with workspace context on switch (useSSE accepts workspaceId)
+- [x] api.js: workspace-aware API calls (validateJoin, saveJoinConfig)
+- [x] App.jsx: passes workspace.id to useSSE and DataManager
 
 ### Phase 5: Startup Simplification [ ]
 - [ ] Remove global dataset loading from main.py
