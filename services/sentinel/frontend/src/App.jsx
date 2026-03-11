@@ -289,7 +289,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <style>{`html, body { background: #07080b !important; margin: 0; } @keyframes p{0%,100%{opacity:1}50%{opacity:.25}} @keyframes sentinelPulse{0%{opacity:0.4;transform:scale(0.8)}100%{opacity:1;transform:scale(1.2)}}`}</style>
 
-      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(7,8,11,0.93)", backdropFilter: "blur(14px)", borderBottom: "1px solid rgba(255,255,255,0.025)" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(7,8,11,0.93)", backdropFilter: "blur(14px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
         <div style={{ padding: "11px 24px", display: "flex", alignItems: "center", gap: 12 }}>
           {/* SENTINEL branding */}
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginRight: 2, minWidth: 120 }}>
@@ -304,7 +304,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
             }} />
             <span style={{
               fontSize: 14, fontWeight: 700, letterSpacing: "0.06em",
-              color: isTyping ? typingColor : "rgba(255,255,255,0.7)",
+              color: isTyping ? typingColor : "rgba(255,255,255,0.85)",
               fontFamily: "'JetBrains Mono',monospace",
               transition: "color 0.3s",
               textShadow: isTyping ? `0 0 10px ${typingColor}55` : "none",
@@ -315,7 +315,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
               display: dataActivated ? "flex" : "none", alignItems: "center", justifyContent: "center",
               transition: "all 0.2s ease", flexShrink: 0, padding: 0,
             }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={chatOpen ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.2)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "stroke 0.2s" }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={chatOpen ? "rgba(52,211,153,0.9)" : "rgba(255,255,255,0.7)"} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "stroke 0.2s" }}>
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
               </svg>
             </button>
@@ -344,7 +344,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
               opacity: chatOpen ? 1 : 0,
               transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease",
             }}>
-              <div style={{ display: "flex", alignItems: "center", background: chatAsking ? "rgba(52,211,153,0.04)" : "rgba(255,255,255,0.02)", border: `1px solid ${chatAsking ? "rgba(52,211,153,0.15)" : "rgba(255,255,255,0.06)"}`, borderRadius: 7, padding: "0 11px", whiteSpace: "nowrap", transition: "all 0.2s" }}>
+              <div style={{ display: "flex", alignItems: "center", background: chatAsking ? "rgba(52,211,153,0.06)" : "rgba(255,255,255,0.04)", border: `1px solid ${chatAsking ? "rgba(52,211,153,0.3)" : "rgba(255,255,255,0.15)"}`, borderRadius: 7, padding: "0 11px", whiteSpace: "nowrap", transition: "all 0.2s" }}>
                 <input
                   ref={chatInputRef}
                   value={chatInput}
@@ -352,12 +352,12 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
                   onKeyDown={e => { if (e.key === "Enter") handleChatAsk(); }}
                   placeholder={chatError || (chatAsking ? "Thinking..." : "Ask about your data...")}
                   disabled={chatAsking}
-                  style={{ flex: 1, background: "transparent", border: "none", color: chatError ? "rgba(220,100,100,0.6)" : chatAsking ? "rgba(52,211,153,0.5)" : "rgba(255,255,255,0.55)", fontSize: 11.5, padding: "8px 0", outline: "none", fontFamily: "'DM Sans',sans-serif", minWidth: 0 }}
+                  style={{ flex: 1, background: "transparent", border: "none", color: chatError ? "rgba(220,100,100,0.8)" : chatAsking ? "rgba(52,211,153,0.7)" : "rgba(255,255,255,0.75)", fontSize: 11.5, padding: "8px 0", outline: "none", fontFamily: "'DM Sans',sans-serif", minWidth: 0 }}
                 />
                 {chatAsking ? (
                   <div style={{ width: 5, height: 5, borderRadius: "50%", background: "#34d399", animation: "p 0.8s infinite", flexShrink: 0 }} />
                 ) : (
-                  <span onClick={handleChatAsk} style={{ color: chatInput.trim() ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.2)", fontSize: 13, cursor: chatInput.trim() ? "pointer" : "default", flexShrink: 0, transition: "color 0.15s" }}>↗</span>
+                  <span onClick={handleChatAsk} style={{ color: chatInput.trim() ? "rgba(52,211,153,0.8)" : "rgba(255,255,255,0.35)", fontSize: 13, cursor: chatInput.trim() ? "pointer" : "default", flexShrink: 0, transition: "color 0.15s" }}>↗</span>
                 )}
               </div>
             </div>
@@ -387,13 +387,13 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
               <button onClick={(e) => { e.stopPropagation(); setHintsOpen(p => !p); }} style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
                 width: 24, height: 24, borderRadius: 5, flexShrink: 0,
-                border: `1px solid ${hintsOpen ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.06)"}`,
-                background: hintsOpen ? "rgba(255,255,255,0.06)" : "transparent",
-                color: hintsOpen ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.18)",
+                border: `1px solid ${hintsOpen ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)"}`,
+                background: hintsOpen ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+                color: hintsOpen ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.7)",
                 cursor: "pointer", transition: "all .15s", padding: 0,
               }}
-                onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.45)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; }}
-                onMouseLeave={e => { if (!hintsOpen) { e.currentTarget.style.color = "rgba(255,255,255,0.18)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; }}}
+                onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.95)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+                onMouseLeave={e => { if (!hintsOpen) { e.currentTarget.style.color = "rgba(255,255,255,0.7)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}}
                 title="Configure silo grouping"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -485,11 +485,11 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
           <button onClick={() => setViewMode((m) => m === "compact" ? "classic" : m === "classic" ? "feed" : "compact")} style={{
             display: dataActivated ? "flex" : "none", alignItems: "center", justifyContent: "center",
             width: 28, height: 28, borderRadius: 5, flexShrink: 0,
-            border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.03)",
-            color: "rgba(255,255,255,0.35)", cursor: "pointer", transition: "all .15s", marginLeft: 4,
+            border: "1px solid rgba(255,255,255,0.18)", background: "rgba(255,255,255,0.04)",
+            color: "rgba(255,255,255,0.7)", cursor: "pointer", transition: "all .15s", marginLeft: 4,
           }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"; e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.35)"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; e.currentTarget.style.color = "rgba(255,255,255,0.95)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
           >
             <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
               {viewMode === "compact" ? (
@@ -506,12 +506,12 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
           {user?.role === "admin" && (
             <button onClick={() => setAdminOpen(true)} style={{
               display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5,
-              border: "1px solid rgba(192,132,252,0.15)", background: "rgba(192,132,252,0.05)",
-              color: "rgba(192,132,252,0.5)", fontSize: 10, fontWeight: 500,
+              border: "1px solid rgba(192,132,252,0.35)", background: "rgba(192,132,252,0.06)",
+              color: "rgba(192,132,252,0.9)", fontSize: 10, fontWeight: 600,
               cursor: "pointer", transition: "all .15s", fontFamily: "'DM Sans',sans-serif", flexShrink: 0,
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(192,132,252,0.3)"; e.currentTarget.style.color = "rgba(192,132,252,0.8)"; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(192,132,252,0.15)"; e.currentTarget.style.color = "rgba(192,132,252,0.5)"; }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(192,132,252,0.5)"; e.currentTarget.style.color = "rgba(192,132,252,1)"; e.currentTarget.style.background = "rgba(192,132,252,0.1)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(192,132,252,0.35)"; e.currentTarget.style.color = "rgba(192,132,252,0.9)"; e.currentTarget.style.background = "rgba(192,132,252,0.06)"; }}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
@@ -524,12 +524,12 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
           {/* User / Logout */}
           <button onClick={onLogout} title={user?.email} style={{
             display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5,
-            border: "1px solid rgba(255,255,255,0.06)", background: "transparent",
-            color: "rgba(255,255,255,0.3)", fontSize: 10, fontWeight: 500,
+            border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.03)",
+            color: "rgba(255,255,255,0.65)", fontSize: 10, fontWeight: 500,
             cursor: "pointer", transition: "all .15s", fontFamily: "'DM Sans',sans-serif", flexShrink: 0,
           }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.3)"; }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.3)"; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.65)"; e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
@@ -542,13 +542,13 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
             <button onClick={(e) => { e.stopPropagation(); setRowEditorOpen(p => !p); if (!rowEditing) setRowEditing(dynamicRows.map(r => ({ label: r.label, description: r.description }))); }} style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 28, height: 28, borderRadius: 5, flexShrink: 0,
-              border: `1px solid ${rowEditorOpen ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.1)"}`,
-              background: rowEditorOpen ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)",
-              color: rowEditorOpen ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.35)",
+              border: `1px solid ${rowEditorOpen ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.18)"}`,
+              background: rowEditorOpen ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)",
+              color: rowEditorOpen ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.7)",
               cursor: "pointer", transition: "all .15s",
             }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.25)"; e.currentTarget.style.color = "rgba(255,255,255,0.65)"; }}
-              onMouseLeave={e => { if (!rowEditorOpen) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; e.currentTarget.style.color = "rgba(255,255,255,0.35)"; }}}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.35)"; e.currentTarget.style.color = "rgba(255,255,255,0.95)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
+              onMouseLeave={e => { if (!rowEditorOpen) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; e.currentTarget.style.color = "rgba(255,255,255,0.7)"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}}
               title="Configure row categories"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

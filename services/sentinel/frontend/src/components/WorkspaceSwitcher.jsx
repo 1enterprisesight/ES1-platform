@@ -64,14 +64,14 @@ export default function WorkspaceSwitcher({ activeWorkspace, onSwitch }) {
         onClick={(e) => { e.stopPropagation(); setOpen((p) => !p); }}
         style={{
           display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5,
-          border: `1px solid ${open ? "rgba(129,140,248,0.3)" : "rgba(255,255,255,0.06)"}`,
-          background: open ? "rgba(129,140,248,0.06)" : "rgba(255,255,255,0.02)",
-          color: open ? "rgba(129,140,248,0.8)" : "rgba(255,255,255,0.35)",
+          border: `1px solid ${open ? "rgba(129,140,248,0.5)" : "rgba(129,140,248,0.25)"}`,
+          background: open ? "rgba(129,140,248,0.1)" : "rgba(129,140,248,0.04)",
+          color: open ? "rgba(129,140,248,1)" : "rgba(129,140,248,0.85)",
           fontSize: 10, fontWeight: 600, cursor: "pointer", transition: "all .15s",
           fontFamily: "'JetBrains Mono',monospace", maxWidth: 140, overflow: "hidden",
         }}
-        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}}
-        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)"; e.currentTarget.style.color = "rgba(255,255,255,0.35)"; }}}
+        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.borderColor = "rgba(129,140,248,0.4)"; e.currentTarget.style.color = "rgba(129,140,248,1)"; e.currentTarget.style.background = "rgba(129,140,248,0.08)"; }}}
+        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.borderColor = "rgba(129,140,248,0.25)"; e.currentTarget.style.color = "rgba(129,140,248,0.85)"; e.currentTarget.style.background = "rgba(129,140,248,0.04)"; }}}
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <rect x="2" y="3" width="20" height="14" rx="2" ry="2" /><line x1="8" y1="21" x2="16" y2="21" /><line x1="12" y1="17" x2="12" y2="21" />

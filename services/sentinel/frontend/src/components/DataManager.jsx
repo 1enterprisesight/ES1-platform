@@ -233,14 +233,14 @@ export default function DataManager({ onReload, workspaceId, dataStatus, onDataS
         onClick={(e) => { e.stopPropagation(); setOpen((p) => !p); }}
         style={{
           display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 5,
-          border: `1px solid ${open ? "rgba(52,211,153,0.3)" : !dataActivated ? "rgba(251,191,36,0.3)" : "rgba(255,255,255,0.06)"}`,
-          background: open ? "rgba(52,211,153,0.06)" : !dataActivated ? "rgba(251,191,36,0.06)" : "rgba(255,255,255,0.02)",
-          color: open ? "rgba(52,211,153,0.8)" : !dataActivated ? "rgba(251,191,36,0.8)" : "rgba(255,255,255,0.35)",
+          border: `1px solid ${open ? "rgba(52,211,153,0.5)" : !dataActivated ? "rgba(251,191,36,0.4)" : "rgba(52,211,153,0.25)"}`,
+          background: open ? "rgba(52,211,153,0.1)" : !dataActivated ? "rgba(251,191,36,0.08)" : "rgba(52,211,153,0.04)",
+          color: open ? "rgba(52,211,153,1)" : !dataActivated ? "rgba(251,191,36,1)" : "rgba(52,211,153,0.85)",
           fontSize: 10, fontWeight: 600, cursor: "pointer", transition: "all .15s",
           fontFamily: "'JetBrains Mono',monospace",
         }}
-        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)"; e.currentTarget.style.color = "rgba(255,255,255,0.5)"; }}}
-        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.borderColor = !dataActivated ? "rgba(251,191,36,0.3)" : "rgba(255,255,255,0.06)"; e.currentTarget.style.color = !dataActivated ? "rgba(251,191,36,0.8)" : "rgba(255,255,255,0.35)"; }}}
+        onMouseEnter={(e) => { if (!open) { e.currentTarget.style.borderColor = !dataActivated ? "rgba(251,191,36,0.5)" : "rgba(52,211,153,0.4)"; e.currentTarget.style.color = !dataActivated ? "rgba(251,191,36,1)" : "rgba(52,211,153,1)"; e.currentTarget.style.background = !dataActivated ? "rgba(251,191,36,0.1)" : "rgba(52,211,153,0.08)"; }}}
+        onMouseLeave={(e) => { if (!open) { e.currentTarget.style.borderColor = !dataActivated ? "rgba(251,191,36,0.4)" : "rgba(52,211,153,0.25)"; e.currentTarget.style.color = !dataActivated ? "rgba(251,191,36,1)" : "rgba(52,211,153,0.85)"; e.currentTarget.style.background = !dataActivated ? "rgba(251,191,36,0.08)" : "rgba(52,211,153,0.04)"; }}}
       >
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" />
