@@ -1,8 +1,8 @@
 # Sentinel: Data Linking & Workspace Activation Plan
 
 **Branch:** `feature/sentinel-workspace-scoped-data`
-**Status:** In progress — Steps 1-10 complete, frontend remaining
-**Last commit:** `77f7dd5` fix(sentinel): shared state protection and per-user interactions
+**Status:** All 12 steps complete
+**Last commit:** `8b074ab` feat(sentinel): frontend data setup flow and workspace state routing
 
 ## Context
 
@@ -156,7 +156,7 @@ This supports:
 `get_stored_profiles()` currently queries ALL datasets globally.
 Add `workspace_id` parameter, filter by workspace.
 
-### Step 11: Frontend — Data Setup Flow ✅ TODO
+### Step 11: Frontend — Data Setup Flow ✅ DONE (8b074ab)
 **Files:** `services/sentinel/frontend/src/components/DataManager.jsx`,
           `services/sentinel/frontend/src/components/JoinConfigPanel.jsx`
 
@@ -173,7 +173,7 @@ Add `workspace_id` parameter, filter by workspace.
 - Activate button: disabled until can_activate is true
 - After activation: transition to dashboard view
 
-### Step 12: Frontend — Workspace Switch Shows Correct State ✅ TODO
+### Step 12: Frontend — Workspace Switch Shows Correct State ✅ DONE (8b074ab)
 **File:** `services/sentinel/frontend/src/App.jsx`
 
 On workspace switch, check `data_activated`:
@@ -186,6 +186,7 @@ On workspace switch, check `data_activated`:
 - [x] `3db3b08` Login crash — session_id vs token in set_session_workspace
 - [x] `f0ecfde` Data linking & activation backend (Steps 1-7, 10)
 - [x] `77f7dd5` Shared state protection and per-user interactions (Steps 8-9)
+- [x] `8b074ab` Frontend data setup flow and workspace state routing (Steps 11-12)
 
 ## Notes
 
