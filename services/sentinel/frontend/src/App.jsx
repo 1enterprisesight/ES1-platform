@@ -370,13 +370,14 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
               return (
                 <button key={si.id} onClick={() => toggle(si.id)} style={{
                   display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 5,
-                  border: `1px solid ${a ? (al ? "rgba(255,255,255,0.3)" : si.border) : "rgba(255,255,255,0.06)"}`,
-                  background: a ? (al ? "rgba(255,255,255,0.06)" : si.bg) : "transparent",
-                  color: a ? (al ? "#ffffff" : si.color) : "rgba(255,255,255,0.3)",
+                  border: `1px solid ${a ? (al ? "rgba(255,255,255,0.3)" : si.border) : "rgba(255,255,255,0.1)"}`,
+                  background: a ? (al ? "rgba(255,255,255,0.06)" : si.bg) : "rgba(255,255,255,0.02)",
+                  color: a ? (al ? "#ffffff" : si.color) : "rgba(255,255,255,0.45)",
                   fontSize: 10, fontWeight: al ? 700 : 600, cursor: "pointer", transition: "all .15s", fontFamily: "'DM Sans',sans-serif",
-                  opacity: a ? 1 : 0.7,
+                  textDecoration: a ? "none" : "line-through",
+                  textDecorationColor: "rgba(255,255,255,0.15)",
                 }}>
-                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: a ? si.color : "rgba(255,255,255,0.15)", transition: "all .15s", boxShadow: a && al ? "0 0 6px rgba(255,255,255,0.5)" : "none" }} />
+                  <div style={{ width: 5, height: 5, borderRadius: "50%", background: a ? si.color : "rgba(255,255,255,0.2)", transition: "all .15s", boxShadow: a && al ? "0 0 6px rgba(255,255,255,0.5)" : "none" }} />
                   {si.label}
                 </button>
               );
