@@ -93,6 +93,11 @@ class TileStore:
                 else:
                     self._tiles = protected[:MAX_TILES]
                 self._tiles.sort(key=lambda t: t.created_at, reverse=True)
+        # Persist to PG so tiles survive container restarts
+        try:
+            await _persist_tile(self.workspace_id, tile)
+        except Exception as e:
+            logger.warning(f"Failed to persist tile to PG: {e}")
         # Broadcast to all subscribers of this workspace
         event = {"type": "new_tile", "tile": tile.model_dump()}
         for q in self._subscribers:
@@ -134,6 +139,32 @@ class TileStore:
                 q.put_nowait(event)
             except asyncio.QueueFull:
                 pass
+
+
+async def _persist_tile(workspace_id: str, tile: Tile):
+    """Write a single tile to PG for durability."""
+    import uuid
+    from app.database import get_pool
+    pool = get_pool()
+    ws_uuid = uuid.UUID(workspace_id)
+    chart_data = None
+    if tile.chartData or tile.chartLabel:
+        chart_data = json.dumps({"points": tile.chartData, "label": tile.chartLabel})
+    await pool.execute(
+        """INSERT INTO sentinel.workspace_tiles
+           (id, workspace_id, silo, col, title, summary, detail, sources, chart_data,
+            metric, metric_sub, suggested_questions, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, to_timestamp($13))
+           ON CONFLICT (id) DO UPDATE SET
+            silo = EXCLUDED.silo, col = EXCLUDED.col, title = EXCLUDED.title,
+            summary = EXCLUDED.summary, detail = EXCLUDED.detail""",
+        tile.id, ws_uuid, tile.silo, tile.column,
+        tile.title, tile.summary, tile.detail,
+        tile.sources, chart_data,
+        tile.metric, tile.metricSub,
+        tile.suggestedQuestions,
+        tile.created_at,
+    )
 
 
 # --- Interaction tracking ---
