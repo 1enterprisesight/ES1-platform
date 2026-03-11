@@ -15,6 +15,7 @@ export default function DataManager({ onReload, workspaceId, dataStatus, onDataS
 
   // Linking state
   const [confirmedLinks, setConfirmedLinks] = useState([]);
+  const [savedLinks, setSavedLinks] = useState([]);  // What's persisted on server
   const [linkEditor, setLinkEditor] = useState(null);
   const [validationResult, setValidationResult] = useState(null);
   const [validating, setValidating] = useState(false);
@@ -31,7 +32,10 @@ export default function DataManager({ onReload, workspaceId, dataStatus, onDataS
 
   // Seed confirmed links from data status
   useEffect(() => {
-    if (dataStatus?.links?.length > 0) setConfirmedLinks(dataStatus.links);
+    if (dataStatus?.links?.length > 0) {
+      setConfirmedLinks(dataStatus.links);
+      setSavedLinks(dataStatus.links);
+    }
   }, [dataStatus?.links]);
 
   const loadData = async () => {
@@ -164,13 +168,25 @@ export default function DataManager({ onReload, workspaceId, dataStatus, onDataS
     setLinkEditor(null); setValidationResult(null);
   };
 
+  const linksChanged = () => {
+    if (confirmedLinks.length !== savedLinks.length) return true;
+    return confirmedLinks.some((link, i) => {
+      const saved = savedLinks[i];
+      if (!saved) return true;
+      return link.left_table !== saved.left_table || link.right_table !== saved.right_table ||
+             link.left_column !== saved.left_column || link.right_column !== saved.right_column;
+    });
+  };
+
   const handleSaveLinks = async () => {
     if (confirmedLinks.length === 0) return;
     setSavingLinks(true); setError(null);
     try {
       const result = await saveJoinConfig(workspaceId, confirmedLinks);
       if (result.data_status && onDataStatusChange) onDataStatusChange(result.data_status);
-      setConfirmedLinks(result.links || confirmedLinks);
+      const newLinks = result.links || confirmedLinks;
+      setConfirmedLinks(newLinks);
+      setSavedLinks(newLinks);
     } catch (e) {
       setError(e.message);
       setTimeout(() => setError(null), 5000);
@@ -486,8 +502,8 @@ export default function DataManager({ onReload, workspaceId, dataStatus, onDataS
                 </div>
               )}
 
-              {/* Save links */}
-              {confirmedLinks.length > 0 && confirmedLinks.length >= linksNeeded && (
+              {/* Save links — only when links have been added/changed */}
+              {confirmedLinks.length > 0 && confirmedLinks.length >= linksNeeded && linksChanged() && (
                 <button onClick={handleSaveLinks} disabled={savingLinks} style={{
                   width: "100%", padding: "6px 0", borderRadius: 5, fontSize: 9, fontWeight: 600, marginTop: 4,
                   background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.2)",

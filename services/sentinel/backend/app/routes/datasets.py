@@ -317,15 +317,27 @@ async def save_join_config(
                 detail=f"Not all tables are connected. Unlinked: {', '.join(sorted(unlinked))}",
             )
 
-    # Store in workspace settings — clear data_activated since links changed
+    # Store in workspace settings
     pool = get_pool()
     settings_raw = await pool.fetchval(
         "SELECT settings FROM sentinel.workspaces WHERE id = $1",
         uuid.UUID(workspace_id),
     )
     settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
+
+    # Only clear data_activated if links actually changed
+    existing_links = settings.get("join_config", [])
+    if isinstance(existing_links, dict):
+        existing_links = [existing_links] if existing_links else []
+    links_match = len(existing_links) == len(validated_links) and all(
+        e.get("left_table") == v["left_table"] and e.get("right_table") == v["right_table"]
+        and e.get("left_column") == v["left_column"] and e.get("right_column") == v["right_column"]
+        for e, v in zip(existing_links, validated_links)
+    )
     settings["join_config"] = validated_links
-    settings["data_activated"] = False
+    if not links_match:
+        settings["data_activated"] = False
+
     await pool.execute(
         "UPDATE sentinel.workspaces SET settings = $1 WHERE id = $2",
         json.dumps(settings), uuid.UUID(workspace_id),
