@@ -182,62 +182,17 @@ Return ONLY the JSON array, no other text."""
                      f"{[s['label'] for s in discovered]}")
 
     except Exception as e:
-        logger.error(f"Silo discovery failed for workspace {workspace_id}, using fallback: {e}")
-        # Fallback: derive broad themes from table names and column types
-        fallback_themes = _derive_fallback_themes(profiles)
-        _workspace_silos[workspace_id] = [ALPHA_SILO] + fallback_themes
-
-    _workspace_discovery_done[workspace_id] = True
-
-
-def _derive_fallback_themes(profiles: dict) -> list[dict]:
-    """Derive basic analytical themes from table structure when LLM fails."""
-    themes = []
-    all_cols = []
-    for table, cols in profiles.items():
-        for col in cols:
-            all_cols.append((table, col))
-
-    # Look for numeric columns → "Performance Metrics"
-    numeric = [c for _, c in all_cols if c["type"] in ("BIGINT", "INTEGER", "DOUBLE", "FLOAT", "DECIMAL")]
-    if numeric:
-        themes.append({
-            "id": "performance",
-            "label": "Performance Metrics",
-            "description": "Trends, aggregations, and anomalies in numerical measures.",
-            **SILO_PALETTE[0],
-        })
-
-    # Look for date/time columns → "Temporal Patterns"
-    temporal = [c for _, c in all_cols if any(t in c["type"] for t in ("DATE", "TIME", "TIMESTAMP"))]
-    if temporal:
-        themes.append({
-            "id": "temporal",
-            "label": "Temporal Patterns",
-            "description": "Time-based trends, seasonality, and period-over-period changes.",
-            **SILO_PALETTE[1],
-        })
-
-    # Look for categorical columns → "Segment Analysis"
-    categorical = [c for _, c in all_cols if c.get("cardinality") and 2 <= c["cardinality"] <= 30]
-    if categorical:
-        themes.append({
-            "id": "segments",
-            "label": "Segment Analysis",
-            "description": "Comparisons and breakdowns across categorical groupings.",
-            **SILO_PALETTE[2],
-        })
-
-    # Always add a distribution/outlier theme if we have data
-    if all_cols:
-        themes.append({
-            "id": "anomalies",
-            "label": "Anomalies & Outliers",
-            "description": "Unusual values, statistical outliers, and unexpected patterns.",
-            **SILO_PALETTE[3 % len(SILO_PALETTE)],
-        })
-
-    return themes
+        logger.error(f"Silo discovery failed for workspace {workspace_id}, using table-based fallback: {e}")
+        # Fallback: one silo per table so the agent has something to work with
+        fallback = []
+        for i, table in enumerate(profiles.keys()):
+            fallback.append({
+                "id": re.sub(r'[^a-z0-9]', '_', table.lower()).strip('_'),
+                "label": table,
+                "description": f"Analytical themes derived from the {table} dataset.",
+                **SILO_PALETTE[i % len(SILO_PALETTE)],
+            })
+        _workspace_silos[workspace_id] = [ALPHA_SILO] + fallback
 
 
 def _format_profiles(profiles: list[dict]) -> str:
