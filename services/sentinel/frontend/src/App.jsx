@@ -61,10 +61,10 @@ class ErrorBoundary extends Component {
 }
 
 
-function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialDataStatus }) {
-  const [silos, setSilos] = useState([DEFAULT_ALPHA]);
-  const [activeSilos, setActiveSilos] = useState(new Set(["alpha"]));
-  const [cards, setCards] = useState([]);
+function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialDataStatus, initialSilos, initialTiles }) {
+  const [silos, setSilos] = useState(initialSilos?.length > 0 ? initialSilos : [DEFAULT_ALPHA]);
+  const [activeSilos, setActiveSilos] = useState(new Set(initialSilos?.length > 0 ? initialSilos.map(s => s.id) : ["alpha"]));
+  const [cards, setCards] = useState(initialTiles?.length > 0 ? initialTiles.slice(0, MAX_CARDS) : []);
   const [sel, setSel] = useState(null);
   const [on, setOn] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -136,7 +136,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
 
   // SSE handlers — stable references (no deps that change)
   const handleInitialTiles = useCallback((tiles) => {
-    setCards(tiles.slice(0, MAX_CARDS));
+    if (tiles.length > 0) setCards(tiles.slice(0, MAX_CARDS));
     setLiveCard(null);
     setLiveRow(null);
     setIsTyping(false);
@@ -668,6 +668,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [workspace, setWorkspace] = useState(null);
   const [dataStatus, setDataStatus] = useState(null);
+  const [initialSilos, setInitialSilos] = useState(null);
+  const [initialTiles, setInitialTiles] = useState(null);
   const [checking, setChecking] = useState(true);
   // Key to force SentinelApp remount on workspace switch
   const [wsKey, setWsKey] = useState(0);
@@ -714,6 +716,10 @@ export default function App() {
   const handleWorkspaceSwitch = (data) => {
     if (data.workspace) setWorkspace(data.workspace);
     if (data.data_status) setDataStatus(data.data_status);
+    if (data.silos?.length > 0) setInitialSilos(data.silos);
+    else setInitialSilos(null);
+    if (data.tiles?.length > 0) setInitialTiles(data.tiles);
+    else setInitialTiles(null);
     // Force remount of SentinelApp to reload everything
     setWsKey((k) => k + 1);
   };
@@ -733,7 +739,7 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <SentinelApp key={wsKey} user={user} onLogout={handleLogout} workspace={workspace} onWorkspaceSwitch={handleWorkspaceSwitch} initialDataStatus={dataStatus} />
+      <SentinelApp key={wsKey} user={user} onLogout={handleLogout} workspace={workspace} onWorkspaceSwitch={handleWorkspaceSwitch} initialDataStatus={dataStatus} initialSilos={initialSilos} initialTiles={initialTiles} />
     </ErrorBoundary>
   );
 }
