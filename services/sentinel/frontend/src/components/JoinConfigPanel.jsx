@@ -7,15 +7,18 @@ export default function JoinConfigPanel({ workspaceId, suggestion, onConfirmed, 
   const [validation, setValidation] = useState(null);
   const [error, setError] = useState(null);
 
-  // suggestion shape: { left_table, right_table, join_columns: [{left, right}], join_type }
-  const { left_table, right_table, join_columns, join_type } = suggestion;
+  // suggestion shape from backend _suggest_join:
+  // { left_table, right_table, left_column, right_column, types_match, all_candidates }
+  const { left_table, right_table, left_column, right_column } = suggestion;
 
   const handleValidate = async () => {
     setValidating(true);
     setError(null);
     setValidation(null);
     try {
-      const result = await validateJoin(workspaceId, suggestion);
+      const result = await validateJoin(workspaceId, {
+        left_table, right_table, left_column, right_column,
+      });
       setValidation(result);
     } catch (e) {
       setError(e.message);
@@ -27,15 +30,15 @@ export default function JoinConfigPanel({ workspaceId, suggestion, onConfirmed, 
     setSaving(true);
     setError(null);
     try {
-      await saveJoinConfig(workspaceId, suggestion);
+      await saveJoinConfig(workspaceId, {
+        left_table, right_table, left_column, right_column,
+      });
       if (onConfirmed) onConfirmed();
     } catch (e) {
       setError(e.message);
     }
     setSaving(false);
   };
-
-  const colPairs = join_columns || [];
 
   return (
     <div style={{
@@ -58,15 +61,9 @@ export default function JoinConfigPanel({ workspaceId, suggestion, onConfirmed, 
         {" and "}
         <strong style={{ color: "rgba(255,255,255,0.7)" }}>{right_table}</strong>
         {" can be linked via "}
-        {colPairs.map((c, i) => (
-          <span key={i}>
-            {i > 0 && ", "}
-            <code style={{ background: "rgba(255,255,255,0.06)", padding: "1px 4px", borderRadius: 3, fontSize: 9 }}>
-              {c.left}{c.left !== c.right ? ` = ${c.right}` : ""}
-            </code>
-          </span>
-        ))}
-        {join_type && <span style={{ color: "rgba(255,255,255,0.3)" }}> ({join_type})</span>}
+        <code style={{ background: "rgba(255,255,255,0.06)", padding: "1px 4px", borderRadius: 3, fontSize: 9 }}>
+          {left_column}{left_column !== right_column ? ` = ${right_column}` : ""}
+        </code>
       </div>
 
       {error && (
@@ -87,8 +84,8 @@ export default function JoinConfigPanel({ workspaceId, suggestion, onConfirmed, 
           <div style={{ fontWeight: 600, color: validation.valid ? "rgba(52,211,153,0.8)" : "rgba(251,191,36,0.8)", marginBottom: 4 }}>
             {validation.valid ? "Join looks good" : "Review recommended"}
           </div>
-          {validation.left_rows != null && <div>Left rows: {validation.left_rows.toLocaleString()}</div>}
-          {validation.right_rows != null && <div>Right rows: {validation.right_rows.toLocaleString()}</div>}
+          {validation.left_total != null && <div>{left_table}: {validation.left_total.toLocaleString()} rows</div>}
+          {validation.right_total != null && <div>{right_table}: {validation.right_total.toLocaleString()} rows</div>}
           {validation.matched_rows != null && <div>Matched: {validation.matched_rows.toLocaleString()}</div>}
           {validation.left_orphans != null && validation.left_orphans > 0 && (
             <div style={{ color: "rgba(251,191,36,0.7)" }}>Left unmatched: {validation.left_orphans.toLocaleString()}</div>

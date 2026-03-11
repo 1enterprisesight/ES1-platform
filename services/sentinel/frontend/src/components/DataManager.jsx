@@ -14,7 +14,10 @@ export default function DataManager({ onReload, workspaceId }) {
   useEffect(() => {
     if (open) {
       fetchDatasets()
-        .then((d) => setDatasets(d.datasets || []))
+        .then((d) => {
+          setDatasets(d.datasets || []);
+          if (d.join_suggestion) setJoinSuggestion(d.join_suggestion);
+        })
         .catch((e) => console.error("Failed to fetch datasets:", e));
     }
   }, [open]);

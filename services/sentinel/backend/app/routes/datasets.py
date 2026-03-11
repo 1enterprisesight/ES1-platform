@@ -54,7 +54,7 @@ async def list_datasets(session: SessionInfo = Depends(require_user)):
            ORDER BY uploaded_at DESC""",
         uuid.UUID(workspace_id),
     )
-    return {
+    result = {
         "datasets": [
             {
                 "id": str(r["id"]),
@@ -70,6 +70,18 @@ async def list_datasets(session: SessionInfo = Depends(require_user)):
             for r in rows
         ]
     }
+    # Include join suggestion if 2+ datasets and no confirmed join yet
+    if len(rows) >= 2:
+        settings_raw = await pool.fetchval(
+            "SELECT settings FROM sentinel.workspaces WHERE id = $1",
+            uuid.UUID(workspace_id),
+        )
+        settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
+        if not settings.get("join_config"):
+            suggestion = await _suggest_join(workspace_id)
+            if suggestion:
+                result["join_suggestion"] = suggestion
+    return result
 
 
 @router.post("/datasets/upload")
@@ -193,7 +205,8 @@ async def _suggest_join(workspace_id: str) -> Optional[dict]:
     return {
         "left_table": best["left_table"],
         "right_table": best["right_table"],
-        "column": best["column"],
+        "left_column": best["column"],
+        "right_column": best["column"],
         "types_match": best["types_match"],
         "all_candidates": candidates,
     }
@@ -234,11 +247,11 @@ async def save_join_config(
 
     # Store in workspace settings
     pool = get_pool()
-    settings = await pool.fetchval(
+    settings_raw = await pool.fetchval(
         "SELECT settings FROM sentinel.workspaces WHERE id = $1",
         uuid.UUID(workspace_id),
     )
-    settings = settings or {}
+    settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
     settings["join_config"] = {
         "left_table": body.left_table,
         "right_table": body.right_table,
