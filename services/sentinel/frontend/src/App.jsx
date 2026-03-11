@@ -7,7 +7,6 @@ import FeedCard from "./components/FeedCard.jsx";
 import FeedLiveCard from "./components/FeedLiveCard.jsx";
 import ExpandedCard from "./components/ExpandedCard.jsx";
 import DataManager from "./components/DataManager.jsx";
-import DataSetupView from "./components/DataSetupView.jsx";
 import WorkspaceSwitcher from "./components/WorkspaceSwitcher.jsx";
 import AdminPanel from "./components/AdminPanel.jsx";
 
@@ -323,7 +322,13 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
           </div>
 
           {/* Dataset Manager */}
-          <DataManager workspaceId={workspace?.id} onReload={() => {
+          <DataManager workspaceId={workspace?.id} dataStatus={dataStatus} onDataStatusChange={(status) => {
+            setDataStatus(status);
+            if (status.data_activated && !dataActivated) {
+              setDataActivated(true);
+              if (onWorkspaceSwitch) onWorkspaceSwitch({ workspace, data_status: status });
+            }
+          }} onReload={() => {
             fetchSilos().then((data) => { if (data.length > 0) { setSilos(data); setActiveSilos(new Set(data.map((s) => s.id))); } }).catch(() => {});
           }} />
 
@@ -602,18 +607,27 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
       </div>
 
       {!dataActivated ? (
-        <DataSetupView
-          workspaceId={workspace?.id}
-          initialDataStatus={dataStatus}
-          onActivated={() => {
-            setDataActivated(true);
-            // Trigger full remount with updated data_status
-            if (onWorkspaceSwitch) onWorkspaceSwitch({
-              workspace,
-              data_status: { ...dataStatus, data_activated: true, ready: true },
-            });
-          }}
-        />
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          minHeight: "calc(100vh - 80px)", padding: "40px 24px", textAlign: "center",
+        }}>
+          <div style={{
+            width: 10, height: 10, borderRadius: "50%", background: "rgba(251,191,36,0.6)",
+            marginBottom: 20, boxShadow: "0 0 16px rgba(251,191,36,0.2)",
+            animation: "p 2.5s infinite",
+          }} />
+          <div style={{
+            fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.5)",
+            fontFamily: "'DM Sans',sans-serif", marginBottom: 8,
+          }}>Workspace needs data</div>
+          <div style={{
+            fontSize: 11, color: "rgba(255,255,255,0.25)", lineHeight: 1.6,
+            maxWidth: 320,
+          }}>
+            Use the <strong style={{ color: "rgba(251,191,36,0.6)" }}>Data</strong> tab above to upload CSV files
+            {dataStatus?.table_count >= 2 ? ", link your tables," : ""} and activate the workspace.
+          </div>
+        </div>
       ) : viewMode === "feed" ? (
         <div style={{ paddingTop: 20, paddingBottom: 40, maxWidth: 560, margin: "0 auto", display: "flex", flexDirection: "column", gap: 12, padding: "20px 24px 40px" }}>
           {liveCard && <FeedLiveCard card={liveCard} silo={getSilo(liveCard.silo)} onComplete={onLiveComplete} rows={dynamicRows} />}
