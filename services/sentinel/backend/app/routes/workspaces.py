@@ -83,12 +83,12 @@ async def ensure_default_workspace(user_id: str) -> dict:
     return _row_to_dict(row)
 
 
-async def set_session_workspace(token: str, workspace_id: str):
+async def set_session_workspace(session_id: str, workspace_id: str):
     """Update the session's active workspace."""
     pool = get_pool()
     await pool.execute(
-        "UPDATE sentinel.sessions SET workspace_id = $1 WHERE token = $2",
-        uuid.UUID(workspace_id), token,
+        "UPDATE sentinel.sessions SET workspace_id = $1 WHERE id = $2",
+        uuid.UUID(workspace_id), uuid.UUID(session_id),
     )
 
 
