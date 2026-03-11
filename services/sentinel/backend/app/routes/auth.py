@@ -50,12 +50,12 @@ async def login(body: LoginRequest, response: Response):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = await create_session(user.id)
+    token, session_id = await create_session(user.id)
 
     # Ensure user has a default workspace and link it to the session
     from app.routes.workspaces import ensure_default_workspace, set_session_workspace
     ws = await ensure_default_workspace(user.id)
-    await set_session_workspace(token, ws["id"])
+    await set_session_workspace(session_id, ws["id"])
 
     response.set_cookie(
         key="sentinel_session",

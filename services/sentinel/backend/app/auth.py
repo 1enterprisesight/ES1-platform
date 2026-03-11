@@ -115,17 +115,18 @@ async def authenticate(email: str, password: str) -> Optional[User]:
     )
 
 
-async def create_session(user_id: str) -> str:
-    """Create a new session, return the token."""
+async def create_session(user_id: str) -> tuple[str, str]:
+    """Create a new session, return (token, session_id)."""
     pool = get_pool()
     token = _create_token()
     expires = datetime.now(timezone.utc) + timedelta(hours=SESSION_EXPIRY_HOURS)
-    await pool.execute(
+    row = await pool.fetchrow(
         """INSERT INTO sentinel.sessions (user_id, token, expires_at)
-           VALUES ($1, $2, $3)""",
+           VALUES ($1, $2, $3)
+           RETURNING id""",
         uuid.UUID(user_id), token, expires,
     )
-    return token
+    return token, str(row["id"])
 
 
 async def validate_session(token: str) -> Optional[SessionInfo]:
