@@ -1,10 +1,19 @@
+"""DuckDB management with workspace-scoped table namespacing.
+
+Tables are prefixed as  ws_{workspace_short_id}_{sanitized_name}  so that
+multiple workspaces can coexist in a single in-memory DuckDB instance.
+All public helpers accept a *workspace_id* to scope operations.
+"""
 from __future__ import annotations
 
+import os
 import re
+import tempfile
 import threading
+from typing import Optional
+
 import duckdb
 import logging
-from app.config import DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -18,12 +27,41 @@ _DDL_PATTERN = re.compile(
 # Pattern to strip quoted identifiers and string literals before DDL check
 _QUOTED_PATTERN = re.compile(r'"[^"]*"|\'[^\']*\'')
 
+# Per-workspace data profile cache
+_profile_cache: dict[str, str] = {}
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _has_ddl(sql: str) -> bool:
     """Check for DDL/DML keywords, ignoring content inside quotes."""
     stripped = _QUOTED_PATTERN.sub('', sql)
     return bool(_DDL_PATTERN.search(stripped))
 
+
+def _sanitize_table_name(name: str) -> str:
+    """Derive a safe table suffix from a dataset name."""
+    t = re.sub(r'[^a-z0-9]', '_', name.lower()).strip('_')
+    return t or "dataset"
+
+
+def _ws_prefix(workspace_id: str) -> str:
+    """Short, stable prefix for a workspace's tables.
+
+    Uses the first 12 hex chars of the UUID (enough to avoid collisions).
+    """
+    return f"ws_{workspace_id.replace('-', '')[:12]}"
+
+
+def _prefixed_name(workspace_id: str, table_name: str) -> str:
+    return f"{_ws_prefix(workspace_id)}_{table_name}"
+
+
+# ---------------------------------------------------------------------------
+# Connection lifecycle
+# ---------------------------------------------------------------------------
 
 def get_conn() -> duckdb.DuckDBPyConnection:
     global _conn
@@ -32,92 +70,141 @@ def get_conn() -> duckdb.DuckDBPyConnection:
     return _conn
 
 
-def init_db() -> dict[str, int]:
-    """Initialize DuckDB in-memory and auto-load any CSVs from DATA_DIR. Returns row counts."""
+def init_db() -> None:
+    """Initialize an empty DuckDB in-memory instance.
+
+    Workspace data is loaded lazily via load_workspace_datasets().
+    """
     global _conn
     _conn = duckdb.connect(":memory:")
-
-    counts = {}
-    csv_files = sorted(DATA_DIR.glob("*.csv")) if DATA_DIR.exists() else []
-
-    for csv_path in csv_files:
-        # Derive table name from filename: "my-data.csv" -> "my_data"
-        table_name = re.sub(r'[^a-z0-9]', '_', csv_path.stem.lower()).strip('_')
-        if not table_name:
-            table_name = "dataset"
-        try:
-            _conn.execute(f"""
-                CREATE TABLE "{table_name}" AS
-                SELECT * FROM read_csv_auto('{csv_path}', header=true, ignore_errors=true)
-            """)
-            counts[table_name] = _conn.execute(f'SELECT count(*) FROM "{table_name}"').fetchone()[0]
-        except Exception as e:
-            logger.error(f"Failed to load CSV {csv_path.name}: {e}")
-            counts[table_name] = 0
-
-    if not csv_files:
-        logger.info("No CSV files found in data directory — datasets will come from PostgreSQL uploads")
-
-    logger.info(f"DuckDB loaded: {counts}")
-    return counts
+    logger.info("DuckDB initialized (empty — workspaces load on activate)")
 
 
-def load_datasets(datasets: list[tuple[str, bytes]]) -> dict[str, int]:
-    """Load datasets (name, csv_bytes) into DuckDB, replacing existing tables.
+# ---------------------------------------------------------------------------
+# Workspace dataset loading
+# ---------------------------------------------------------------------------
 
-    Returns dict of table_name -> row_count.
+def load_workspace_datasets(
+    workspace_id: str,
+    datasets: list[tuple[str, bytes]],
+) -> dict[str, int]:
+    """Load datasets for a workspace into DuckDB, replacing any existing tables
+    for that workspace.
+
+    Args:
+        workspace_id: UUID string of the workspace.
+        datasets: list of (dataset_name, csv_bytes).
+
+    Returns:
+        dict of display_table_name -> row_count.
     """
-    import io
-    import tempfile
-    import os
-
     conn = get_conn()
-    counts = {}
+    prefix = _ws_prefix(workspace_id)
+    counts: dict[str, int] = {}
 
     with _lock:
-        # Drop all existing tables first
+        # Drop existing tables for this workspace
         for table in [r[0] for r in conn.execute("SHOW TABLES").fetchall()]:
-            conn.execute(f'DROP TABLE IF EXISTS "{table}"')
+            if table.startswith(prefix + "_"):
+                conn.execute(f'DROP TABLE IF EXISTS "{table}"')
 
         for name, csv_bytes in datasets:
-            # Sanitize table name: lowercase, replace non-alnum with underscore
-            table_name = re.sub(r'[^a-z0-9]', '_', name.lower()).strip('_')
-            if not table_name:
-                table_name = "dataset"
+            display = _sanitize_table_name(name)
+            full_name = _prefixed_name(workspace_id, display)
 
-            # Write to temp file for DuckDB to read
             fd, tmp_path = tempfile.mkstemp(suffix=".csv")
             try:
                 os.write(fd, csv_bytes)
                 os.close(fd)
                 conn.execute(f"""
-                    CREATE TABLE "{table_name}" AS
+                    CREATE TABLE "{full_name}" AS
                     SELECT * FROM read_csv_auto('{tmp_path}', header=true, ignore_errors=true)
                 """)
-                counts[table_name] = conn.execute(f'SELECT count(*) FROM "{table_name}"').fetchone()[0]
+                counts[display] = conn.execute(
+                    f'SELECT count(*) FROM "{full_name}"'
+                ).fetchone()[0]
             except Exception as e:
-                logger.error(f"Failed to load dataset '{name}' into DuckDB: {e}")
-                counts[table_name] = 0
+                logger.error(f"Failed to load dataset '{name}' for workspace {workspace_id}: {e}")
+                counts[display] = 0
             finally:
                 try:
                     os.unlink(tmp_path)
                 except OSError:
                     pass
 
-    logger.info(f"Datasets loaded into DuckDB: {counts}")
+    # Invalidate profile cache for this workspace
+    _profile_cache.pop(workspace_id, None)
+
+    logger.info(f"Workspace {workspace_id} datasets loaded: {counts}")
     return counts
 
 
-def invalidate_profile_cache():
-    """Clear the cached data profile so it gets rebuilt on next request."""
-    global _data_profile_cache
-    _data_profile_cache = None
+def unload_workspace(workspace_id: str) -> None:
+    """Drop all DuckDB tables belonging to a workspace."""
+    conn = get_conn()
+    prefix = _ws_prefix(workspace_id)
+    with _lock:
+        for table in [r[0] for r in conn.execute("SHOW TABLES").fetchall()]:
+            if table.startswith(prefix + "_"):
+                conn.execute(f'DROP TABLE IF EXISTS "{table}"')
+    _profile_cache.pop(workspace_id, None)
+    logger.info(f"Workspace {workspace_id} tables unloaded")
 
 
-def run_query(sql: str) -> list[dict]:
-    """Execute a SQL query and return results as list of dicts."""
+def is_workspace_loaded(workspace_id: str) -> bool:
+    """Check whether a workspace has any tables in DuckDB."""
+    conn = get_conn()
+    prefix = _ws_prefix(workspace_id)
+    with _lock:
+        for table in [r[0] for r in conn.execute("SHOW TABLES").fetchall()]:
+            if table.startswith(prefix + "_"):
+                return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# Workspace-scoped queries
+# ---------------------------------------------------------------------------
+
+def get_workspace_tables(workspace_id: str) -> list[str]:
+    """Return display table names (without prefix) for a workspace."""
+    conn = get_conn()
+    prefix = _ws_prefix(workspace_id) + "_"
+    with _lock:
+        tables = [r[0] for r in conn.execute("SHOW TABLES").fetchall()]
+    return [t[len(prefix):] for t in tables if t.startswith(prefix)]
+
+
+def get_workspace_table_info(workspace_id: str) -> dict[str, list[dict]]:
+    """Return column metadata for a workspace's tables.
+
+    Keys are display names (no prefix). Values are lists of {name, type}.
+    """
+    conn = get_conn()
+    prefix = _ws_prefix(workspace_id) + "_"
+    info: dict[str, list[dict]] = {}
+    with _lock:
+        for table in [r[0] for r in conn.execute("SHOW TABLES").fetchall()]:
+            if table.startswith(prefix):
+                display = table[len(prefix):]
+                cols = conn.execute(f'DESCRIBE "{table}"').fetchall()
+                info[display] = [{"name": c[0], "type": c[1]} for c in cols]
+    return info
+
+
+def run_query(sql: str, workspace_id: Optional[str] = None) -> list[dict]:
+    """Execute a read-only SQL query and return results as list of dicts.
+
+    When workspace_id is provided, table references in the SQL should use
+    display names (without prefix). This function rewrites them to the
+    prefixed form before execution.
+    """
     if _has_ddl(sql):
         raise ValueError(f"DDL/DML statements are not allowed: {sql[:80]}")
+
+    if workspace_id:
+        sql = _rewrite_table_refs(sql, workspace_id)
+
     conn = get_conn()
     with _lock:
         try:
@@ -130,63 +217,77 @@ def run_query(sql: str) -> list[dict]:
             raise
 
 
-def _get_tables_unlocked(conn) -> list[str]:
-    """Return table names — caller must hold _lock."""
-    rows = conn.execute("SHOW TABLES").fetchall()
-    return [r[0] for r in rows]
+def _rewrite_table_refs(sql: str, workspace_id: str) -> str:
+    """Replace display table names with workspace-prefixed names in SQL.
+
+    Handles both quoted ("table_name") and unquoted references.
+    """
+    tables = get_workspace_tables(workspace_id)
+    # Sort by length descending to avoid partial replacements
+    for table in sorted(tables, key=len, reverse=True):
+        full = _prefixed_name(workspace_id, table)
+        # Replace quoted references: "table_name" -> "ws_xxx_table_name"
+        sql = sql.replace(f'"{table}"', f'"{full}"')
+        # Replace unquoted word-boundary references
+        sql = re.sub(
+            rf'\b{re.escape(table)}\b',
+            f'"{full}"',
+            sql,
+        )
+    return sql
 
 
-def get_tables() -> list[str]:
-    """Return list of loaded tables."""
+# ---------------------------------------------------------------------------
+# Data profile (workspace-scoped)
+# ---------------------------------------------------------------------------
+
+def invalidate_profile_cache(workspace_id: Optional[str] = None):
+    """Clear cached data profile. If workspace_id given, clear only that one."""
+    if workspace_id:
+        _profile_cache.pop(workspace_id, None)
+    else:
+        _profile_cache.clear()
+
+
+def get_data_profile(workspace_id: str) -> str:
+    """Build a rich text profile of a workspace's tables.
+
+    Includes row counts, columns, types, distinct values, top value
+    distributions, and sample rows. Cached per workspace.
+    """
+    cached = _profile_cache.get(workspace_id)
+    if cached is not None:
+        return cached
+
     conn = get_conn()
-    with _lock:
-        return _get_tables_unlocked(conn)
-
-
-def get_table_info() -> dict[str, list[dict]]:
-    """Return column metadata for all loaded tables."""
-    conn = get_conn()
-    info = {}
-    with _lock:
-        for table in _get_tables_unlocked(conn):
-            cols = conn.execute(f'DESCRIBE "{table}"').fetchall()
-            info[table] = [{"name": c[0], "type": c[1]} for c in cols]
-    return info
-
-
-_data_profile_cache: str | None = None
-
-
-def get_data_profile() -> str:
-    """Build a rich text profile of both tables: row counts, columns, types,
-    distinct values, top value distributions, sample rows. Cached after first call."""
-    global _data_profile_cache
-    if _data_profile_cache is not None:
-        return _data_profile_cache
-
-    conn = get_conn()
-    lines = []
-    tables = get_tables()
-    if not tables:
-        _data_profile_cache = "No data loaded. Upload CSV datasets to begin analysis."
-        return _data_profile_cache
+    prefix = _ws_prefix(workspace_id) + "_"
+    lines: list[str] = []
 
     with _lock:
-        for table in tables:
-            count = conn.execute(f"SELECT count(*) FROM {table}").fetchone()[0]
-            lines.append(f"\n## {table} ({count:,} rows)")
+        all_tables = [r[0] for r in conn.execute("SHOW TABLES").fetchall()]
+        ws_tables = [t for t in all_tables if t.startswith(prefix)]
 
-            cols = conn.execute(f"DESCRIBE {table}").fetchall()
+        if not ws_tables:
+            result = "No data loaded. Upload CSV datasets to begin analysis."
+            _profile_cache[workspace_id] = result
+            return result
+
+        for full_name in ws_tables:
+            display = full_name[len(prefix):]
+            count = conn.execute(f'SELECT count(*) FROM "{full_name}"').fetchone()[0]
+            lines.append(f"\n## {display} ({count:,} rows)")
+
+            cols = conn.execute(f'DESCRIBE "{full_name}"').fetchall()
             for col_name, col_type, *_ in cols:
                 try:
                     distinct = conn.execute(
-                        f'SELECT count(DISTINCT "{col_name}") FROM {table}'
+                        f'SELECT count(DISTINCT "{col_name}") FROM "{full_name}"'
                     ).fetchone()[0]
                     nulls = conn.execute(
-                        f'SELECT count(*) FROM {table} WHERE "{col_name}" IS NULL'
+                        f'SELECT count(*) FROM "{full_name}" WHERE "{col_name}" IS NULL'
                     ).fetchone()[0]
                     top = conn.execute(
-                        f'SELECT "{col_name}", count(*) as n FROM {table} '
+                        f'SELECT "{col_name}", count(*) as n FROM "{full_name}" '
                         f'WHERE "{col_name}" IS NOT NULL '
                         f'GROUP BY "{col_name}" ORDER BY n DESC LIMIT 8'
                     ).fetchall()
@@ -199,18 +300,41 @@ def get_data_profile() -> str:
                     lines.append(f'  "{col_name}" ({col_type})')
 
             # Sample rows
-            sample = conn.execute(f"SELECT * FROM {table} LIMIT 3").fetchall()
+            sample = conn.execute(f'SELECT * FROM "{full_name}" LIMIT 3').fetchall()
             col_names = [c[0] for c in cols]
-            lines.append(f"  Sample rows:")
+            lines.append("  Sample rows:")
             for row in sample:
                 row_str = ", ".join(f'{col_names[i]}={row[i]}' for i in range(len(col_names)))
                 lines.append(f"    {row_str}")
 
-    # Join key hint (only when multiple tables)
-    if len(tables) > 1:
+    # Join key hint
+    if len(ws_tables) > 1:
         lines.append("\n## Join hint")
         lines.append("  Look for common column names across tables to identify join keys.")
 
-    _data_profile_cache = "\n".join(lines)
-    logger.info(f"Data profile built: {len(_data_profile_cache)} chars")
-    return _data_profile_cache
+    result = "\n".join(lines)
+    _profile_cache[workspace_id] = result
+    logger.info(f"Data profile built for workspace {workspace_id}: {len(result)} chars")
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Legacy helpers (for backward compat during migration — will be removed)
+# ---------------------------------------------------------------------------
+
+def get_tables() -> list[str]:
+    """Return all table names (all workspaces). DEPRECATED — use get_workspace_tables()."""
+    conn = get_conn()
+    with _lock:
+        return [r[0] for r in conn.execute("SHOW TABLES").fetchall()]
+
+
+def get_table_info() -> dict[str, list[dict]]:
+    """Return column metadata for all tables. DEPRECATED — use get_workspace_table_info()."""
+    conn = get_conn()
+    info = {}
+    with _lock:
+        for table in [r[0] for r in conn.execute("SHOW TABLES").fetchall()]:
+            cols = conn.execute(f'DESCRIBE "{table}"').fetchall()
+            info[table] = [{"name": c[0], "type": c[1]} for c in cols]
+    return info
