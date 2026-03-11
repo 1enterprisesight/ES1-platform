@@ -463,6 +463,8 @@ Rules:
 - Handle NULLs gracefully
 - Keep queries CONCISE
 - Do NOT add comments in the SQL
+- For ANY date/time columns, ALWAYS use TRY_CAST(col AS DATE) or TRY_CAST(col AS TIMESTAMP) instead of direct casts — data may have mixed or inconsistent date formats
+- Never use strptime or strftime with a fixed format string — use TRY_CAST which auto-detects formats
 
 Return ONLY the SQL query, no explanation, no markdown fences."""
 
@@ -491,7 +493,8 @@ Error: {error}
 Available tables:
 {tables_desc}
 
-Fix the query. Return ONLY the corrected SQL, no explanation."""
+Fix the query. For date parsing errors, use TRY_CAST(col AS DATE) instead of CAST or strptime — it auto-detects formats.
+Return ONLY the corrected SQL, no explanation."""
 
     fixed = await generate(prompt, temperature=0.1)
     fixed = fixed.strip()
