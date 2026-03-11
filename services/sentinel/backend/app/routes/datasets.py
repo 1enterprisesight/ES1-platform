@@ -15,7 +15,7 @@ from typing import Optional
 
 from app.auth import require_user, SessionInfo
 from app.database import get_pool
-from app.db import load_workspace_datasets, invalidate_profile_cache, get_workspace_tables, get_workspace_table_info
+from app.db import load_workspace_datasets, invalidate_profile_cache, get_workspace_tables, get_workspace_table_info, is_workspace_loaded
 from app.dataset_profiler import profile_and_store
 
 logger = logging.getLogger(__name__)
@@ -78,6 +78,9 @@ async def list_datasets(session: SessionInfo = Depends(require_user)):
         )
         settings = json.loads(settings_raw) if isinstance(settings_raw, str) else (settings_raw or {})
         if not settings.get("join_config"):
+            # Ensure DuckDB tables are loaded so _suggest_join can inspect them
+            if not is_workspace_loaded(workspace_id):
+                await _reload_workspace_duckdb(workspace_id)
             suggestion = await _suggest_join(workspace_id)
             if suggestion:
                 result["join_suggestion"] = suggestion
