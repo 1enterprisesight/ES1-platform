@@ -12,6 +12,17 @@ export default function DataManager({ onReload, workspaceId, dataStatus, onDataS
   const [error, setError] = useState(null);
   const [joinCandidates, setJoinCandidates] = useState(null);
   const fileRef = useRef(null);
+  const panelRef = useRef(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
 
   // Linking state
   const [confirmedLinks, setConfirmedLinks] = useState([]);
@@ -228,7 +239,7 @@ export default function DataManager({ onReload, workspaceId, dataStatus, onDataS
   const unlinkedPairs = getUnlinkedPairs();
 
   return (
-    <div style={{ position: "relative", flexShrink: 0 }}>
+    <div ref={panelRef} style={{ position: "relative", flexShrink: 0 }}>
       <button
         onClick={(e) => { e.stopPropagation(); setOpen((p) => !p); }}
         style={{

@@ -2,6 +2,15 @@ import { useState, useEffect, useRef, useCallback, Component } from "react";
 import useSSE from "./hooks/useSSE.js";
 import { fetchSilos, moveTile, fetchInteractions, askQuestion, fetchSiloHints, rediscoverSilos, fetchRowConfig, saveRowConfig, fetchMe, logout, getDataStatus, activateWorkspace } from "./api.js";
 import LoginPage from "./pages/LoginPage.jsx";
+
+function formatAge(createdAt) {
+  if (!createdAt) return "just now";
+  const seconds = Math.floor(Date.now() / 1000 - createdAt);
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  return `${Math.floor(seconds / 86400)}d ago`;
+}
 import ScrollRow from "./components/ScrollRow.jsx";
 import FeedCard from "./components/FeedCard.jsx";
 import FeedLiveCard from "./components/FeedLiveCard.jsx";
@@ -64,7 +73,7 @@ class ErrorBoundary extends Component {
 function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialDataStatus, initialSilos, initialTiles }) {
   const [silos, setSilos] = useState(initialSilos?.length > 0 ? initialSilos : [DEFAULT_ALPHA]);
   const [activeSilos, setActiveSilos] = useState(new Set(initialSilos?.length > 0 ? initialSilos.map(s => s.id) : ["alpha"]));
-  const [cards, setCards] = useState(initialTiles?.length > 0 ? initialTiles.slice(0, MAX_CARDS) : []);
+  const [cards, setCards] = useState(initialTiles?.length > 0 ? initialTiles.slice(0, MAX_CARDS).map(t => ({ ...t, age: formatAge(t.created_at) })) : []);
   const [sel, setSel] = useState(null);
   const [on, setOn] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
@@ -136,7 +145,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
 
   // SSE handlers — stable references (no deps that change)
   const handleInitialTiles = useCallback((tiles) => {
-    if (tiles.length > 0) setCards(tiles.slice(0, MAX_CARDS));
+    if (tiles.length > 0) setCards(tiles.slice(0, MAX_CARDS).map(t => ({ ...t, age: formatAge(t.created_at) })));
     setLiveCard(null);
     setLiveRow(null);
     setIsTyping(false);
@@ -192,7 +201,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
         setCards((prev) => {
           // Deduplicate: don't add if already present
           if (prev.some((c) => c.id === card.id)) return prev;
-          const next = [{ ...card, age: "just now" }, ...prev];
+          const next = [{ ...card, age: formatAge(card.created_at) }, ...prev];
           return next.slice(0, MAX_CARDS);
         });
       }
@@ -534,7 +543,7 @@ function SentinelApp({ user, onLogout, workspace, onWorkspaceSwitch, initialData
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-            {user?.display_name || user?.email?.split("@")[0] || "Logout"}
+            Logout
           </button>
 
           {/* Row config editor */}

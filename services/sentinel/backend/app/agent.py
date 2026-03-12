@@ -108,7 +108,7 @@ def _build_join_context(join_links: list) -> str:
 async def _agent_loop(workspace_id: str):
     tile_store = get_tile_store(workspace_id)
     cycle = 0
-    past_titles: list[str] = []
+    past_titles: list[str] = [t.title for t in tile_store.tiles]
     dataset_context = ""
     join_context = ""
 
