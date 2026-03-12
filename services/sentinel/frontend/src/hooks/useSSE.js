@@ -1,15 +1,17 @@
 import { useEffect, useRef } from 'react';
 
-export default function useSSE({ onInitialTiles, onNewTile, onStatus, onSilosReady }) {
+export default function useSSE({ workspaceId, onInitialTiles, onNewTile, onStatus, onSilosReady }) {
   // Use refs so the SSE connection doesn't reconnect when callbacks change
   const cbRef = useRef({ onInitialTiles, onNewTile, onStatus, onSilosReady });
   cbRef.current = { onInitialTiles, onNewTile, onStatus, onSilosReady };
 
   useEffect(() => {
+    if (!workspaceId) return;
+
     let es = null;
     let reconnectTimer = null;
     let alive = true;
-    let backoff = 3000; // start at 3s
+    let backoff = 3000;
 
     function resetBackoff() {
       backoff = 3000;
@@ -17,7 +19,7 @@ export default function useSSE({ onInitialTiles, onNewTile, onStatus, onSilosRea
 
     function nextBackoff() {
       const delay = backoff;
-      backoff = Math.min(backoff * 2, 60000); // cap at 60s
+      backoff = Math.min(backoff * 2, 60000);
       return delay;
     }
 
@@ -25,7 +27,7 @@ export default function useSSE({ onInitialTiles, onNewTile, onStatus, onSilosRea
       if (!alive) return;
       if (es) es.close();
 
-      es = new EventSource('/api/stream');
+      es = new EventSource(`/api/stream?workspace_id=${encodeURIComponent(workspaceId)}`);
 
       es.addEventListener('initial_tiles', (e) => {
         resetBackoff();
@@ -82,5 +84,5 @@ export default function useSSE({ onInitialTiles, onNewTile, onStatus, onSilosRea
       if (es) es.close();
       if (reconnectTimer) clearTimeout(reconnectTimer);
     };
-  }, []); // empty deps — connect once, never reconnect due to state changes
+  }, [workspaceId]); // Reconnect when workspace changes
 }

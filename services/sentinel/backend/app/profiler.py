@@ -1,143 +1,101 @@
+"""Silo discovery — workspace-scoped.
+
+Each workspace has its own set of silos. Discovery runs against
+the workspace's DuckDB tables.
+"""
 from __future__ import annotations
 
-import json
 import logging
-import os
 import re
-import tempfile
-from pathlib import Path
 from typing import Optional
-from app.db import get_conn, get_table_info
+
+from app.db import get_conn, get_workspace_table_info, _prefixed_name
 from app.llm import generate_json
-from app.config import SILO_PALETTE, ALPHA_SILO, SILO_HINTS
+from app.config import SILO_PALETTE, ALPHA_SILO
 
 logger = logging.getLogger(__name__)
 
-_SILOS_FILE = Path(__file__).resolve().parent.parent / ".silos_cache.json"
-_HINTS_FILE = Path(__file__).resolve().parent.parent / ".silo_hints.json"
-_silos: list[dict] = []
-_hints: Optional[list] = None
+# Per-workspace silo cache: {workspace_id: [silos]}
+_workspace_silos: dict[str, list[dict]] = {}
+
+# Per-workspace discovery status
+_workspace_discovery_done: dict[str, bool] = {}
 
 
-def _atomic_write(path: Path, data_str: str):
-    """Write data atomically: write to tempfile then os.replace()."""
-    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "w") as f:
-            f.write(data_str)
-        os.replace(tmp, path)
-    except Exception:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+def get_silos(workspace_id: str = "") -> list[dict]:
+    """Get silos for a workspace. Returns empty list if no workspace given."""
+    if not workspace_id:
+        return [ALPHA_SILO]
+    return _workspace_silos.get(workspace_id, [ALPHA_SILO])
 
 
-def _load_hints() -> Optional[list]:
-    """Load user-defined silo hints from disk, falling back to config."""
-    try:
-        if _HINTS_FILE.exists():
-            data = json.loads(_HINTS_FILE.read_text())
-            if isinstance(data, list) and len(data) > 0:
-                return data
-    except Exception:
-        pass
-    return SILO_HINTS
+def set_silos(workspace_id: str, silos: list[dict]):
+    """Set silos for a workspace (used when loading from DB)."""
+    _workspace_silos[workspace_id] = silos
 
 
-def _save_hints(hints: Optional[list]):
-    global _hints
-    _hints = hints
-    try:
-        if hints:
-            _atomic_write(_HINTS_FILE, json.dumps(hints))
-        elif _HINTS_FILE.exists():
-            _HINTS_FILE.unlink()
-    except Exception as e:
-        logger.warning(f"Failed to save hints: {e}")
+def is_discovery_done(workspace_id: str = "") -> bool:
+    if not workspace_id:
+        return True
+    return _workspace_discovery_done.get(workspace_id, False)
 
 
-def _load_silos_from_disk():
-    global _silos
-    try:
-        if _SILOS_FILE.exists():
-            data = json.loads(_SILOS_FILE.read_text())
-            if isinstance(data, list) and len(data) > 0:
-                _silos = data
-                logger.info(f"Loaded {len(_silos)} silos from disk cache")
-                return True
-    except Exception as e:
-        logger.warning(f"Failed to load silos cache: {e}")
-    return False
+# Legacy compat
+silo_discovery_done = True
 
 
-def _save_silos_to_disk():
-    try:
-        _atomic_write(_SILOS_FILE, json.dumps(_silos, default=str))
-    except Exception as e:
-        logger.warning(f"Failed to save silos cache: {e}")
+def get_hints(workspace_id: str = "") -> Optional[list]:
+    """Get silo hints for a workspace (from workspace settings)."""
+    # Hints are now stored in workspace settings, not on disk
+    return None
 
 
-# Load cached silos and hints immediately
-_load_silos_from_disk()
-_hints = _load_hints()
+async def rediscover_silos(workspace_id: str = "", hints: Optional[list] = None):
+    """Force re-discovery for a workspace."""
+    if not workspace_id:
+        return
+    _workspace_silos[workspace_id] = []
+    await discover_silos(workspace_id, hints)
 
 
-def get_silos() -> list[dict]:
-    return _silos
+async def discover_silos(workspace_id: str = "", hints: Optional[list] = None):
+    """Analyze data and ask LLM to identify analytical themes as silos.
 
+    Silos are high-level analytical themes (e.g. "Revenue Performance",
+    "Customer Risk", "Operational Efficiency") — NOT column names.
+    The agent uses these themes to guide its question generation.
+    """
+    if not workspace_id:
+        return
 
-def get_hints() -> Optional[list]:
-    return _hints or _load_hints()
-
-
-# Track whether silo discovery has completed at least once
-silo_discovery_done = False
-
-
-async def rediscover_silos(hints: Optional[list] = None):
-    """Force re-discovery with optional new hints. Clears the silo cache."""
-    global _silos
-    _save_hints(hints)
-    _silos = []  # Clear cache so discover_silos actually runs
-    if _SILOS_FILE.exists():
-        _SILOS_FILE.unlink()
-    await discover_silos()
-
-
-async def discover_silos():
-    """Profile columns and ask Gemini to pick the best categorical dimensions as silos."""
-    global _silos, silo_discovery_done
-
-    # If we have a valid silo cache with non-alpha silos, reuse it.
-    # This keeps silo IDs stable across restarts and avoids orphaning tiles.
-    if len(_silos) > 1:
-        logger.info(f"Reusing {len(_silos)} cached silos (skipping LLM discovery)")
-        await _remap_orphaned_tiles()
-        silo_discovery_done = True
+    # If we already have cached silos (more than just alpha), reuse
+    existing = _workspace_silos.get(workspace_id, [])
+    if len(existing) > 1:
+        logger.info(f"Reusing {len(existing)} cached silos for workspace {workspace_id}")
+        _workspace_discovery_done[workspace_id] = True
         return
 
     conn = get_conn()
-    table_info = get_table_info()
+    table_info = get_workspace_table_info(workspace_id)
 
     if not table_info:
-        logger.warning("No tables loaded in DuckDB — skipping silo discovery")
-        _silos = [ALPHA_SILO]
-        silo_discovery_done = True
+        logger.warning(f"No tables for workspace {workspace_id} — skipping silo discovery")
+        _workspace_silos[workspace_id] = [ALPHA_SILO]
+        _workspace_discovery_done[workspace_id] = True
         return
 
-    # Build column profiles
+    # Build column profiles for context
     profiles = {}
     for table, cols in table_info.items():
+        full_name = _prefixed_name(workspace_id, table)
         profiles[table] = []
         for col in cols:
             name = col["name"]
             dtype = col["type"]
             try:
-                card = conn.execute(f'SELECT count(DISTINCT "{name}") FROM "{table}"').fetchone()[0]
+                card = conn.execute(f'SELECT count(DISTINCT "{name}") FROM "{full_name}"').fetchone()[0]
                 sample = conn.execute(
-                    f'SELECT "{name}", count(*) as cnt FROM "{table}" '
+                    f'SELECT "{name}", count(*) as cnt FROM "{full_name}" '
                     f'GROUP BY "{name}" ORDER BY cnt DESC LIMIT 8'
                 ).fetchall()
                 top_values = [{"value": str(r[0]), "count": r[1]} for r in sample if r[0] is not None]
@@ -150,19 +108,15 @@ async def discover_silos():
             except Exception:
                 profiles[table].append({"column": name, "type": dtype, "cardinality": None, "top_values": []})
 
-    # Build hints guidance if user provided themes
-    active_hints = _hints or _load_hints()
+    # Build hints guidance
     hints_block = ""
-    if active_hints:
-        hints_list = ", ".join(f'"{h}"' for h in active_hints)
+    if hints:
+        hints_list = ", ".join(f'"{h}"' for h in hints)
         hints_block = f"""
 IMPORTANT: The user wants the dashboard organized around these themes: {hints_list}
-Map each theme to the most relevant column(s) in the data. Use the theme names as silo IDs/labels.
-If a theme doesn't map cleanly to a single column, pick the closest match or derive it from the data.
-You MUST include all requested themes. You may add 1-2 additional data-driven silos if they are clearly valuable.
+You MUST include all requested themes. You may add 1-2 additional data-driven themes if clearly valuable.
 """
 
-    # Build table profiles section dynamically
     table_sections = []
     for table, cols in profiles.items():
         table_sections.append(f"## {table} table\n{_format_profiles(cols)}")
@@ -172,7 +126,7 @@ You MUST include all requested themes. You may add 1-2 additional data-driven si
     semantic_block = ""
     try:
         from app.dataset_profiler import get_stored_profiles, format_profiles_for_prompt
-        stored = await get_stored_profiles()
+        stored = await get_stored_profiles(workspace_id=workspace_id)
         if stored:
             semantic_block = f"""
 Dataset context (LLM-generated semantic understanding):
@@ -181,157 +135,68 @@ Dataset context (LLM-generated semantic understanding):
     except Exception:
         pass
 
-    prompt = f"""You are analyzing datasets to find the best categorical dimensions for a data dashboard.
+    prompt = f"""You are analyzing datasets to identify the most interesting analytical themes for an AI-powered data dashboard.
 
 Here are column profiles for each table:
 
 {tables_text}
 {semantic_block}{hints_block}
-Pick 4-6 columns that would make the best "silo" filters for a dashboard. Good silos are:
-- Categorical with 3-20 distinct values (not too many, not too few)
-- Meaningful business dimensions (Region, Product type, Channel, etc.)
-- Useful for grouping and comparing data
+Identify 4-6 analytical THEMES that an AI analyst should investigate in this data.
+Each theme is a high-level area of inquiry — NOT a column name.
 
-Return JSON array of objects with:
-- "id": short lowercase slug (e.g. "region", "product", "channel")
-- "label": human-readable label (e.g. "Region", "Product")
-- "source_column": exact column name from the data
-- "source_table": which table it comes from
+Good themes are:
+- SHORT labels: 1-2 words max (e.g. "Revenue", "Churn", "Risk", "Growth", "Operations")
+- Business-relevant analytical dimensions
+- Areas where interesting patterns, anomalies, or trends are likely to exist
+- Broad enough to generate multiple questions, but specific enough to be meaningful
+
+BAD themes are:
+- Verbose labels (e.g. "Financial Transaction Analysis", "Customer Segmentation & Profiling") — TOO LONG
+- Raw column names (e.g. "Region", "Product Name") — these are NOT themes
+- Generic labels (e.g. "Data Analysis", "Statistics") — too vague
+
+Return a JSON array of objects with:
+- "id": short lowercase slug (e.g. "revenue", "churn", "risk")
+- "label": SHORT human-readable name, 1-2 words (e.g. "Revenue", "Churn", "Risk")
+- "description": 1-2 sentence description of what this theme covers and what kinds of questions to ask about it
 
 Return ONLY the JSON array, no other text."""
 
     try:
-        result = await generate_json(prompt, temperature=0.3)
+        result = await generate_json(prompt, temperature=0.4)
         if not isinstance(result, list):
-            result = result.get("silos", result.get("dimensions", []))
+            result = result.get("silos", result.get("themes", result.get("dimensions", [])))
 
         discovered = []
         for i, silo in enumerate(result[:6]):
             palette = SILO_PALETTE[i % len(SILO_PALETTE)]
+            label = silo["label"]
+            # Enforce short labels — take first 2 words if too long
+            if len(label) > 20:
+                label = " ".join(label.split()[:2])
             discovered.append({
                 "id": silo["id"],
-                "label": silo["label"],
-                "source_column": silo.get("source_column", ""),
-                "source_table": silo.get("source_table", ""),
+                "label": label,
+                "description": silo.get("description", ""),
                 **palette,
             })
 
-        _silos = [ALPHA_SILO] + discovered
-        _save_silos_to_disk()
-        await _remap_orphaned_tiles()
-        logger.info(f"Discovered {len(discovered)} silos: {[s['label'] for s in discovered]}")
+        _workspace_silos[workspace_id] = [ALPHA_SILO] + discovered
+        logger.info(f"Discovered {len(discovered)} thematic silos for workspace {workspace_id}: "
+                     f"{[s['label'] for s in discovered]}")
 
     except Exception as e:
-        logger.error(f"Silo discovery failed, using generic defaults: {e}")
-        # Build generic fallback from first table's low-cardinality columns
+        logger.error(f"Silo discovery failed for workspace {workspace_id}, using table-based fallback: {e}")
+        # Fallback: one silo per table so the agent has something to work with
         fallback = []
-        first_table = next(iter(profiles), None)
-        if first_table:
-            candidates = sorted(
-                [p for p in profiles[first_table] if p["cardinality"] and 2 <= p["cardinality"] <= 30],
-                key=lambda p: p["cardinality"],
-            )
-            for i, p in enumerate(candidates[:4]):
-                slug = re.sub(r'[^a-z0-9]', '_', p["column"].lower()).strip('_')
-                fallback.append({
-                    "id": slug,
-                    "label": p["column"],
-                    "source_column": p["column"],
-                    "source_table": first_table,
-                    **SILO_PALETTE[i % len(SILO_PALETTE)],
-                })
-        _silos = [ALPHA_SILO] + fallback
-        _save_silos_to_disk()
-        await _remap_orphaned_tiles()
-
-    silo_discovery_done = True
-
-
-async def _remap_orphaned_tiles():
-    """Reassign tiles whose silo ID doesn't match any current silo.
-
-    Uses the LLM to classify each orphaned tile into the best-matching
-    current silo based on the tile's title and summary content.
-    Falls back to round-robin if the LLM call fails.
-    """
-    from app.tiles import tile_store
-
-    known_ids = {s["id"] for s in _silos}
-    non_alpha = [s for s in _silos if s["id"] != "alpha"]
-    if not non_alpha:
-        return
-
-    orphans = [(i, t) for i, t in enumerate(tile_store._tiles) if t.silo not in known_ids]
-    if not orphans:
-        return
-
-    logger.info(f"Found {len(orphans)} orphaned tiles to remap")
-
-    # Build the classification prompt
-    silo_descriptions = "\n".join(
-        f'- "{s["id"]}": {s["label"]} (source: {s.get("source_column", "n/a")} from {s.get("source_table", "n/a")})'
-        for s in non_alpha
-    )
-
-    tile_entries = []
-    for idx, (_, tile) in enumerate(orphans):
-        tile_entries.append(f'{idx}: "{tile.title}" — {tile.summary[:120]}')
-    tiles_text = "\n".join(tile_entries)
-
-    prompt = f"""Classify each tile into the single best-matching silo based on its content.
-
-Available silos:
-{silo_descriptions}
-
-Tiles to classify:
-{tiles_text}
-
-Return a JSON array of objects, one per tile, in order:
-[{{"index": 0, "silo": "<silo_id>"}}, ...]
-
-Use ONLY the silo IDs listed above. Pick the most relevant silo for each tile's subject matter.
-Return ONLY the JSON array."""
-
-    try:
-        result = await generate_json(prompt, temperature=0.1)
-        if not isinstance(result, list):
-            raise ValueError(f"Expected list, got {type(result)}")
-
-        # Build lookup: index -> silo_id
-        valid_ids = {s["id"] for s in non_alpha}
-        assignments = {}
-        for entry in result:
-            idx = entry.get("index")
-            silo_id = entry.get("silo")
-            if isinstance(idx, int) and silo_id in valid_ids and 0 <= idx < len(orphans):
-                assignments[idx] = silo_id
-
-        remapped = 0
-        for idx, (_, tile) in enumerate(orphans):
-            new_id = assignments.get(idx)
-            if new_id:
-                old = tile.silo
-                tile.silo = new_id
-                remapped += 1
-                logger.debug(f"LLM remapped tile '{tile.title[:40]}': {old} -> {new_id}")
-            else:
-                # Fallback for any tile the LLM missed
-                tile.silo = non_alpha[idx % len(non_alpha)]["id"]
-                remapped += 1
-
-        if remapped > 0:
-            tile_store._save_to_disk()
-            logger.info(f"LLM-remapped {remapped} orphaned tiles to current silos")
-
-    except Exception as e:
-        logger.warning(f"LLM remap failed, falling back to round-robin: {e}")
-        remapped = 0
-        for idx, (_, tile) in enumerate(orphans):
-            tile.silo = non_alpha[idx % len(non_alpha)]["id"]
-            remapped += 1
-        if remapped > 0:
-            tile_store._save_to_disk()
-            logger.info(f"Round-robin remapped {remapped} orphaned tiles")
+        for i, table in enumerate(profiles.keys()):
+            fallback.append({
+                "id": re.sub(r'[^a-z0-9]', '_', table.lower()).strip('_'),
+                "label": table,
+                "description": f"Analytical themes derived from the {table} dataset.",
+                **SILO_PALETTE[i % len(SILO_PALETTE)],
+            })
+        _workspace_silos[workspace_id] = [ALPHA_SILO] + fallback
 
 
 def _format_profiles(profiles: list[dict]) -> str:

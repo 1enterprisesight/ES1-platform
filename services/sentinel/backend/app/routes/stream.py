@@ -1,20 +1,51 @@
+"""SSE stream — workspace-scoped tile broadcasting.
+
+Agent lifecycle is tied to SSE subscribers: the agent starts when the first
+browser connects for a workspace and stops when the last one disconnects.
+"""
 import asyncio
 import json
 import logging
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Query
 from sse_starlette.sse import EventSourceResponse
 
-from app.tiles import tile_store
+from app.auth import get_current_user
+from app.tiles import get_tile_store
+from app.agent import start_agent, stop_agent, is_agent_active
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.get("/stream")
-async def stream(request: Request):
+async def stream(request: Request, workspace_id: str = Query(None)):
+    """SSE stream scoped to a workspace.
+
+    The workspace_id can be passed as a query param or inferred from the session.
+    """
+    # Resolve workspace_id
+    ws_id = workspace_id
+    if not ws_id:
+        session = await get_current_user(request)
+        if session and session.workspace_id:
+            ws_id = session.workspace_id
+
+    if not ws_id:
+        # No workspace context — return empty stream
+        async def empty():
+            yield {"event": "error", "data": json.dumps({"message": "No active workspace"})}
+        return EventSourceResponse(empty())
+
+    tile_store = get_tile_store(ws_id)
+
     async def event_generator():
         queue = tile_store.subscribe()
+
+        # Start the agent when the first browser connects
+        if not is_agent_active(ws_id):
+            start_agent(ws_id)
+
         try:
             # Send all existing tiles as initial batch
             existing = tile_store.tiles
@@ -40,9 +71,12 @@ async def stream(request: Request):
                     yield {"event": "ping", "data": ""}
         finally:
             tile_store.unsubscribe(queue)
-            logger.info("SSE subscriber removed (remaining: %d)", len(tile_store._subscribers))
+            remaining = len(tile_store._subscribers)
+            logger.info("SSE subscriber removed for workspace %s (remaining: %d)",
+                        ws_id, remaining)
+            # Stop the agent when the last browser disconnects
+            if remaining == 0:
+                stop_agent(ws_id)
+                logger.info("Agent stopped for workspace %s (no subscribers)", ws_id)
 
-    # ping=15 makes sse_starlette send transport-level pings every 15s.
-    # When the client is gone, the write fails and the generator is closed,
-    # triggering the finally block to unsubscribe.
     return EventSourceResponse(event_generator(), ping=15)

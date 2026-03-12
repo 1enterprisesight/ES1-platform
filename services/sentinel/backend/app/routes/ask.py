@@ -1,13 +1,15 @@
+"""Ask endpoint — workspace-scoped question answering."""
 import json
 import logging
 from typing import Optional, Dict, List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.db import run_query, get_table_info
+from app.auth import require_user, SessionInfo
+from app.db import run_query, get_workspace_table_info
 from app.llm import generate, generate_json
-from app.tiles import Tile, tile_store, interaction_store
+from app.tiles import Tile, get_tile_store, get_interaction_store
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -27,8 +29,12 @@ class AskResponse(BaseModel):
 
 
 @router.post("/ask", response_model=AskResponse)
-async def ask(body: AskRequest):
-    table_info = get_table_info()
+async def ask(body: AskRequest, session: SessionInfo = Depends(require_user)):
+    workspace_id = session.workspace_id
+    if not workspace_id:
+        raise HTTPException(status_code=400, detail="No active workspace")
+
+    table_info = get_workspace_table_info(workspace_id)
     tables_desc = ""
     for table, cols in table_info.items():
         col_names = ", ".join(f'"{c["name"]}" ({c["type"]})' for c in cols)
@@ -60,7 +66,7 @@ Limit to 20 rows. Return ONLY the SQL query."""
             sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
         sql = sql.strip()
 
-        results = run_query(sql)
+        results = run_query(sql, workspace_id=workspace_id)
 
         # Synthesize answer
         answer_prompt = f"""{context}User question: {body.question}
@@ -75,11 +81,13 @@ Keep it to 2-3 sentences."""
 
         tile_data = None
         if body.create_tile:
+            tile_store = get_tile_store(workspace_id)
+            interaction_store = get_interaction_store(workspace_id, session.user.id)
+
             # Build bar chart from query results if data has a label+numeric pattern
             bar_charts = None
             if results and len(results) > 0 and len(results) <= 20:
                 cols = list(results[0].keys())
-                # Find label column (first string) and value columns (numerics)
                 label_col = None
                 value_cols = []
                 for col in cols:
@@ -93,7 +101,7 @@ Keep it to 2-3 sentences."""
                 if label_col and value_cols:
                     from app.tiles import BarChart, BarData
                     charts = []
-                    for vc in value_cols[:3]:  # max 3 charts
+                    for vc in value_cols[:3]:
                         vals = [float(r.get(vc, 0)) for r in results]
                         max_val = max(vals) if vals else 1
                         bars = [BarData(label=str(r.get(label_col, "")), value=float(r.get(vc, 0)), max=max_val) for r in results]
@@ -126,7 +134,6 @@ Keep it to 2-3 sentences."""
             await tile_store.add_tile(tile)
             tile_data = tile.model_dump()
 
-            # Record interaction so user questions influence agent priorities
             await interaction_store.record(tile.id, {
                 "tile_title": tile.title,
                 "tile_silo": "user_question",

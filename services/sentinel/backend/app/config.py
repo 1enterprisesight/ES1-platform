@@ -45,15 +45,16 @@ SILO_PALETTE = [
 
 ALPHA_SILO = {
     "id": "alpha",
-    "label": "Cross-Silo",
+    "label": "Cross-Theme",
+    "description": "Cross-cutting insights that span multiple analytical themes.",
     "color": "#ffffff",
     "bg": "rgba(255,255,255,0.08)",
     "border": "rgba(255,255,255,0.45)",
 }
 
-# User-defined silo themes. The LLM will map these to actual data columns.
+# User-defined silo themes. The LLM will use these as guidance for theme discovery.
 # Set to None or [] to let the LLM choose freely from the data.
-# Examples: ["doctors", "orders", "training", "products"]
+# Examples: ["revenue performance", "customer risk", "operational efficiency"]
 SILO_HINTS: Optional[List[str]] = None
 
 # Row configuration — two dynamic rows + saved interactions (fixed)

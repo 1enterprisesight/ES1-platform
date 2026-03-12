@@ -24,7 +24,7 @@ export default function StaticCard({ card, silo, onClick, elRef, compact, intera
   if (!compact) {
     return (
       <div ref={elRef} onClick={() => onClick(card)} style={{
-        flex: "0 0 auto", width: 270, height: 140,
+        flex: "0 0 auto", width: 270, height: 140, boxSizing: "border-box",
         background: isAlpha ? "rgba(255,255,255,0.07)" : s.bg,
         border: `1px solid ${isAlpha ? "rgba(255,255,255,0.5)" : s.border}`,
         borderRadius: 10, padding: "14px 16px", cursor: "pointer",
@@ -53,9 +53,9 @@ export default function StaticCard({ card, silo, onClick, elRef, compact, intera
   }
 
   return (
-    <div ref={elRef} style={{ flex: "0 0 auto", width: 270, height: 105, position: "relative" }}>
+    <div ref={elRef} style={{ flex: "0 0 auto", width: 270, height: 105, position: "relative", boxSizing: "border-box" }}>
       <div onClick={() => onClick(card)} style={{
-        position: "absolute", top: 0, left: 0, width: 270, height: hov ? 130 : 105, boxSizing: "border-box",
+        position: "absolute", top: 0, left: 0, width: "100%", height: hov ? 130 : 105, boxSizing: "border-box",
         background: hov
           ? (isAlpha ? "linear-gradient(rgba(200,200,220,0.14),rgba(200,200,220,0.10)),#0d0e12" : `linear-gradient(${s.bg.replace("0.08", "0.18")},${s.bg.replace("0.08", "0.12")}),#0d0e12`)
           : (isAlpha ? "rgba(255,255,255,0.07)" : s.bg),

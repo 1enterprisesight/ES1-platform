@@ -50,12 +50,12 @@ async def login(body: LoginRequest, response: Response):
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    token = await create_session(user.id)
+    token, session_id = await create_session(user.id)
 
     # Ensure user has a default workspace and link it to the session
     from app.routes.workspaces import ensure_default_workspace, set_session_workspace
     ws = await ensure_default_workspace(user.id)
-    await set_session_workspace(token, ws["id"])
+    await set_session_workspace(session_id, ws["id"])
 
     response.set_cookie(
         key="sentinel_session",
@@ -178,7 +178,7 @@ async def logout(request: Request, response: Response):
 @router.get("/auth/me")
 async def me(session: SessionInfo = Depends(require_user)):
     # Ensure workspace exists and return it
-    from app.routes.workspaces import ensure_default_workspace
+    from app.routes.workspaces import ensure_default_workspace, set_session_workspace
     ws = None
     if session.workspace_id:
         pool = __import__("app.database", fromlist=["get_pool"]).get_pool()
@@ -191,6 +191,8 @@ async def me(session: SessionInfo = Depends(require_user)):
             ws = _row_to_dict(row)
     if not ws:
         ws = await ensure_default_workspace(session.user.id)
+        # Persist the workspace_id into the session so subsequent API calls see it
+        await set_session_workspace(session.session_id, ws["id"])
     return {"user": session.user.model_dump(), "workspace": ws}
 
 

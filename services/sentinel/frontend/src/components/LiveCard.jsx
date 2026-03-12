@@ -16,7 +16,7 @@ export default function LiveCard({ card, silo, onComplete, expandReady, compact 
 
   return (
     <div style={{
-      flex: "0 0 auto", width: 270, height: compact ? 105 : 140,
+      flex: "0 0 auto", width: 270, height: compact ? 105 : 140, boxSizing: "border-box",
       background: isAlpha ? "rgba(255,255,255,0.07)" : s.bg,
       border: `1px solid ${isAlpha ? "rgba(255,255,255,0.6)" : s.color + "66"}`,
       borderRadius: 10, padding: "14px 16px",
