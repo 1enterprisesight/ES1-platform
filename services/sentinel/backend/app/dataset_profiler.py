@@ -115,10 +115,33 @@ Return a JSON object with:
 
 Return ONLY the JSON object."""
 
+    # Langfuse trace for dataset profiling
+    from app.llm import get_langfuse
+    lf = get_langfuse()
+    trace = None
+    if lf:
+        try:
+            trace = lf.trace(
+                name=f"Dataset Profile — {table_name}",
+                session_id=f"workspace-{workspace_id}" if workspace_id else None,
+                metadata={"table_name": table_name, "workspace_id": workspace_id},
+                tags=["dataset-profile"],
+            )
+        except Exception:
+            pass
+
     try:
-        profile = await generate_json(prompt, temperature=0.3)
+        profile = await generate_json(prompt, temperature=0.3, parent=trace, generation_name="profile-dataset")
         logger.info(f"Generated profile for '{table_name}': domain={profile.get('domain')}, "
                      f"{len(profile.get('column_profiles', []))} columns profiled")
+        if trace:
+            try:
+                trace.update(output=profile.get("domain"), metadata={
+                    "domain": profile.get("domain"),
+                    "columns_profiled": len(profile.get("column_profiles", [])),
+                })
+            except Exception:
+                pass
         return profile
     except Exception as e:
         logger.error(f"Failed to generate profile for '{table_name}': {e}")

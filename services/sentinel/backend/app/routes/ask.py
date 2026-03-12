@@ -7,7 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.auth import require_user, SessionInfo
-from app.db import run_query, get_workspace_table_info
+from app.db import run_query, get_workspace_table_info, is_workspace_loaded, load_workspace_datasets
+from app.database import get_pool
 from app.llm import generate, generate_json, get_langfuse
 from app.tiles import Tile, get_tile_store, get_interaction_store
 
@@ -28,12 +29,28 @@ class AskResponse(BaseModel):
     tile: Optional[Dict] = None
 
 
+async def _ensure_workspace_loaded(workspace_id: str):
+    """Load workspace datasets into DuckDB if not already present (e.g. after restart)."""
+    if is_workspace_loaded(workspace_id):
+        return
+    import uuid as _uuid
+    pool = get_pool()
+    ds_rows = await pool.fetch(
+        "SELECT name, csv_data FROM sentinel.datasets WHERE workspace_id = $1 ORDER BY uploaded_at",
+        _uuid.UUID(workspace_id),
+    )
+    if ds_rows:
+        load_workspace_datasets(workspace_id, [(r["name"], bytes(r["csv_data"])) for r in ds_rows])
+        logger.info(f"Auto-loaded {len(ds_rows)} dataset(s) into DuckDB for workspace {workspace_id}")
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask(body: AskRequest, session: SessionInfo = Depends(require_user)):
     workspace_id = session.workspace_id
     if not workspace_id:
         raise HTTPException(status_code=400, detail="No active workspace")
 
+    await _ensure_workspace_loaded(workspace_id)
     table_info = get_workspace_table_info(workspace_id)
     tables_desc = ""
     for table, cols in table_info.items():

@@ -162,8 +162,23 @@ Return a JSON array of objects with:
 
 Return ONLY the JSON array, no other text."""
 
+    # Langfuse trace for silo discovery
+    from app.llm import get_langfuse
+    lf = get_langfuse()
+    trace = None
+    if lf:
+        try:
+            trace = lf.trace(
+                name=f"Silo Discovery",
+                session_id=f"workspace-{workspace_id}",
+                metadata={"workspace_id": workspace_id},
+                tags=["silo-discovery"],
+            )
+        except Exception:
+            pass
+
     try:
-        result = await generate_json(prompt, temperature=0.4)
+        result = await generate_json(prompt, temperature=0.4, parent=trace, generation_name="discover-silos")
         if not isinstance(result, list):
             result = result.get("silos", result.get("themes", result.get("dimensions", [])))
 
@@ -184,6 +199,13 @@ Return ONLY the JSON array, no other text."""
         _workspace_silos[workspace_id] = [ALPHA_SILO] + discovered
         logger.info(f"Discovered {len(discovered)} thematic silos for workspace {workspace_id}: "
                      f"{[s['label'] for s in discovered]}")
+        if trace:
+            try:
+                trace.update(output=[s["label"] for s in discovered], metadata={
+                    "silo_count": len(discovered),
+                })
+            except Exception:
+                pass
 
     except Exception as e:
         logger.error(f"Silo discovery failed for workspace {workspace_id}, using table-based fallback: {e}")
