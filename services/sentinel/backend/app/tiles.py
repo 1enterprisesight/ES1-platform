@@ -160,9 +160,9 @@ async def _persist_tile(workspace_id: str, tile: Tile):
             summary = EXCLUDED.summary, detail = EXCLUDED.detail""",
         tile.id, ws_uuid, tile.silo, tile.column,
         tile.title, tile.summary, tile.detail,
-        tile.sources, chart_data,
+        json.dumps(tile.sources) if tile.sources else "[]", chart_data,
         tile.metric, tile.metricSub,
-        tile.suggestedQuestions,
+        json.dumps(tile.suggestedQuestions) if tile.suggestedQuestions else None,
         tile.created_at,
     )
 
