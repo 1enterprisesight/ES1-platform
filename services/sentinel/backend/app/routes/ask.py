@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import require_user, SessionInfo
 from app.db import run_query, get_workspace_table_info
-from app.llm import generate, generate_json
+from app.llm import generate, generate_json, get_langfuse
 from app.tiles import Tile, get_tile_store, get_interaction_store
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,26 @@ async def ask(body: AskRequest, session: SessionInfo = Depends(require_user)):
         col_names = ", ".join(f'"{c["name"]}" ({c["type"]})' for c in cols)
         tables_desc += f"\n{table}: {col_names}\n"
 
+    # Langfuse trace for user question
+    lf = get_langfuse()
+    trace = None
+    if lf:
+        try:
+            trace = lf.trace(
+                name=f"User Question — {body.question[:60]}",
+                session_id=f"workspace-{workspace_id}",
+                user_id=session.user.id,
+                metadata={
+                    "workspace_id": workspace_id,
+                    "question": body.question,
+                    "has_tile_context": body.tile_context is not None,
+                    "create_tile": body.create_tile,
+                },
+                tags=["user-question"],
+            )
+        except Exception:
+            pass
+
     context = ""
     if body.tile_context:
         context = f"""This question is a follow-up to a dashboard finding:
@@ -59,14 +79,28 @@ Write a DuckDB SQL query to answer this question. Use double quotes for column n
 Limit to 20 rows. Return ONLY the SQL query."""
 
     try:
-        sql = await generate(sql_prompt, temperature=0.2)
+        sql = await generate(sql_prompt, temperature=0.2, parent=trace, generation_name="generate-sql")
         sql = sql.strip()
         if sql.startswith("```"):
             lines = sql.split("\n")
             sql = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
         sql = sql.strip()
 
+        if trace:
+            try:
+                sql_span = trace.span(name="execute-sql", input=sql[:300])
+            except Exception:
+                sql_span = None
+        else:
+            sql_span = None
+
         results = run_query(sql, workspace_id=workspace_id)
+
+        if sql_span:
+            try:
+                sql_span.end(output={"row_count": len(results)})
+            except Exception:
+                pass
 
         # Synthesize answer
         answer_prompt = f"""{context}User question: {body.question}
@@ -77,7 +111,7 @@ Query results:
 Provide a clear, concise answer based on the data. Reference specific numbers.
 Keep it to 2-3 sentences."""
 
-        answer = await generate(answer_prompt, temperature=0.4)
+        answer = await generate(answer_prompt, temperature=0.4, parent=trace, generation_name="synthesize-answer")
 
         tile_data = None
         if body.create_tile:
@@ -143,8 +177,23 @@ Keep it to 2-3 sentences."""
                 "thumbs_up": 1,
             })
 
+        if trace:
+            try:
+                trace.update(output=answer[:300], metadata={
+                    "outcome": "answered",
+                    "result_rows": len(results),
+                    "tile_created": body.create_tile,
+                })
+            except Exception:
+                pass
+
         return AskResponse(answer=answer, sql=sql, data=results[:15], tile=tile_data)
 
     except Exception as e:
         logger.error(f"Ask failed: {e}", exc_info=True)
+        if trace:
+            try:
+                trace.update(level="ERROR", status_message=str(e))
+            except Exception:
+                pass
         raise HTTPException(500, "Failed to process your question. Please try again.")

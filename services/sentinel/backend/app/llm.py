@@ -6,6 +6,7 @@ import logging
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any
 
 from app.config import GEMINI_API_KEY, GCP_PROJECT, GCP_LOCATION, GEMINI_MODEL
 
@@ -33,6 +34,11 @@ try:
         logger.info(f"Langfuse tracing enabled: {langfuse_url}")
 except Exception as e:
     logger.info(f"Langfuse tracing not available: {e}")
+
+
+def get_langfuse():
+    """Return the Langfuse client (or None if not configured)."""
+    return _langfuse
 
 
 def init_llm():
@@ -114,18 +120,33 @@ def _sync_generate(model, prompt, system, temperature, json_mode):
         return response.text
 
 
-async def generate(prompt: str, system: str = "", temperature: float = 0.7, json_mode: bool = False) -> str:
-    """Generate text from Gemini. Returns raw text response."""
+async def generate(
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.7,
+    json_mode: bool = False,
+    *,
+    parent: Any = None,
+    generation_name: str = "gemini-generate",
+) -> str:
+    """Generate text from Gemini. Returns raw text response.
+
+    Args:
+        parent: Optional Langfuse trace or span to nest the generation under.
+                If None, creates a standalone trace (backwards-compatible).
+        generation_name: Name for the Langfuse generation (e.g. "generate-question").
+    """
     model = get_model()
 
-    # Langfuse trace
-    trace = None
+    # Langfuse generation — attach to parent if provided, else standalone trace
     generation = None
     if _langfuse:
         try:
-            trace = _langfuse.trace(name="sentinel-llm", metadata={"model": GEMINI_MODEL})
-            generation = trace.generation(
-                name="gemini-generate",
+            obs = parent
+            if obs is None:
+                obs = _langfuse.trace(name="sentinel-llm", metadata={"model": GEMINI_MODEL})
+            generation = obs.generation(
+                name=generation_name,
                 model=GEMINI_MODEL,
                 input=prompt[:500],
                 model_parameters={"temperature": temperature, "json_mode": json_mode},
@@ -164,9 +185,19 @@ async def generate(prompt: str, system: str = "", temperature: float = 0.7, json
         raise
 
 
-async def generate_json(prompt: str, system: str = "", temperature: float = 0.4) -> dict:
+async def generate_json(
+    prompt: str,
+    system: str = "",
+    temperature: float = 0.4,
+    *,
+    parent: Any = None,
+    generation_name: str = "gemini-generate-json",
+) -> dict:
     """Generate and parse JSON from Gemini."""
-    text = await generate(prompt, system=system, temperature=temperature, json_mode=True)
+    text = await generate(
+        prompt, system=system, temperature=temperature, json_mode=True,
+        parent=parent, generation_name=generation_name,
+    )
     try:
         return json.loads(text)
     except json.JSONDecodeError:

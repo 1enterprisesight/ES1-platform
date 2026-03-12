@@ -12,7 +12,7 @@ import time
 
 from app.config import AGENT_CYCLE_SECONDS
 from app.db import run_query, get_workspace_table_info, get_data_profile, is_workspace_loaded, load_workspace_datasets
-from app.llm import generate, generate_json
+from app.llm import generate, generate_json, get_langfuse
 from app.profiler import get_silos
 from app.tiles import Tile, get_tile_store, get_all_workspace_interactions
 from app.row_config import get_row_config, get_row_prompt_context
@@ -196,30 +196,73 @@ async def _agent_loop(workspace_id: str):
             logger.info(f"Agent cycle {cycle} for workspace {workspace_id}: silo={current_silo['label']}")
             tile_store.broadcast_status("agent_thinking", silo=current_silo["id"])
 
+            # Langfuse trace — one per agent cycle
+            lf = get_langfuse()
+            trace = None
+            if lf:
+                try:
+                    trace = lf.trace(
+                        name=f"Insight Cycle #{cycle} — {current_silo['label']}",
+                        session_id=f"workspace-{workspace_id}",
+                        metadata={
+                            "workspace_id": workspace_id,
+                            "silo": current_silo["label"],
+                            "cycle": cycle,
+                        },
+                        tags=["agent-cycle", current_silo["label"]],
+                    )
+                except Exception:
+                    pass
+
             table_info = get_workspace_table_info(workspace_id)
             interest_context = _build_interest_context(all_interactions)
-            question = await _generate_question(current_silo, table_info, past_titles, interest_context, dataset_context, join_context)
+            question = await _generate_question(
+                current_silo, table_info, past_titles, interest_context,
+                dataset_context, join_context, parent=trace,
+            )
             logger.info(f"Question: {question}")
 
-            sql = await _generate_sql(question, table_info, workspace_id, join_context)
+            sql = await _generate_sql(question, table_info, workspace_id, join_context, parent=trace)
             logger.info(f"SQL: {sql[:200]}")
 
             try:
+                if trace:
+                    try:
+                        sql_span = trace.span(name="execute-sql", input=sql[:300])
+                    except Exception:
+                        sql_span = None
+                else:
+                    sql_span = None
                 results = run_query(sql, workspace_id=workspace_id)
+                if sql_span:
+                    try:
+                        sql_span.end(output={"row_count": len(results)})
+                    except Exception:
+                        pass
             except Exception as e:
                 logger.warning(f"Query failed, retrying: {e}")
-                sql = await _fix_sql(sql, str(e), table_info)
+                if sql_span:
+                    try:
+                        sql_span.end(level="ERROR", status_message=str(e))
+                    except Exception:
+                        pass
+                sql = await _fix_sql(sql, str(e), table_info, parent=trace)
                 results = run_query(sql, workspace_id=workspace_id)
 
             if not results:
                 logger.info("Empty results, skipping")
+                if trace:
+                    try:
+                        trace.update(metadata={"outcome": "empty_results"})
+                    except Exception:
+                        pass
                 tile_store.broadcast_status("agent_idle")
                 cycle += 1
                 await asyncio.sleep(AGENT_CYCLE_SECONDS)
                 continue
 
-            evaluation = await _evaluate_finding(question, results, current_silo)
-            tile_data = await _create_tile(question, results, current_silo, evaluation)
+            evaluation = await _evaluate_finding(question, results, current_silo, parent=trace)
+            tile_data = await _create_tile(question, results, current_silo, evaluation, parent=trace)
             chart_data = _extract_chart_data(results, tile_data)
 
             tile = Tile(
@@ -243,6 +286,23 @@ async def _agent_loop(workspace_id: str):
                 past_titles = past_titles[-20:]
 
             logger.info(f"Tile created: {tile.title}")
+
+            if trace:
+                try:
+                    trace.update(
+                        output=tile.title,
+                        metadata={
+                            "workspace_id": workspace_id,
+                            "silo": current_silo["label"],
+                            "cycle": cycle,
+                            "outcome": "tile_created",
+                            "question": question[:200],
+                            "tile_title": tile.title,
+                            "result_rows": len(results),
+                        },
+                    )
+                except Exception:
+                    pass
 
             # Drill-down for high-interest tiles (aggregated across all users)
             drilldown = [
@@ -291,6 +351,25 @@ def _build_interest_context(interactions: list) -> str:
 async def _generate_drilldown(interaction, silo: dict, table_info: dict,
                                past_titles: list[str], workspace_id: str, tile_store):
     try:
+        # Langfuse trace for drill-down
+        lf = get_langfuse()
+        trace = None
+        if lf:
+            try:
+                trace = lf.trace(
+                    name=f"Drill-down — {interaction.tile_title[:60]}",
+                    session_id=f"workspace-{workspace_id}",
+                    metadata={
+                        "workspace_id": workspace_id,
+                        "silo": silo["label"],
+                        "trigger_tile": interaction.tile_title,
+                        "interest_score": interaction.interest_score,
+                    },
+                    tags=["drill-down", silo["label"]],
+                )
+            except Exception:
+                pass
+
         data_profile = get_data_profile(workspace_id)
 
         followup_hint = ""
@@ -314,20 +393,20 @@ Generate ONE deeper follow-up analytical question that builds on this finding.
 
 Return ONLY the question text, nothing else."""
 
-        question = await generate(prompt, temperature=0.7)
-        sql = await _generate_sql(question, table_info, workspace_id)
+        question = await generate(prompt, temperature=0.7, parent=trace, generation_name="drilldown-question")
+        sql = await _generate_sql(question, table_info, workspace_id, parent=trace)
         try:
             results = run_query(sql, workspace_id=workspace_id)
         except Exception as e:
             logger.warning(f"Drill-down query failed: {e}")
-            sql = await _fix_sql(sql, str(e), table_info)
+            sql = await _fix_sql(sql, str(e), table_info, parent=trace)
             results = run_query(sql, workspace_id=workspace_id)
 
         if not results:
             return
 
-        evaluation = await _evaluate_finding(question, results, silo)
-        tile_data = await _create_tile(question, results, silo, evaluation)
+        evaluation = await _evaluate_finding(question, results, silo, parent=trace)
+        tile_data = await _create_tile(question, results, silo, evaluation, parent=trace)
         chart_data = _extract_chart_data(results, tile_data)
 
         tile = Tile(
@@ -348,6 +427,15 @@ Return ONLY the question text, nothing else."""
         await tile_store.add_tile(tile)
         past_titles.append(tile.title)
         logger.info(f"Drill-down tile created: {tile.title}")
+
+        if trace:
+            try:
+                trace.update(output=tile.title, metadata={
+                    "outcome": "tile_created",
+                    "tile_title": tile.title,
+                })
+            except Exception:
+                pass
 
     except Exception as e:
         logger.error(f"Drill-down failed: {e}", exc_info=True)
@@ -388,7 +476,7 @@ Be specific — cite actual numbers and values from the data."""
 
 async def _generate_question(silo: dict, table_info: dict, past_titles: list[str],
                               interest_context: str = "", dataset_context: str = "",
-                              join_context: str = "") -> str:
+                              join_context: str = "", parent=None) -> str:
     system = _build_system_prompt(table_info, dataset_context, join_context)
     # Note: get_data_profile needs workspace_id but we don't have it here
     # The table_info is already workspace-scoped, so the profile is implicit
@@ -431,11 +519,11 @@ Previously generated findings (avoid repeating):
 
 Generate ONE specific analytical question about the data. Return ONLY the question text."""
 
-    return await generate(prompt, temperature=0.8)
+    return await generate(prompt, temperature=0.8, parent=parent, generation_name="generate-question")
 
 
 async def _generate_sql(question: str, table_info: dict, workspace_id: str = "",
-                         join_context: str = "") -> str:
+                         join_context: str = "", parent=None) -> str:
     tables_desc = ""
     for table, cols in table_info.items():
         col_names = ", ".join(f'"{c["name"]}" ({c["type"]})' for c in cols)
@@ -468,7 +556,7 @@ Rules:
 
 Return ONLY the SQL query, no explanation, no markdown fences."""
 
-    sql = await generate(prompt, temperature=0.2)
+    sql = await generate(prompt, temperature=0.2, parent=parent, generation_name="generate-sql")
     sql = sql.strip()
     if sql.startswith("```"):
         lines = sql.split("\n")
@@ -476,7 +564,7 @@ Return ONLY the SQL query, no explanation, no markdown fences."""
     return sql.strip()
 
 
-async def _fix_sql(sql: str, error: str, table_info: dict) -> str:
+async def _fix_sql(sql: str, error: str, table_info: dict, parent=None) -> str:
     tables_desc = ""
     for table, cols in table_info.items():
         col_names = ", ".join(f'"{c["name"]}" ({c["type"]})' for c in cols)
@@ -496,7 +584,7 @@ Available tables:
 Fix the query. For date parsing errors, use TRY_CAST(col AS DATE) instead of CAST or strptime — it auto-detects formats.
 Return ONLY the corrected SQL, no explanation."""
 
-    fixed = await generate(prompt, temperature=0.1)
+    fixed = await generate(prompt, temperature=0.1, parent=parent, generation_name="fix-sql")
     fixed = fixed.strip()
     if fixed.startswith("```"):
         lines = fixed.split("\n")
@@ -504,7 +592,7 @@ Return ONLY the corrected SQL, no explanation."""
     return fixed.strip()
 
 
-async def _evaluate_finding(question: str, results: list[dict], silo: dict) -> dict:
+async def _evaluate_finding(question: str, results: list[dict], silo: dict, parent=None) -> dict:
     results_preview = json.dumps(results[:10], default=str, indent=2)
     row_context = get_row_prompt_context()
     rows = get_row_config()
@@ -524,7 +612,7 @@ Dashboard rows (pick the best fit):
 Return JSON: {{"interesting": true/false, "reason": "brief explanation", "priority": "{row_ids}"}}"""
 
     try:
-        result = await generate_json(prompt, temperature=0.3)
+        result = await generate_json(prompt, temperature=0.3, parent=parent, generation_name="evaluate-finding")
         priority = result.get("priority", rows[1]["id"])
         valid_ids = {r["id"] for r in rows}
         if priority not in valid_ids:
@@ -538,7 +626,7 @@ Return JSON: {{"interesting": true/false, "reason": "brief explanation", "priori
         return {"interesting": True, "priority": rows[1]["id"]}
 
 
-async def _create_tile(question: str, results: list[dict], silo: dict, evaluation: dict) -> dict:
+async def _create_tile(question: str, results: list[dict], silo: dict, evaluation: dict, parent=None) -> dict:
     rows = get_row_config()
     row_context = get_row_prompt_context()
     row_ids = "|".join(f'"{r["id"]}"' for r in rows)
@@ -567,7 +655,7 @@ Query results:
 Return the tile as a JSON object."""
 
     try:
-        return await generate_json(prompt, temperature=0.5)
+        return await generate_json(prompt, temperature=0.5, parent=parent, generation_name="create-tile")
     except Exception as e:
         logger.error(f"Tile creation failed: {e}")
         return {
