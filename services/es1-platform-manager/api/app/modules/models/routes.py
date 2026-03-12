@@ -19,6 +19,18 @@ OLLAMA_URL = settings.OLLAMA_URL
 MLFLOW_URL = settings.MLFLOW_URL
 
 
+def _friendly_error(e: Exception, service: str) -> str:
+    """Convert raw connection errors to user-friendly messages."""
+    msg = str(e)
+    if "Errno -2" in msg or "Name or service not known" in msg:
+        return f"{service} service not reachable (DNS resolution failed)"
+    if "Errno 111" in msg or "Connection refused" in msg:
+        return f"{service} service is not running"
+    if "timed out" in msg.lower() or "TimeoutError" in msg:
+        return f"{service} service timed out"
+    return f"{service} unavailable: {msg}"
+
+
 # =============================================================================
 # Model Inventory - Unified View
 # =============================================================================
@@ -68,7 +80,7 @@ async def get_model_inventory():
                 inventory["ollama"]["error"] = f"HTTP {response.status_code}"
     except httpx.RequestError as e:
         inventory["ollama"]["status"] = "unavailable"
-        inventory["ollama"]["error"] = str(e)
+        inventory["ollama"]["error"] = _friendly_error(e, "Ollama")
 
     # Fetch MLflow models
     try:
@@ -102,7 +114,7 @@ async def get_model_inventory():
                 inventory["mlflow"]["error"] = f"HTTP {response.status_code}"
     except httpx.RequestError as e:
         inventory["mlflow"]["status"] = "unavailable"
-        inventory["mlflow"]["error"] = str(e)
+        inventory["mlflow"]["error"] = _friendly_error(e, "MLflow")
 
     # Calculate totals
     inventory["total_models"] = (
@@ -339,7 +351,7 @@ async def get_running_models():
                 ),
             }
     except httpx.RequestError as e:
-        return {"running": [], "total": 0, "error": str(e)}
+        return {"running": [], "total": 0, "error": _friendly_error(e, "Ollama")}
 
 
 # =============================================================================

@@ -19,6 +19,7 @@ from app.database import init_pool, close_pool
 from app.llm import shutdown_llm
 from app.agent import stop_agent, is_agent_active
 from app.auth import bootstrap_admin
+from app.knowledge_sync import run_knowledge_sync_loop
 from app.routes import silos, stream, tiles, ask, datasources
 from app.routes import auth as auth_routes
 from app.routes import datasets as dataset_routes
@@ -82,9 +83,17 @@ async def lifespan(app: FastAPI):
     # Register with Agent Router (non-blocking)
     asyncio.create_task(_register_with_agent_router())
 
+    # Knowledge sync — push Sentinel data into RAG documents
+    _sync_task = asyncio.create_task(run_knowledge_sync_loop())
+
     yield
 
     # Shutdown
+    _sync_task.cancel()
+    try:
+        await _sync_task
+    except asyncio.CancelledError:
+        pass
     stop_agent()
     shutdown_llm()
     await close_pool()

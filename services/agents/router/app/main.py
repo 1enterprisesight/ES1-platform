@@ -17,6 +17,9 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import redis.asyncio as redis
+from redis.asyncio.retry import Retry
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutError as RedisTimeoutError, BusyLoadingError
 import httpx
 
 # Configure logging
@@ -61,11 +64,38 @@ FRAMEWORK_URLS = {
 }
 
 
+async def _connect_redis() -> redis.Redis:
+    """Connect to Redis with retry logic and per-command auto-retry."""
+    retry = Retry(ExponentialBackoff(cap=10, base=0.5), retries=3)
+    client = redis.from_url(
+        REDIS_URL,
+        decode_responses=True,
+        retry=retry,
+        retry_on_error=[RedisConnectionError, RedisTimeoutError, BusyLoadingError],
+        health_check_interval=30,
+        socket_connect_timeout=5,
+        socket_timeout=5,
+    )
+
+    for attempt in range(1, 11):
+        try:
+            await client.ping()
+            logger.info(f"Redis connected on attempt {attempt}")
+            return client
+        except (RedisConnectionError, RedisTimeoutError, BusyLoadingError, OSError) as e:
+            wait = min(2 ** (attempt - 1), 30)
+            logger.warning(f"Redis connect attempt {attempt}/10 failed: {e} — retrying in {wait}s")
+            await asyncio.sleep(wait)
+
+    logger.error("Redis connect failed after 10 attempts — per-command retry will handle recovery")
+    return client
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     global redis_client, http_client
-    redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+    redis_client = await _connect_redis()
     http_client = httpx.AsyncClient(timeout=60.0)
 
     # Start event listener
@@ -209,8 +239,11 @@ async def register_agent(registration: AgentRegistration):
         "last_seen": datetime.utcnow().isoformat(),
     }
 
-    if redis_client:
+    try:
         await redis_client.hset("agents:registry", agent_key, json.dumps(agent_data))
+    except (RedisConnectionError, RedisTimeoutError, BusyLoadingError) as e:
+        logger.error(f"Redis unavailable during register: {e}")
+        raise HTTPException(status_code=503, detail="Redis unavailable — agent not registered, retry later")
 
     logger.info(f"Registered agent: {agent_key}")
     return {"agent_key": agent_key, "status": "registered"}
@@ -221,12 +254,14 @@ async def list_agents(framework: Optional[AgentFramework] = None):
     """List all registered agents"""
     agents = []
 
-    if redis_client:
+    try:
         registry = await redis_client.hgetall("agents:registry")
         for key, value in registry.items():
             agent_data = json.loads(value)
             if framework is None or agent_data.get("framework") == framework.value:
                 agents.append({"key": key, **agent_data})
+    except (RedisConnectionError, RedisTimeoutError, BusyLoadingError) as e:
+        logger.warning(f"Redis unavailable for list_agents: {e}")
 
     return {"agents": agents}
 
@@ -234,10 +269,12 @@ async def list_agents(framework: Optional[AgentFramework] = None):
 @app.get("/agents/{agent_key}")
 async def get_agent(agent_key: str):
     """Get agent details"""
-    if redis_client:
+    try:
         data = await redis_client.hget("agents:registry", agent_key)
         if data:
             return json.loads(data)
+    except (RedisConnectionError, RedisTimeoutError, BusyLoadingError) as e:
+        logger.warning(f"Redis unavailable for get_agent: {e}")
 
     raise HTTPException(status_code=404, detail="Agent not found")
 
@@ -245,8 +282,10 @@ async def get_agent(agent_key: str):
 @app.delete("/agents/{agent_key}")
 async def unregister_agent(agent_key: str):
     """Unregister an agent"""
-    if redis_client:
+    try:
         await redis_client.hdel("agents:registry", agent_key)
+    except (RedisConnectionError, RedisTimeoutError, BusyLoadingError) as e:
+        logger.warning(f"Redis unavailable for unregister: {e}")
     return {"status": "unregistered", "agent_key": agent_key}
 
 
@@ -482,27 +521,40 @@ async def list_context(scope: str):
 # ==================== Event Streaming ====================
 
 async def event_listener():
-    """Listen for agent events and broadcast to WebSocket clients"""
-    if not redis_client:
-        return
+    """Listen for agent events and broadcast to WebSocket clients.
 
-    pubsub = redis_client.pubsub()
-    await pubsub.subscribe("agents:events", "agents:messages")
+    Reconnects automatically on pubsub failure.
+    """
+    while True:
+        pubsub = None
+        try:
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe("agents:events", "agents:messages")
+            logger.info("Event listener subscribed to Redis pubsub")
 
-    try:
-        async for message in pubsub.listen():
-            if message["type"] == "message":
-                data = message["data"]
-                # Broadcast to all connected WebSocket clients
-                for ws in websocket_connections:
-                    try:
-                        await ws.send_text(data)
-                    except Exception:
-                        pass
-    except Exception as e:
-        logger.error(f"Event listener error: {e}")
-    finally:
-        await pubsub.unsubscribe()
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    data = message["data"]
+                    for ws in websocket_connections:
+                        try:
+                            await ws.send_text(data)
+                        except Exception:
+                            pass
+        except asyncio.CancelledError:
+            logger.info("Event listener cancelled — shutting down")
+            if pubsub:
+                await pubsub.unsubscribe()
+            return
+        except Exception as e:
+            logger.warning(f"Event listener error: {e} — reconnecting in 5s")
+        finally:
+            if pubsub:
+                try:
+                    await pubsub.unsubscribe()
+                except Exception:
+                    pass
+
+        await asyncio.sleep(5)
 
 
 @app.websocket("/ws/events")

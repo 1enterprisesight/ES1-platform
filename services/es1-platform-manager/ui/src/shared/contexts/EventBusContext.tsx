@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useRef, ReactNode } from 'react'
 
 export interface PlatformEvent {
   id: string
@@ -16,10 +16,26 @@ interface EventBusContextType {
 
 const EventBusContext = createContext<EventBusContextType | undefined>(undefined)
 
+function notifyHandlers(
+  handlersRef: React.RefObject<Map<string, Set<(event: PlatformEvent) => void>>>,
+  event: PlatformEvent,
+) {
+  const handlers = handlersRef.current
+  if (!handlers) return
+  const typeHandlers = handlers.get(event.type)
+  if (typeHandlers) {
+    typeHandlers.forEach((handler) => handler(event))
+  }
+  const wildcardHandlers = handlers.get('*')
+  if (wildcardHandlers) {
+    wildcardHandlers.forEach((handler) => handler(event))
+  }
+}
+
 export function EventBusProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<PlatformEvent[]>([])
   const [connected, setConnected] = useState(false)
-  const [handlers, setHandlers] = useState<Map<string, Set<(event: PlatformEvent) => void>>>(new Map())
+  const handlersRef = useRef<Map<string, Set<(event: PlatformEvent) => void>>>(new Map())
 
   // Load event history on mount
   useEffect(() => {
@@ -39,6 +55,7 @@ export function EventBusProvider({ children }: { children: ReactNode }) {
       .catch((err) => console.error('Failed to load event history:', err))
   }, [])
 
+  // SSE connection — stable effect, no handler dependency
   useEffect(() => {
     const eventSource = new EventSource('/api/v1/events/stream')
 
@@ -62,17 +79,7 @@ export function EventBusProvider({ children }: { children: ReactNode }) {
           }
 
           setEvents((prev) => [event, ...prev].slice(0, 100))
-
-          // Notify subscribers
-          const typeHandlers = handlers.get(event.type)
-          if (typeHandlers) {
-            typeHandlers.forEach((handler) => handler(event))
-          }
-          // Also notify wildcard subscribers
-          const wildcardHandlers = handlers.get('*')
-          if (wildcardHandlers) {
-            wildcardHandlers.forEach((handler) => handler(event))
-          }
+          notifyHandlers(handlersRef, event)
         } catch (err) {
           console.error('Failed to parse event:', err)
         }
@@ -135,15 +142,7 @@ export function EventBusProvider({ children }: { children: ReactNode }) {
           }
 
           setEvents((prev) => [event, ...prev].slice(0, 100))
-
-          const typeHandlers = handlers.get(type)
-          if (typeHandlers) {
-            typeHandlers.forEach((handler) => handler(event))
-          }
-          const wildcardHandlers = handlers.get('*')
-          if (wildcardHandlers) {
-            wildcardHandlers.forEach((handler) => handler(event))
-          }
+          notifyHandlers(handlersRef, event)
         } catch (err) {
           console.error('Failed to parse event:', err)
         }
@@ -153,29 +152,22 @@ export function EventBusProvider({ children }: { children: ReactNode }) {
     return () => {
       eventSource.close()
     }
-  }, [handlers])
+  }, [])
 
   const subscribe = useCallback((eventType: string, handler: (event: PlatformEvent) => void) => {
-    setHandlers((prev) => {
-      const newHandlers = new Map(prev)
-      const existing = newHandlers.get(eventType) || new Set()
-      existing.add(handler)
-      newHandlers.set(eventType, existing)
-      return newHandlers
-    })
+    const handlers = handlersRef.current!
+    const existing = handlers.get(eventType) || new Set()
+    existing.add(handler)
+    handlers.set(eventType, existing)
 
     return () => {
-      setHandlers((prev) => {
-        const newHandlers = new Map(prev)
-        const existing = newHandlers.get(eventType)
-        if (existing) {
-          existing.delete(handler)
-          if (existing.size === 0) {
-            newHandlers.delete(eventType)
-          }
+      const existing = handlers.get(eventType)
+      if (existing) {
+        existing.delete(handler)
+        if (existing.size === 0) {
+          handlers.delete(eventType)
         }
-        return newHandlers
-      })
+      }
     }
   }, [])
 
