@@ -1,0 +1,78 @@
+# release-config.yaml — what constitutes an ES1 Platform release.
+# The release workflow reads this file. No hardcoded image lists in CI.
+# Adding a new service = adding an entry here in the same PR as the code.
+
+custom_images:
+  # Pure custom — built entirely from ES1 source
+  - name: platform-manager-api
+    context: services/es1-platform-manager/api
+  - name: platform-manager-ui
+    context: services/es1-platform-manager/ui
+  - name: agent-router
+    context: services/agents/router
+  - name: db-migrate
+    context: infrastructure/db-migrate
+  - name: krakend
+    context: services/krakend
+  - name: sentinel-api
+    context: services/sentinel/backend
+  - name: sentinel-ui
+    context: services/sentinel/frontend
+
+  # Custom builds on upstream base
+  - name: postgres
+    context: infrastructure/postgres
+    upstream_base: "postgres:16"
+  - name: aiml-postgres
+    context: infrastructure/aiml-postgres
+    upstream_base: "postgres:16 + pgvector"
+  - name: redis
+    context: infrastructure/redis
+    upstream_base: "redis:7.2"
+  - name: airflow
+    context: services/airflow
+    upstream_base: "apache/airflow:3.1.7"
+  - name: mlflow
+    context: infrastructure/mlflow
+    upstream_base: "python:3.11-slim + mlflow"
+  - name: crewai
+    context: services/agents/crewai
+  - name: autogen
+    context: services/agents/autogen
+  - name: crewai-studio
+    context: services/agents/crewai-studio
+  - name: autogen-studio
+    context: services/agents/autogen-studio
+
+upstream_images:
+  # Pulled from public registries, re-tagged with release version.
+  # Changing source = fresh pull on next release.
+  - name: ollama
+    source: "ollama/ollama:0.5.4"
+  - name: ollama-webui
+    source: "ghcr.io/open-webui/open-webui:0.4.8"
+  - name: langflow
+    source: "langflowai/langflow:1.1.1"
+  - name: langfuse
+    source: "langfuse/langfuse:2.95.1"
+  - name: n8n
+    source: "n8nio/n8n:1.70.0"
+  - name: prometheus
+    source: "prom/prometheus:v2.51.0"
+  - name: grafana
+    source: "grafana/grafana:10.4.0"
+  - name: cadvisor
+    source: "gcr.io/cadvisor/cadvisor:v0.49.1"
+  - name: node-exporter
+    source: "prom/node-exporter:v1.7.0"
+  - name: statsd-exporter
+    source: "prom/statsd-exporter:v0.26.0"
+  - name: postgres-exporter
+    source: "prometheuscommunity/postgres-exporter:v0.15.0"
+  - name: redis-exporter
+    source: "oliver006/redis_exporter:v1.58.0"
+
+direct_images:
+  # Pulled directly from upstream at deploy time (not stored in GHCR)
+  - name: kube-state-metrics
+    source: "registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0"

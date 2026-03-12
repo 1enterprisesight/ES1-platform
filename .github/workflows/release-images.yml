@@ -6,12 +6,15 @@
 #
 # Trigger: Manual only (workflow_dispatch)
 #
-# Image types:
-#   Custom (14) -- built from source when code changes, copied forward when not
-#   Upstream (12) -- pulled from public registries when source tag changes in
-#                   .github/upstream-images.json, copied forward when not
+# Image lists are driven by release-config.yaml — no hardcoded lists here.
+# Adding a new service = adding an entry in release-config.yaml.
 #
-# Result: 26 images on GHCR, each verified as clean single-arch amd64.
+# Image types:
+#   Custom    -- built from source when code changes, copied forward when not
+#   Upstream  -- pulled from public registries when source tag changes,
+#                copied forward when not
+#
+# Result: All images on GHCR, each verified as clean single-arch amd64.
 # Note: kube-state-metrics is pulled directly from registry.k8s.io during deployment.
 
 name: Release Images
@@ -20,7 +23,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. v2.1.3). Must be a git tag.'
+        description: 'Release version (e.g. v2.5.0). Must be a git tag.'
         required: true
         type: string
       force_rebuild_all:
@@ -35,7 +38,7 @@ env:
 
 jobs:
   # ===========================================================================
-  # Step 1: Detect what changed
+  # Step 1: Detect what changed (data-driven from release-config.yaml)
   # ===========================================================================
   detect-changes:
     name: Detect Changes
@@ -50,6 +53,7 @@ jobs:
       has_custom_changed: ${{ steps.changes.outputs.has_custom_changed }}
       has_upstream_changed: ${{ steps.changes.outputs.has_upstream_changed }}
       has_unchanged: ${{ steps.changes.outputs.has_unchanged }}
+      all_images: ${{ steps.changes.outputs.all_images }}
     steps:
       - name: Checkout (full history)
         uses: actions/checkout@v4
@@ -64,6 +68,13 @@ jobs:
             exit 1
           fi
 
+      - name: Install tools
+        run: |
+          # Install yq (pinned)
+          YQ_VERSION=4.44.1
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Install crane
         uses: imjasonh/setup-crane@v0.4
 
@@ -77,8 +88,6 @@ jobs:
           REGISTRY="${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}"
 
           # Find the previous version from GHCR (not git tags).
-          # Query a reference image for all version tags, then pick the most
-          # recent one that isn't the current version.
           REFERENCE="${REGISTRY}/platform-manager-api"
           GHCR_TAGS=$(crane ls "$REFERENCE" 2>/dev/null | grep '^v' | sort -V || true)
           PREV=""
@@ -110,67 +119,63 @@ jobs:
           VERSION="${{ inputs.version }}"
           PREV="${{ steps.config.outputs.prev_version }}"
           FORCE="${{ inputs.force_rebuild_all }}"
+          CONFIG="release-config.yaml"
 
-          # --- Custom images: 14 services with build contexts ---
-          declare -A CUSTOM_CONTEXTS=(
-            ["platform-manager-api"]="services/es1-platform-manager/api"
-            ["platform-manager-ui"]="services/es1-platform-manager/ui"
-            ["db-migrate"]="infrastructure/db-migrate"
-            ["agent-router"]="services/agents/router"
-            ["krakend"]="services/krakend"
-            ["postgres"]="infrastructure/postgres"
-            ["aiml-postgres"]="infrastructure/aiml-postgres"
-            ["redis"]="infrastructure/redis"
-            ["mlflow"]="infrastructure/mlflow"
-            ["crewai"]="services/agents/crewai"
-            ["autogen"]="services/agents/autogen"
-            ["crewai-studio"]="services/agents/crewai-studio"
-            ["autogen-studio"]="services/agents/autogen-studio"
-            ["airflow"]="services/airflow"
-          )
-
+          # --- Read custom images from release-config.yaml ---
+          CUSTOM_COUNT=$(yq '.custom_images | length' "$CONFIG")
           CUSTOM_CHANGED="[]"
           CUSTOM_UNCHANGED="[]"
 
-          for SERVICE in "${!CUSTOM_CONTEXTS[@]}"; do
-            CONTEXT="${CUSTOM_CONTEXTS[$SERVICE]}"
+          for i in $(seq 0 $((CUSTOM_COUNT - 1))); do
+            NAME=$(yq ".custom_images[$i].name" "$CONFIG")
+            CONTEXT=$(yq ".custom_images[$i].context" "$CONFIG")
+
             if [[ "$FORCE" == "true" || -z "$PREV" ]]; then
-              CUSTOM_CHANGED=$(echo "$CUSTOM_CHANGED" | jq -c ". + [{\"name\": \"$SERVICE\", \"context\": \"$CONTEXT\"}]")
+              CUSTOM_CHANGED=$(echo "$CUSTOM_CHANGED" | jq -c ". + [{\"name\": \"$NAME\", \"context\": \"$CONTEXT\"}]")
             else
               DIFF=$(git diff --name-only "$PREV..$VERSION" -- "$CONTEXT" | wc -l | tr -d ' ')
               if [[ "$DIFF" -gt 0 ]]; then
-                echo "  CHANGED: $SERVICE ($DIFF files)"
-                CUSTOM_CHANGED=$(echo "$CUSTOM_CHANGED" | jq -c ". + [{\"name\": \"$SERVICE\", \"context\": \"$CONTEXT\"}]")
+                echo "  CHANGED: $NAME ($DIFF files)"
+                CUSTOM_CHANGED=$(echo "$CUSTOM_CHANGED" | jq -c ". + [{\"name\": \"$NAME\", \"context\": \"$CONTEXT\"}]")
               else
-                echo "  unchanged: $SERVICE"
-                CUSTOM_UNCHANGED=$(echo "$CUSTOM_UNCHANGED" | jq -c ". + [{\"name\": \"$SERVICE\"}]")
+                echo "  unchanged: $NAME"
+                CUSTOM_UNCHANGED=$(echo "$CUSTOM_UNCHANGED" | jq -c ". + [{\"name\": \"$NAME\"}]")
               fi
             fi
           done
 
-          # --- Upstream images: detect source tag changes in config ---
+          # --- Read upstream images from release-config.yaml ---
+          UPSTREAM_COUNT=$(yq '.upstream_images | length' "$CONFIG")
           UPSTREAM_CHANGED="[]"
           UPSTREAM_UNCHANGED="[]"
 
           if [[ "$FORCE" == "true" || -z "$PREV" ]]; then
-            # Force: pull everything fresh
-            UPSTREAM_CHANGED=$(jq -c '[.images[] | {name: .name, source: .source}]' .github/upstream-images.json)
+            # Force: pull everything fresh from release-config.yaml
+            for i in $(seq 0 $((UPSTREAM_COUNT - 1))); do
+              NAME=$(yq ".upstream_images[$i].name" "$CONFIG")
+              SOURCE=$(yq ".upstream_images[$i].source" "$CONFIG")
+              UPSTREAM_CHANGED=$(echo "$UPSTREAM_CHANGED" | jq -c ". + [{\"name\": \"$NAME\", \"source\": \"$SOURCE\"}]")
+            done
           else
-            # Compare upstream-images.json between versions
-            CURRENT_CONFIG=$(cat .github/upstream-images.json)
-            PREV_CONFIG=$(git show "$PREV:.github/upstream-images.json" 2>/dev/null || echo '{"images":[]}')
+            # Compare release-config.yaml between versions
+            PREV_CONFIG=$(git show "$PREV:release-config.yaml" 2>/dev/null || echo "")
 
-            for row in $(echo "$CURRENT_CONFIG" | jq -c '.images[]'); do
-              NAME=$(echo "$row" | jq -r '.name')
-              SOURCE=$(echo "$row" | jq -r '.source')
-              PREV_SOURCE=$(echo "$PREV_CONFIG" | jq -r ".images[] | select(.name==\"$NAME\") | .source // \"\"")
+            for i in $(seq 0 $((UPSTREAM_COUNT - 1))); do
+              NAME=$(yq ".upstream_images[$i].name" "$CONFIG")
+              SOURCE=$(yq ".upstream_images[$i].source" "$CONFIG")
 
-              if [[ "$SOURCE" != "$PREV_SOURCE" ]]; then
-                echo "  CHANGED upstream: $NAME ($PREV_SOURCE -> $SOURCE)"
+              if [[ -z "$PREV_CONFIG" ]]; then
+                # No previous release-config.yaml — treat all as changed
                 UPSTREAM_CHANGED=$(echo "$UPSTREAM_CHANGED" | jq -c ". + [{\"name\": \"$NAME\", \"source\": \"$SOURCE\"}]")
               else
-                echo "  unchanged upstream: $NAME"
-                UPSTREAM_UNCHANGED=$(echo "$UPSTREAM_UNCHANGED" | jq -c ". + [{\"name\": \"$NAME\"}]")
+                PREV_SOURCE=$(echo "$PREV_CONFIG" | yq ".upstream_images[] | select(.name == \"$NAME\") | .source // \"\"")
+                if [[ "$SOURCE" != "$PREV_SOURCE" ]]; then
+                  echo "  CHANGED upstream: $NAME ($PREV_SOURCE -> $SOURCE)"
+                  UPSTREAM_CHANGED=$(echo "$UPSTREAM_CHANGED" | jq -c ". + [{\"name\": \"$NAME\", \"source\": \"$SOURCE\"}]")
+                else
+                  echo "  unchanged upstream: $NAME"
+                  UPSTREAM_UNCHANGED=$(echo "$UPSTREAM_UNCHANGED" | jq -c ". + [{\"name\": \"$NAME\"}]")
+                fi
               fi
             done
           fi
@@ -178,10 +183,14 @@ jobs:
           # Merge all unchanged into one array for a single copy job
           ALL_UNCHANGED=$(jq -cn --argjson a "$CUSTOM_UNCHANGED" --argjson b "$UPSTREAM_UNCHANGED" '$a + $b')
 
+          # Build complete image name list from release-config.yaml (for verify/cleanup/save-manifest)
+          ALL_IMAGES=$(yq -o=json '[.custom_images[].name, .upstream_images[].name]' "$CONFIG" | jq -c '.')
+
           # Output matrices
           echo "custom_changed={\"include\":$CUSTOM_CHANGED}" >> $GITHUB_OUTPUT
           echo "upstream_changed={\"include\":$UPSTREAM_CHANGED}" >> $GITHUB_OUTPUT
           echo "all_unchanged={\"include\":$ALL_UNCHANGED}" >> $GITHUB_OUTPUT
+          echo "all_images=$ALL_IMAGES" >> $GITHUB_OUTPUT
 
           CC=$(echo "$CUSTOM_CHANGED" | jq length)
           CU=$(echo "$CUSTOM_UNCHANGED" | jq length)
@@ -199,6 +208,7 @@ jobs:
           echo "|----------|---------|-----------|" >> $GITHUB_STEP_SUMMARY
           echo "| Custom images | $CC | $CU |" >> $GITHUB_STEP_SUMMARY
           echo "| Upstream images | $UC | $UU |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Total images** | **$((CC + UC))** | **$((CU + UU))** |" >> $GITHUB_STEP_SUMMARY
 
   # ===========================================================================
   # Step 2: Build changed custom images
@@ -330,7 +340,7 @@ jobs:
           echo "Done: ${DST}"
 
   # ===========================================================================
-  # Step 5: Verify every image
+  # Step 5: Verify every image (list from release-config.yaml)
   # ===========================================================================
   verify:
     name: Verify All Images
@@ -343,27 +353,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install tools
+        run: |
+          YQ_VERSION=4.44.1
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Install crane
         uses: imjasonh/setup-crane@v0.4
 
       - name: Log in to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | crane auth login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      - name: Verify all 26 images exist and are valid amd64
+      - name: Verify all images exist and are valid amd64
         id: verify
         run: |
           REGISTRY="${{ needs.detect-changes.outputs.registry }}"
           VERSION="${{ needs.detect-changes.outputs.version }}"
 
-          # All 27 image names
-          IMAGES=(
-            platform-manager-api platform-manager-ui db-migrate agent-router
-            krakend postgres aiml-postgres redis mlflow
-            crewai autogen crewai-studio autogen-studio
-            ollama ollama-webui airflow statsd-exporter
-            langflow langfuse n8n prometheus grafana
-            cadvisor node-exporter postgres-exporter redis-exporter
-          )
+          # Read image list from release-config.yaml
+          mapfile -t IMAGES < <(yq '[.custom_images[].name, .upstream_images[].name] | .[]' release-config.yaml)
 
           PASS=0
           FAIL=0
@@ -447,6 +456,15 @@ jobs:
     permissions:
       packages: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          YQ_VERSION=4.44.1
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Install crane
         uses: imjasonh/setup-crane@v0.4
 
@@ -463,6 +481,9 @@ jobs:
           echo "Will delete any other version tags."
           echo ""
 
+          # Read image list from release-config.yaml
+          mapfile -t IMAGES < <(yq '[.custom_images[].name, .upstream_images[].name] | .[]' release-config.yaml)
+
           # Use platform-manager-api as the reference to find all version tags
           REFERENCE="${REGISTRY}/platform-manager-api"
           ALL_TAGS=$(crane ls "$REFERENCE" 2>/dev/null | grep '^v' | sort -V)
@@ -470,16 +491,6 @@ jobs:
           for TAG in $ALL_TAGS; do
             if [[ "$TAG" != "$VERSION" && "$TAG" != "$PREV" && "$TAG" != "latest" ]]; then
               echo "Deleting old version: $TAG"
-              # Delete each image at this old version tag
-              IMAGES=(
-                platform-manager-api platform-manager-ui db-migrate agent-router
-                krakend postgres aiml-postgres redis mlflow
-                crewai autogen crewai-studio autogen-studio
-                ollama ollama-webui airflow statsd-exporter
-                langflow langfuse n8n prometheus grafana
-                cadvisor node-exporter postgres-exporter redis-exporter
-                kube-state-metrics
-              )
               for IMG in "${IMAGES[@]}"; do
                 crane delete "${REGISTRY}/${IMG}:${TAG}" 2>/dev/null && echo "  deleted ${IMG}:${TAG}" || echo "  skip ${IMG}:${TAG}"
               done
@@ -504,6 +515,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install tools
+        run: |
+          YQ_VERSION=4.44.1
+          sudo wget -qO /usr/local/bin/yq "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64"
+          sudo chmod +x /usr/local/bin/yq
+
       - name: Install crane
         uses: imjasonh/setup-crane@v0.4
 
@@ -517,14 +534,8 @@ jobs:
 
           mkdir -p .github/image-manifests
 
-          IMAGES=(
-            platform-manager-api platform-manager-ui db-migrate agent-router
-            krakend postgres aiml-postgres redis mlflow
-            crewai autogen crewai-studio autogen-studio
-            ollama ollama-webui airflow statsd-exporter
-            langflow langfuse n8n prometheus grafana
-            cadvisor node-exporter postgres-exporter redis-exporter
-          )
+          # Read image list and metadata from release-config.yaml
+          mapfile -t IMAGES < <(yq '[.custom_images[].name, .upstream_images[].name] | .[]' release-config.yaml)
 
           MANIFEST=".github/image-manifests/${VERSION}.yml"
           {
@@ -533,6 +544,7 @@ jobs:
             echo "# Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
             echo "# Registry: ${REGISTRY}"
             echo "# Platform: linux/amd64"
+            echo "# Source: release-config.yaml"
             echo "#"
             echo "# Each image is an independent, single-arch manifest."
             echo "# No multi-arch indexes, no attestations, no tag pointers."
@@ -544,9 +556,15 @@ jobs:
 
           for IMG in "${IMAGES[@]}"; do
             DIGEST=$(crane digest "${REGISTRY}/${IMG}:${VERSION}" 2>/dev/null || echo "unknown")
+            TYPE=$(yq ".custom_images[] | select(.name == \"${IMG}\") | .upstream_base // \"custom\"" release-config.yaml)
+            if [[ -z "$TYPE" || "$TYPE" == "null" ]]; then
+              SOURCE=$(yq ".upstream_images[] | select(.name == \"${IMG}\") | .source" release-config.yaml)
+              TYPE="upstream: ${SOURCE}"
+            fi
             echo "  - name: ${IMG}" >> "$MANIFEST"
             echo "    tag: ${VERSION}" >> "$MANIFEST"
             echo "    digest: ${DIGEST}" >> "$MANIFEST"
+            echo "    build: ${TYPE}" >> "$MANIFEST"
           done
 
       - name: Commit manifest
@@ -554,5 +572,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .github/image-manifests/
-          git diff --staged --quiet || git commit -m "release: image manifest for ${{ needs.detect-changes.outputs.version }}"
-          git push || true
+          if ! git diff --staged --quiet; then
+            git commit -m "release: image manifest for ${{ needs.detect-changes.outputs.version }}"
+            git push
+          fi
