@@ -14,9 +14,12 @@ server {
         add_header Content-Type text/plain;
     }
 
-    # Platform Manager API proxy
+    # Platform Manager API proxy (uses variable to defer DNS resolution —
+    # if the API container restarts and gets a new IP, nginx re-resolves it)
     location /api/ {
-        proxy_pass http://${PLATFORM_API_HOST}:${PLATFORM_API_PORT}/api/;
+        resolver 127.0.0.11 valid=30s;
+        set $platform_api http://${PLATFORM_API_HOST}:${PLATFORM_API_PORT};
+        proxy_pass $platform_api$request_uri;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
