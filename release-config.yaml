@@ -52,7 +52,7 @@ upstream_images:
   - name: ollama-webui
     source: "ghcr.io/open-webui/open-webui:0.4.8"
   - name: langflow
-    source: "langflowai/langflow:1.1.1"
+    source: "langflowai/langflow:v1.1.1"
   - name: langfuse
     source: "langfuse/langfuse:2.95.1"
   - name: n8n
