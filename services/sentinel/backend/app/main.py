@@ -13,6 +13,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from prometheus_fastapi_instrumentator import Instrumentator
+
 from app.config import CORS_ORIGINS
 from app.db import init_db
 from app.database import init_pool, close_pool
@@ -118,6 +120,8 @@ app.include_router(ask.router, prefix="/api")
 app.include_router(datasources.router, prefix="/api")
 app.include_router(dataset_routes.router, prefix="/api")
 app.include_router(workspace_routes.router, prefix="/api")
+
+Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 
 
 @app.get("/healthz")
