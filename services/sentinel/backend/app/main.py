@@ -48,8 +48,8 @@ async def _register_with_agent_router():
                     "automated_insight_generation",
                 ],
                 "metadata": {
-                    "service_url": "http://sentinel-api:8010",
-                    "ui_url": "http://sentinel-ui:80",
+                    "service_url": os.environ.get("SENTINEL_SERVICE_URL", "http://sentinel-api:8010"),
+                    "ui_url": os.environ.get("SENTINEL_UI_URL", "http://sentinel-ui:80"),
                     "gateway_prefix": "/api/v1/sentinel",
                     "llm_provider": "google_vertex_ai",
                     "llm_model": "gemini-2.5-flash",
