@@ -55,9 +55,9 @@ def _workspace_content(row) -> str:
 def _dataset_content(row) -> str:
     return (
         f"Dataset: {row['name']}\n"
-        f"Filename: {row.get('original_filename', row['name'])}\n"
+        f"Filename: {row.get('filename', row['name'])}\n"
         f"Rows: {row.get('row_count', 'unknown')}\n"
-        f"Columns: {json.dumps(row.get('column_schema', []), default=str)}\n"
+        f"Columns: {json.dumps(row.get('columns', []), default=str)}\n"
         f"Size: {row.get('file_size', 'unknown')} bytes\n"
         f"Source type: {row.get('source_type', 'csv')}\n"
         f"Workspace: {row.get('workspace_id')}\n"
@@ -79,11 +79,10 @@ def _tile_content(row) -> str:
             pass
     return (
         f"Insight: {row['title']}\n"
-        f"Silo: {row.get('silo_id', '')}\n"
-        f"Priority: {row.get('priority', '')}\n"
+        f"Silo: {row.get('silo', '')}\n"
         f"Summary: {row.get('summary', '')}\n"
         f"Detail: {row.get('detail', '')}\n"
-        f"Metric: {row.get('metric_value', '')} {row.get('metric_label', '')}\n"
+        f"Metric: {row.get('metric', '')} {row.get('metric_sub', '')}\n"
         f"Sources: {json.dumps(sources, default=str)}\n"
         f"Suggested questions: {json.dumps(suggested, default=str)}\n"
     )
@@ -221,21 +220,21 @@ async def _run_sync():
 
         # --- Datasets ---
         datasets = await conn.fetch(
-            """SELECT id, workspace_id, name, original_filename, row_count,
-                      column_schema, file_size, source_type
+            """SELECT id, workspace_id, name, filename, row_count,
+                      columns, file_size, source_type
                FROM sentinel.datasets"""
         )
         ds_ids = set()
         for ds in datasets:
             ds_ids.add(str(ds["id"]))
-            col_schema = ds["column_schema"]
-            if isinstance(col_schema, str):
+            columns = ds["columns"]
+            if isinstance(columns, str):
                 try:
-                    col_schema = json.loads(col_schema)
+                    columns = json.loads(columns)
                 except (json.JSONDecodeError, TypeError):
                     pass
             ds_dict = dict(ds)
-            ds_dict["column_schema"] = col_schema
+            ds_dict["columns"] = columns
             await _upsert_doc(
                 conn, kb_id, "dataset", str(ds["id"]),
                 f"Dataset: {ds['name']}", _dataset_content(ds_dict),
@@ -248,9 +247,8 @@ async def _run_sync():
         tile_ids = set()
         for offset in range(0, tile_count, TILE_BATCH_SIZE):
             tiles = await conn.fetch(
-                """SELECT id, workspace_id, title, silo_id, priority,
-                          summary, detail, metric_value, metric_label,
-                          sources, suggested_questions
+                """SELECT id, workspace_id, title, silo, summary, detail,
+                          metric, metric_sub, sources, suggested_questions
                    FROM sentinel.workspace_tiles
                    ORDER BY id
                    LIMIT $1 OFFSET $2""",
@@ -262,17 +260,17 @@ async def _run_sync():
                     conn, kb_id, "tile", str(tile["id"]),
                     f"Insight: {tile['title']}", _tile_content(dict(tile)),
                     {"workspace_id": str(tile["workspace_id"]),
-                     "silo": tile.get("silo_id", "")},
+                     "silo": tile.get("silo", "")},
                 )
         await _cleanup_deleted(conn, kb_id, "tile", tile_ids)
 
         # --- Engagement (aggregated per workspace) ---
         engagement_rows = await conn.fetch(
             """SELECT w.id AS workspace_id, w.name AS workspace_name,
-                      count(wi.id) AS total,
-                      count(*) FILTER (WHERE wi.kind = 'like') AS likes,
-                      count(*) FILTER (WHERE wi.kind = 'dislike') AS dislikes,
-                      count(*) FILTER (WHERE wi.kind = 'question') AS questions
+                      count(wi.tile_id) AS total,
+                      coalesce(sum(wi.thumbs_up), 0) AS likes,
+                      coalesce(sum(wi.thumbs_down), 0) AS dislikes,
+                      coalesce(sum(jsonb_array_length(wi.followup_questions)), 0) AS questions
                FROM sentinel.workspaces w
                LEFT JOIN sentinel.workspace_interactions wi ON wi.workspace_id = w.id
                GROUP BY w.id, w.name"""
@@ -283,11 +281,12 @@ async def _run_sync():
             eng_ids.add(eng_id)
             # Top tiles by interaction count
             top_tiles = await conn.fetch(
-                """SELECT t.title, count(*) AS cnt
+                """SELECT t.title,
+                          (wi.thumbs_up + wi.thumbs_down +
+                           jsonb_array_length(wi.followup_questions)) AS cnt
                    FROM sentinel.workspace_interactions wi
                    JOIN sentinel.workspace_tiles t ON t.id = wi.tile_id
                    WHERE wi.workspace_id = $1
-                   GROUP BY t.title
                    ORDER BY cnt DESC
                    LIMIT 5""",
                 eng["workspace_id"],
